@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Starter HTML Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      line-height: 1.5;
+    }
+    header {
+      border-bottom: 2px solid #ccc;
+      margin-bottom: 1rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Starter Page</h1>
+    <p>Created at: <strong id="date"></strong></p>
+  </header>
+
+  <main>
+    <p>This is a basic HTML file to practice version control with Git and GitHub.</p>
+    <button id="sayHi">Click Me</button>
+  </main>
+
+  <script>
+    // Fill in the date automatically
+    document.getElementById("date").textContent = new Date().toLocaleString();
+
+    // Simple button interaction
+    document.getElementById("sayHi").addEventListener("click", () => {
+      alert("Hello! You just clicked the button.");
+    });
+  </script>
+</body>
+</html>
