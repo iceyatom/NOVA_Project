@@ -4,32 +4,68 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Niles Biological Starter Page</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 2rem;
-      line-height: 1.5;
-    }
-    header {
-      border-bottom: 2px solid #ccc;
-      margin-bottom: 1rem;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css"/>
+
 </head>
 <body>
   <header>
-    <h1>Hello</h1>
+    <h1>Niles Biological Starter Page</h1>
     <p>Created at: <strong id="date"></strong></p>
+
+  <!-- Responsive top-right navigation -->
+  <nav class="topbar" aria-label="Main">
+    <button class="menu-toggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="topbar-links">
+      ☰
+    </button>
+    <ul id="topbar-links" class="links">
+      <li><a href="#">Home</a></li>
+      <li><a href="about.html">About Us</a></li>
+    </ul>
+  </nav>
   </header>
 
   <main>
     <p>This is a basic HTML file to practice version control with Git and GitHub.</p>
     <button id="sayHi">Click Me</button>
+    
+    <section>
+      <h2>Team Member Names</h2>
+      <p>Each person can add their name below to practice Github commits:</p>
+      <ul>
+        <li>Name:Jonathan Herman</li>
+          <ul>
+            <li>Date:9-28-2025</li>
+          </ul>
+        <li>Name:</li>
+          <ul>
+            <li>Date:</li>
+          </ul>
+        <li>Name:</li>
+          <ul>
+            <li>Date:</li>
+          </ul>
+        <li>Name:</li>
+          <ul>
+            <li>Date:</li>
+          </ul>
+        <li>Name:</li>
+          <ul>
+            <li>Date:</li>
+          </ul>
+        <li>Name:</li>
+          <ul>
+            <li>Date:</li>
+          </ul>
+        <li>Name:</li>
+          <ul>
+            <li>Date:</li>
+          </ul>
+        <li>Name:</li>
+          <ul>
+            <li>Date:</li>
+          </ul>                                                            
+      </ul>
+    </section>
   </main>
 
   <script>
@@ -40,6 +76,18 @@
     document.getElementById("sayHi").addEventListener("click", () => {
       alert("Hello! You just clicked the button.");
     });
+
+    // Responsive menu toggle
+    const menuBtn = document.querySelector(".menu-toggle");
+    const links = document.getElementById("topbar-links");
+
+    if (menuBtn && links) {
+      menuBtn.addEventListener("click", () => {
+        const isOpen = links.classList.toggle("open");
+        menuBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      });
+    }
+
   </script>
 </body>
 </html>
