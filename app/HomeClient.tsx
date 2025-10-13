@@ -1,12 +1,12 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { User } from "@prisma/client";
 
-export default function Page() {
-  const [now, setNow] = useState<string>("");
+export default function HomeClient({ users }: { users: User[] }) {
+  const [now, setNow] = useState("");
 
   useEffect(() => {
-    setNow(new Date().toLocaleString()); // replaces the old <script> that set #date
+    setNow(new Date().toLocaleString());
   }, []);
 
   return (
@@ -50,6 +50,9 @@ export default function Page() {
             <ul><li>Date: 10-5-2025</li></ul>
           </li>
         </ul>
+
+        <h2 style={{ marginTop: 24 }}>Users from DB</h2>
+        <pre>{JSON.stringify(users, null, 2)}</pre>
       </section>
     </main>
   );

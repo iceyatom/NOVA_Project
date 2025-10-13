@@ -1,0 +1,92 @@
+/* [project]/app/style.css [app-client] (css) */
+body {
+  margin: 2rem;
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+}
+
+header {
+  border-bottom: 2px solid #ccc;
+  margin-bottom: 1rem;
+}
+
+button {
+  cursor: pointer;
+  padding: .5rem 1rem;
+  font-size: 1rem;
+}
+
+.topbar {
+  align-items: center;
+  gap: .75rem;
+  display: flex;
+  position: absolute;
+  top: 1rem;
+  right: 2rem;
+}
+
+.topbar .links {
+  gap: .75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+}
+
+.topbar a {
+  color: #333;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: .5rem 1rem;
+  font-weight: bold;
+  text-decoration: none;
+  transition: background .2s;
+}
+
+.topbar a:hover {
+  background: #f0f0f0;
+}
+
+.menu-toggle {
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: .4rem .6rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .menu-toggle {
+    display: inline-block;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-end;
+    display: flex;
+    position: absolute;
+    top: 1rem;
+    right: 2rem;
+  }
+
+  .topbar .links {
+    text-align: right;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-top: .5rem;
+    padding: .5rem;
+    display: none;
+  }
+
+  .topbar .links.open {
+    display: flex;
+  }
+}
+
+/*# sourceMappingURL=app_style_539cb939.css.map*/

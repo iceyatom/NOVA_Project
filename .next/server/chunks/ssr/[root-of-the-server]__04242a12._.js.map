@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"","debugId":null}},
+    {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/musta/OneDrive/Documents/Team%20NOVA/NOVA_Project-2/app/about/page.tsx"],"sourcesContent":["export default function AboutPage() {\r\n  return (\r\n    <main>\r\n      <h1>About Us</h1>\r\n      <p>Welcome to the About Us page!</p>\r\n    </main>\r\n  );\r\n}"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBACE,8OAAC;;0BACC,8OAAC;0BAAG;;;;;;0BACJ,8OAAC;0BAAE;;;;;;;;;;;;AAGT","debugId":null}}]
+}
