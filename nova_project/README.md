@@ -22,32 +22,33 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Steps to Run the Next.js Project Locally
 1. Install Node.js
-        Download and install the latest LTS version of Node.js from https://nodejs.org
+    - Download and install the latest LTS version of Node.js from https://nodejs.org
 
 2. Configure PowerShell Permissions (One-Time Setup)
-Open Windows PowerShell as Administrator.
-Run the following command to allow local scripts:
-    In Powershell:
-        Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-        Type y and press Enter when prompted.
-Close PowerShell after completing this step.
+- Open Windows PowerShell as Administrator.
+- Run the following command to allow local scripts:
+    - In Powershell:
+        - Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+        - Type y and press Enter when prompted.
+- Close PowerShell after completing this step.
 
 3. Open the Project in Visual Studio Code (VSC)
-    Launch VS Code and open the project folder.
+    - Launch VS Code and open the project folder.
 
 4. Install Dependencies
-    In the VS Code powershell terminal, navigate to the project directory:
-        cd path\to\project-folder
+    - In the VS Code powershell terminal, navigate to the project directory:
+        - cd path\to\project-folder
 
-5. Install the required packages:
-        npm install next react react-dom
-    Start the Development Server
-    Run the development server:
-        npm run dev
-    Once it starts, open http://localhost:3000 in your web browser.
+5. Install the required packages
+    - In Powershell: 
+        - npm install next react react-dom
+    - Start the Development Server
+    - Run the development server:
+        - npm run dev
+    - Once it starts, open http://localhost:3000 in your web browser.
 
 6. Stop the Server
-    To stop the local server, press Ctrl + C in the terminal.
+    - To stop the local server, press Ctrl + C in the terminal.
 
 ## Learn More
 
