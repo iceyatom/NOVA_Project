@@ -20,8 +20,14 @@ export default function Header() {
         </button>
 
         <ul id="topbar-links" className={`links ${open ? "open" : ""}`}>
-          <li><Link href="/">Home</Link></li>
-          <li><Link href="/about" aria-current="page">About Us</Link></li>
+          <li>
+            <Link href="/">Home</Link>
+          </li>
+          <li>
+            <Link href="/about" aria-current="page">
+              About Us
+            </Link>
+          </li>
         </ul>
       </nav>
     </header>
