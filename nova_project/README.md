@@ -52,6 +52,18 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 6. Stop the Server
    - To stop the local server, press Ctrl + C in the terminal.
 
+## Scripts
+
+1. ESLint
+   - npm run lint: runs ESLint to error check project
+2. Prettier
+   - npm run check: check only formatting to tell you where changes are wanted to be made
+   - npm run format: write formatting changes to make all styling consistent
+3. Npm dev, build, start
+   - npm run dev: build project in dev mode; fast responsiveness when file saves
+   - npm run build: builds project with compiling/compressing; must be done before npm run start
+   - npm run start: build production form of project optimized for efficiency
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
