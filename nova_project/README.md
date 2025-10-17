@@ -21,34 +21,48 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Steps to Run the Next.js Project Locally
+
 1. Install Node.js
-    - Download and install the latest LTS version of Node.js from https://nodejs.org
+   - Download and install the latest LTS version of Node.js from https://nodejs.org
 
 2. Configure PowerShell Permissions (One-Time Setup)
+
 - Open Windows PowerShell as Administrator.
 - Run the following command to allow local scripts:
-    - In Powershell:
-        - Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-        - Type y and press Enter when prompted.
+  - In Powershell:
+    - Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+    - Type y and press Enter when prompted.
 - Close PowerShell after completing this step.
 
 3. Open the Project in Visual Studio Code (VSC)
-    - Launch VS Code and open the project folder.
+   - Launch VS Code and open the project folder.
 
 4. Install Dependencies
-    - In the VS Code powershell terminal, navigate to the project directory:
-        - cd path\to\project-folder
+   - In the VS Code powershell terminal, navigate to the project directory:
+     - cd path\to\project-folder
 
 5. Install the required packages
-    - In Powershell: 
-        - npm install next react react-dom
-    - Start the Development Server
-    - Run the development server:
-        - npm run dev
-    - Once it starts, open http://localhost:3000 in your web browser.
+   - In Powershell:
+     - npm install next react react-dom
+   - Start the Development Server
+   - Run the development server:
+     - npm run dev
+   - Once it starts, open http://localhost:3000 in your web browser.
 
 6. Stop the Server
-    - To stop the local server, press Ctrl + C in the terminal.
+   - To stop the local server, press Ctrl + C in the terminal.
+
+## Scripts
+
+1. ESLint
+   - npm run lint: runs ESLint to error check project
+2. Prettier
+   - npm run check: check only formatting to tell you where changes are wanted to be made
+   - npm run format: write formatting changes to make all styling consistent
+3. Npm dev, build, start
+   - npm run dev: build project in dev mode; fast responsiveness when file saves
+   - npm run build: builds project with compiling/compressing; must be done before npm run start
+   - npm run start: build production form of project optimized for efficiency
 
 ## Learn More
 
