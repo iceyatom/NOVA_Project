@@ -78,3 +78,38 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## SCRUM-59-Navigation-&-Routing-Links
+
+This change implements navigation links in the header and simple route stubs so users can move between pages without full page reloads.
+
+Created links for the following pages:
+
+  - `/catalog` — Catalog stub
+  - `/login` - Login stub
+  - `/about` — About stub
+
+- Utilized Next.js App Router to create directories to seperate and categorize individual pages
+  - `app/catalog/page.tsx`
+  - `app/login/page.tsx`
+  - `app/about/page.tsx`
+- Client side routing using `next/link`
+- Active link state can be identified with `aria-current="page"`
+- No 404 page errors
+
+- Manual verification checklist
+- Visit the below pages to verify rendering routes:
+  - `/catalog`
+  - `/login`
+  - `/about`
+
+- Client-side navigation: 
+   - Open DevTools to Network to filter type:document.
+   - Click Catalog, About, Login/Account in the header. 
+   - No new document requests should display 'fetch'
+- Active link state: 
+   - The current link is visibly different (underline/bold).
+   - In DevTools → Elements, the active <a> has aria-current="page".
+- Keyboard accessibility:
+   - Press Tab to move and highlight each button link.
+

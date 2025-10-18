@@ -1,13 +1,17 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/" && pathname?.startsWith(href));
 
   return (
     <header>
-      {/* Top-right navigation with toggle */}
       <nav className="topbar" aria-label="Main">
         <button
           className="menu-toggle"
@@ -21,11 +25,30 @@ export default function Header() {
 
         <ul id="topbar-links" className={`links ${open ? "open" : ""}`}>
           <li>
-            <Link href="/">Home</Link>
+            <Link
+              href="/catalog"
+              aria-current={isActive("/catalog") ? "page" : undefined}
+              className={isActive("/catalog") ? "active" : undefined}
+            >
+              Catalog
+            </Link>
           </li>
           <li>
-            <Link href="/about" aria-current="page">
+            <Link
+              href="/about"
+              aria-current={isActive("/about") ? "page" : undefined}
+              className={isActive("/about") ? "active" : undefined}
+            >
               About Us
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/login" 
+              aria-current={isActive("/login") ? "page" : undefined}
+              className={isActive("/login") ? "active" : undefined}
+            >
+              Login
             </Link>
           </li>
         </ul>
