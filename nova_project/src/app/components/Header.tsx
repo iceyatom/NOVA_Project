@@ -51,6 +51,15 @@ export default function Header() {
               Login
             </Link>
           </li>
+          <li>
+            <Link
+              href="/" 
+              aria-current={isActive("/") ? "page" : undefined}
+              className={isActive("/") ? "active" : undefined}
+            >
+              Home
+            </Link>
+          </li>
         </ul>
       </nav>
     </header>
