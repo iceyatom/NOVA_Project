@@ -26,6 +26,15 @@ export default function Header() {
         <ul id="topbar-links" className={`links ${open ? "open" : ""}`}>
           <li>
             <Link
+              href="/" 
+              aria-current={isActive("/") ? "page" : undefined}
+              className={isActive("/") ? "active" : undefined}
+            >
+              Home
+            </Link>
+          </li>          
+          <li>
+            <Link
               href="/catalog"
               aria-current={isActive("/catalog") ? "page" : undefined}
               className={isActive("/catalog") ? "active" : undefined}
@@ -49,15 +58,6 @@ export default function Header() {
               className={isActive("/login") ? "active" : undefined}
             >
               Login
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/" 
-              aria-current={isActive("/") ? "page" : undefined}
-              className={isActive("/") ? "active" : undefined}
-            >
-              Home
             </Link>
           </li>
         </ul>
