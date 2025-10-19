@@ -11,6 +11,14 @@ export default function Page() {
 
   return (
     <main>
+
+      {/* Hero section */}
+      <section className="hero-section">
+        <div className="hero-div">
+          <Link className="CTA" href="/catalog" aria-label="Browse product catalog">Browse Products</Link>
+        </div>
+      </section>
+
       <h1>Niles Biological Starter Page</h1>
       <p>
         Created at: <strong id="date">{now}</strong>
@@ -20,6 +28,7 @@ export default function Page() {
         This is a basic HTML file to practice version control with Git and
         GitHub.
       </p>
+
       <button
         id="sayHi"
         onClick={() => alert("Hello! You just clicked the button.")}
