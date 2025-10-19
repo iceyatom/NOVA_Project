@@ -127,7 +127,7 @@ header {
 /* Hero section */
 .hero-section {
   --hero-max-width: 100rem;
-  height: 100dvh;
+  height: 10dvh;
   width: 100%;
   justify-content: center;
   align-items: center;
