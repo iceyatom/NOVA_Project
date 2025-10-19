@@ -1,6 +1,7 @@
 /* Theme tokens */
 :root {
   --brand-teal: #0f766e;
+  --brand-teal-light: #8ee6dd;
   --brand-teal-dark: #0b5f59;
   --brand-teal-contrast: #ffffff;
   --brand-teal-border: rgba(255, 255, 255, 0.2);
@@ -125,6 +126,37 @@ header {
 
 .navlink:focus-visible {
   outline: 2px solid var(--brand-focus);
+  outline-offset: 2px;
+}
+
+/* Hero section */
+.hero-section {
+  --hero-max-width: 100rem;
+  height: 10dvh;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+}
+
+.CTA {
+  display: inline-block;
+  padding: 0.65rem 1.5rem;
+  border-radius: 8px;
+  background: var(--brand-teal-light);
+  color: black;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background 500ms ease, box-shadow 350ms ease;
+}
+
+.CTA:hover {
+  background: rgba(from var(--brand-teal-light) r g b / 0.33);
+  box-shadow: 3.5px 3.5px 0px var(--brand-teal-light);
+}
+
+.CTA:focus-visible {
+  outline: 2px solid var(--brand-teal);
   outline-offset: 2px;
 }
 
