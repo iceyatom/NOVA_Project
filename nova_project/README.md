@@ -113,3 +113,21 @@ Created links for the following pages:
 - Keyboard accessibility:
    - Press Tab to move and highlight each button link.
 
+## SCRUM-60-CTA-to-Catalog-Browse-Products-
+
+The call-to-action (CTA) button navigates to the '/catalog' web page utilizing Next.js Links to not require full-page loads.
+
+- Visibility
+   - The CTA is properly colored to contrast with the white background, though the background will likely change in the future. 
+   - The "Browse Products" text contrasts the button color for readability.
+   - The focus outline contrasts with the white background.
+
+- Navigation behavior
+   - The button properly navigates to the '/catalog' page.
+
+- Keyboard access
+   - The button is accessible with Tab selection.
+      - On selectiom, the button generates a focused outline.
+
+- Mobile view
+   - The page was tested on a smartphone and the button does not appear to clip through any headers, footers, or other content.
