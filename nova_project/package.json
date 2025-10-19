@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "cross-env APP_VERSION=$(git rev-parse --short HEAD) next build --turbopack",
+    "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "format": "prettier --write .",
     "check": "prettier --check .",
-    "start": "next start"
+    "health": "curl -s http://localhost:3000/api/health",
+    "lh:local": "mkdir -p docs/lighthouse && npx lighthouse http://localhost:3000 --only-categories=performance,accessibility,best-practices,seo --preset=desktop --output=json --output-path=./docs/lighthouse/local-desktop.json",
+    "lh:preview": "mkdir -p docs/lighthouse && npx lighthouse $PREVIEW_URL --preset=desktop --output=json --output-path=./docs/lighthouse/preview-desktop.json"
   },
   "dependencies": {
     "next": "15.5.4",
@@ -21,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "eslint-config-prettier": "^10.1.8",

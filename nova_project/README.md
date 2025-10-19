@@ -113,3 +113,33 @@ Created links for the following pages:
 - Keyboard accessibility:
    - Press Tab to move and highlight each button link.
 
+## SCRUM-62-Performance-&-Health-Checks
+This change
+- Adds app/api/health/route.ts returning {status, version, uptimeSeconds, timestamp}
+   - Check via http://localhost:3000/api/health
+- Set Cache-Control: no-store on /api/health
+- Injects APP_VERSION from env or Git SHA at build (package.json script)
+- Adds npm lighthouse scripts: lh:local, lh:preview
+- Documents how to run Lighthouse and where artifacts live
+- Recorded Core Web Vitals (LCP, CLS, INP) in README
+
+- /api/health
+   - get `/api/health` -> `200` JSON with:
+   - `status: "ok"`, `version` (from `APP_VERSION` env), `uptimeSeconds`, `timestamp`.
+- Cache Control is `Cache-Control: no-store`.
+- Dev version is set to  `.env.local` → `APP_VERSION=dev`.
+- Running the following command in terminal `npm run build` injects current Git SHA.
+
+- Lighthouse
+- For local keep `npm run dev` running, then `npm run lh:local` -> `docs/lighthouse/local-desktop.json`
+- For Preview `PREVIEW_URL=https://nova-project-umber.vercel.app npm run lh:preview` -> `docs/lighthouse/preview-desktop.json`
+   - NOTE: Preview will work only after commited to main and deployed
+
+- Vitals recieved from lighthouse audit
+| Target  | Perf | LCP  | CLS  | INP  |
+|---------|------|------|------|------|
+| Local   |  98% | 1.10s| 0.0  | 65ms |
+
+Additional Notes:
+- Do not commit large Lighthouse reports; attach to PR or store as CI artifacts.
+   - 'local-desktop.json' or 'preview-desktop.json'
