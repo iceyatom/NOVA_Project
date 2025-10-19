@@ -31,6 +31,8 @@ main {
 }
 
 button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
   cursor: pointer;
 }
 
@@ -99,21 +101,27 @@ header {
   padding: 0;
 }
 
+/* Upgrade links to button-like */
 .navlink {
+  display: inline-block;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
   color: var(--brand-teal-contrast);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
+  transition: background 120ms ease;
 }
 
-.navlink:hover {
-  text-decoration: underline;
+.navlink:hover { 
+  background: rgba(255, 255, 255, 0.20); 
 }
 
 .navlink:focus-visible {
   outline: 2px solid var(--brand-focus);
   outline-offset: 2px;
-  border-radius: 4px;
 }
+
 
 /* Mobile menu */
 .menu-toggle {
@@ -131,7 +139,8 @@ header {
   background: rgba(255, 255, 255, 0.06);
 }
 
-@media (max-width: 700px) {
+/* Responsive nav */
+@media (max-width: 850px) {
   .menu-toggle { display: inline-block; }
 
   .topbar {
@@ -140,12 +149,13 @@ header {
   }
 
   .links {
-    display: none;
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-end;
-    text-align: right;
-    margin-top: 0.5rem;
+    display: none;                /* hide by default */
+    width: 100%;                  /* full width */
+    flex-direction: row;          /* horizontal layout */
+    justify-content: flex-end;    /* align right */
+    align-items: flex-end;        /* align bottom */
+    text-align: right;            /* align text right */
+    margin-top: 0.5rem;           /* spacing from topbar */
   }
 
   .links.open { display: flex; }
