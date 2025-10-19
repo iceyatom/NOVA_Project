@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./style.css";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 
 export const metadata: Metadata = {
-  title: "Niles Biological",
+  title: "Niles Biological Inc.",
   description: "Modern catalog & staff dashboard",
 };
 
@@ -16,7 +17,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Header />
-        {children}
+        <main className="container">{children}</main>
+        <Footer />
       </body>
     </html>
   );
