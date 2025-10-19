@@ -44,6 +44,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 5. Install the required packages
    - In Powershell:
      - npm install next react react-dom
+     - npm install -D prettier
    - Start the Development Server
    - Run the development server:
      - npm run dev
@@ -85,9 +86,9 @@ This change implements navigation links in the header and simple route stubs so 
 
 Created links for the following pages:
 
-  - `/catalog` — Catalog stub
-  - `/login` - Login stub
-  - `/about` — About stub
+- `/catalog` — Catalog stub
+- `/login` - Login stub
+- `/about` — About stub
 
 - Utilized Next.js App Router to create directories to seperate and categorize individual pages
   - `app/catalog/page.tsx`
@@ -103,20 +104,22 @@ Created links for the following pages:
   - `/login`
   - `/about`
 
-- Client-side navigation: 
-   - Open DevTools to Network to filter type:document.
-   - Click Catalog, About, Login/Account in the header. 
-   - No new document requests should display 'fetch'
-- Active link state: 
-   - The current link is visibly different (underline/bold).
-   - In DevTools → Elements, the active <a> has aria-current="page".
+- Client-side navigation:
+  - Open DevTools to Network to filter type:document.
+  - Click Catalog, About, Login/Account in the header.
+  - No new document requests should display 'fetch'
+- Active link state:
+  - The current link is visibly different (underline/bold).
+  - In DevTools → Elements, the active <a> has aria-current="page".
 - Keyboard accessibility:
-   - Press Tab to move and highlight each button link.
+  - Press Tab to move and highlight each button link.
 
 ## SCRUM-62-Performance-&-Health-Checks
+
 This change
+
 - Adds app/api/health/route.ts returning {status, version, uptimeSeconds, timestamp}
-   - Check via http://localhost:3000/api/health
+  - Check via http://localhost:3000/api/health
 - Set Cache-Control: no-store on /api/health
 - Injects APP_VERSION from env or Git SHA at build (package.json script)
 - Adds npm lighthouse scripts: lh:local, lh:preview
@@ -124,21 +127,23 @@ This change
 - Recorded Core Web Vitals (LCP, CLS, INP) in README
 
 - /api/health
-   - get `/api/health` -> `200` JSON with:
-   - `status: "ok"`, `version` (from `APP_VERSION` env), `uptimeSeconds`, `timestamp`.
+  - get `/api/health` -> `200` JSON with:
+  - `status: "ok"`, `version` (from `APP_VERSION` env), `uptimeSeconds`, `timestamp`.
 - Cache Control is `Cache-Control: no-store`.
-- Dev version is set to  `.env.local` → `APP_VERSION=dev`.
+- Dev version is set to `.env.local` → `APP_VERSION=dev`.
 - Running the following command in terminal `npm run build` injects current Git SHA.
 
-- Lighthouse (required to to lighthouse audit)
-- For local keep `npm run dev` running, then `npm run lh:local` -> `docs/lighthouse/local-desktop.json`
-- For Preview `PREVIEW_URL=https://nova-project-umber.vercel.app npm run lh:preview` -> `docs/lighthouse/preview-desktop.json`
-   - NOTE: Preview will work only after commited to main and deployed
+- Lighthouse (required to to lighthouse audit), creates readable html file with statistics
+- For local keep `npm run dev` running, then `npm run lh:local` -> `docs/lighthouse/local-desktop.html`
+- For Preview, make sure `npm run lh:preview` script has correct URL -> `docs/lighthouse/preview-desktop.html`
+  - NOTE: Preview will work only after commited to main and deployed
+- Can open rendered html for readable results
 
 - Vitals recieved from lighthouse audit
-- Local -  Perf: 98% | LCP: 1.10s | CLS: 0.0  | INP: 65ms | 10/18/25
+- Local - Perf: 98% | LCP: 1.10s | CLS: 0.0 | INP: 65ms | 10/18/25
 - Local - Perf: 99% | Accessibility: 96% | Best Practices: 100% | SEO: 100% | 10/19/25
 
 Additional Notes:
+
 - Do not commit large Lighthouse reports; attach to PR or store as CI artifacts.
-   - 'local-desktop.json' or 'preview-desktop.json'
+  - 'local-desktop.html' or 'preview-desktop.html'

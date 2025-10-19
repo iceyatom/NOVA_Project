@@ -17,7 +17,11 @@ export default function Header() {
     <header>
       <nav className="topbar" aria-label="Main">
         {/* Brand (clickable logo + name) */}
-        <Link href="/" aria-label="Niles Biological Inc. - Home" className="brand-link">
+        <Link
+          href="/"
+          aria-label="Niles Biological Inc. - Home"
+          className="brand-link"
+        >
           <Image
             src="/logo-frog.jpg"
             alt="Niles Biological logo"
@@ -42,18 +46,36 @@ export default function Header() {
 
         {/* Primary Navigation */}
         <ul id="topbar-links" className={`links ${open ? "open" : ""}`}>
-          
           {/* Linked */}
-          <li><Link className="navlink" href="/" aria-current="page">Home</Link></li>
-          <li><Link className="navlink" href="/catalog" aria-current="page">Catalog</Link></li>
-          <li><Link className="navlink" href="/contact" aria-current="page">Contact</Link></li>
-          <li><Link className="navlink" href="/about" aria-current="page">About</Link></li>
-          <li><Link className="navlink" href="/login" aria-current="page">Login</Link></li>
+          <li>
+            <Link className="navlink" href="/" aria-current="page">
+              Home
+            </Link>
+          </li>
+          <li>
+            <Link className="navlink" href="/catalog" aria-current="page">
+              Catalog
+            </Link>
+          </li>
+          <li>
+            <Link className="navlink" href="/contact" aria-current="page">
+              Contact
+            </Link>
+          </li>
+          <li>
+            <Link className="navlink" href="/about" aria-current="page">
+              About
+            </Link>
+          </li>
+          <li>
+            <Link className="navlink" href="/login" aria-current="page">
+              Login
+            </Link>
+          </li>
 
           {/* Future pages: Unlinked for now */}
           {/* <li><span className="navlink" aria-disabled="true" title="Coming soon">Blog</span></li> */}
           {/* <li><span className="navlink" aria-disabled="true" title="Coming soon">Support</span></li> */}
-
         </ul>
       </nav>
     </header>
