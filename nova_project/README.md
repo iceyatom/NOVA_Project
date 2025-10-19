@@ -130,15 +130,14 @@ This change
 - Dev version is set to  `.env.local` → `APP_VERSION=dev`.
 - Running the following command in terminal `npm run build` injects current Git SHA.
 
-- Lighthouse
+- Lighthouse (required to to lighthouse audit)
 - For local keep `npm run dev` running, then `npm run lh:local` -> `docs/lighthouse/local-desktop.json`
 - For Preview `PREVIEW_URL=https://nova-project-umber.vercel.app npm run lh:preview` -> `docs/lighthouse/preview-desktop.json`
    - NOTE: Preview will work only after commited to main and deployed
 
 - Vitals recieved from lighthouse audit
-| Target  | Perf | LCP  | CLS  | INP  |
-|---------|------|------|------|------|
-| Local   |  98% | 1.10s| 0.0  | 65ms |
+- Local -  Perf: 98% | LCP: 1.10s | CLS: 0.0  | INP: 65ms | 10/18/25
+- Local - Perf: 99% | Accessibility: 96% | Best Practices: 100% | SEO: 100% | 10/19/25
 
 Additional Notes:
 - Do not commit large Lighthouse reports; attach to PR or store as CI artifacts.
