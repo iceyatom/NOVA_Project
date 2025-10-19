@@ -3,10 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 /* Header: brand on left, nav on right */
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/" && pathname?.startsWith(href));
 
   return (
     <header>
@@ -39,13 +44,42 @@ export default function Header() {
         <ul id="topbar-links" className={`links ${open ? "open" : ""}`}>
 
           {/* Linked */}
-          <li><Link className="navlink" href="/">Home</Link></li>
-          <li><Link className="navlink" href="/about" aria-current="page">About</Link></li>
-
-          {/* Future pages: Unlinked for now */}
-          <li><span className="navlink" aria-disabled="true" title="Coming soon">Browse Products</span></li>
-          <li><span className="navlink" aria-disabled="true" title="Coming soon">Account / Login</span></li>
-          <li><span className="navlink" aria-disabled="true" title="Coming soon">Contact</span></li>
+          <li>
+            <Link
+              href="/" 
+              aria-current={isActive("/") ? "page" : undefined}
+              className={isActive("/") ? "active" : undefined}
+            >
+              Home
+            </Link>
+          </li>          
+          <li>
+            <Link
+              href="/catalog"
+              aria-current={isActive("/catalog") ? "page" : undefined}
+              className={isActive("/catalog") ? "active" : undefined}
+            >
+              Catalog
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/about"
+              aria-current={isActive("/about") ? "page" : undefined}
+              className={isActive("/about") ? "active" : undefined}
+            >
+              About Us
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/login" 
+              aria-current={isActive("/login") ? "page" : undefined}
+              className={isActive("/login") ? "active" : undefined}
+            >
+              Login
+            </Link>
+          </li>
         </ul>
       </nav>
     </header>
