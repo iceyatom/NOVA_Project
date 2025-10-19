@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "cross-env-shell \"APP_VERSION=$(git rev-parse --short HEAD) next build\"",
+    "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "format": "prettier --write .",
     "check": "prettier --check .",
-    "start": "next start"
+    "health": "curl -s http://localhost:3000/api/health",
+    "lh:local": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Path 'docs/lighthouse' -Force | Out-Null\";npx lighthouse http://localhost:3000 --preset=desktop --output=html --output-path=./docs/lighthouse/local-desktop.html",
+    "lh:preview": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Path 'docs/lighthouse' -Force | Out-Null\"; npx lighthouse https://nova-project-umber.vercel.app --preset=desktop --only-categories=performance,accessibility,best-practices,seo --output=html --output-path=./docs/lighthouse/preview-desktop.html"
   },
   "dependencies": {
     "next": "15.5.4",
@@ -21,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "eslint-config-prettier": "^10.1.8",
