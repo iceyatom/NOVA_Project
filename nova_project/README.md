@@ -166,3 +166,26 @@ The call-to-action (CTA) button navigates to the '/catalog' web page utilizing N
 
 - Mobile view
    - The page was tested on a smartphone and the button does not appear to clip through any headers, footers, or other content.
+
+## SCRUM-65-Done-Definition-&-Documentation
+
+Documents relating to Definition of Done and logging were created in a Google Drive folder and shared with team members. 
+
+The DoD Documents folder has the following structure: 
+
+ - Documentation (Folder): Contains the following: 
+    - Accessibility Notes (File): A chart template for logging notes about accessibility features 
+    - Alternative Dispute Resolutions (File): A chart template for logging any major tech decisions 
+    - API Samples (File): A chart template for logging API samples 
+    - Lighthouse Results (File): A chart template for logging Lighthouse results 
+
+ - Definition of Done (File): Contains steps and checklists for: 
+    - What to do for every JIRA task 
+    - A checklist for build, test, deploy, and review completion 
+    - A Pull Request template 
+
+ - README (File): Contains steps for: 
+    - Local setup (Done) 
+    - Environment variables (TBD) 
+    - Database connection (TBD) 
+    - Vercel deploy steps (TBD) 
