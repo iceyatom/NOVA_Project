@@ -142,6 +142,29 @@ Additional Notes:
 - Do not commit large Lighthouse reports; attach to PR or store as CI artifacts.
   - 'local-desktop.html' or 'preview-desktop.html'
 
+## SCRUM-65-Done-Definition-&-Documentation
+
+Documents relating to Definition of Done and logging were created in a Google Drive folder and shared with team members. 
+
+The DoD Documents folder has the following structure: 
+
+ - Documentation (Folder): Contains the following: 
+    - Accessibility Notes (File): A chart template for logging notes about accessibility features 
+    - Alternative Dispute Resolutions (File): A chart template for logging any major tech decisions 
+    - API Samples (File): A chart template for logging API samples 
+    - Lighthouse Results (File): A chart template for logging Lighthouse results 
+
+ - Definition of Done (File): Contains steps and checklists for: 
+    - What to do for every JIRA task 
+    - A checklist for build, test, deploy, and review completion 
+    - A Pull Request template 
+
+ - README (File): Contains steps for: 
+    - Local setup (Done) 
+    - Environment variables (TBD) 
+    - Database connection (TBD) 
+    - Vercel deploy steps (TBD) 
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
