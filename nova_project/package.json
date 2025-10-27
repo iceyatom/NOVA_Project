@@ -14,7 +14,9 @@
     "lh:preview": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Path 'docs/lighthouse' -Force | Out-Null\"; npx lighthouse https://nova-project-umber.vercel.app --preset=desktop --only-categories=performance,accessibility,best-practices,seo --output=html --output-path=./docs/lighthouse/preview-desktop.html"
   },
   "dependencies": {
+    "@prisma/client": "^6.18.0",
     "next": "15.5.4",
+    "prisma": "^6.18.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
