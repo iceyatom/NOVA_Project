@@ -87,13 +87,7 @@ Usage
 This project uses Prisma for database management. Prisma must be properly installed and configured on your machine to contribute database-bound tasks. 
 
 Installation instructions
-1. Navigate to the project root from the terminal (nova_project).
-
-2. Enter the following install command into the terminal to generate the Prisma client:
-  - npm install
-
-3. Create .env and .env.development files.
-  - View internal documentation for specific environment variables.
+[MUSTAFA SCRUM-77 HERE]
 
 Usage
 Before using Prisma, please set up Docker and the nilesbio database properly or some functionalities of Prisma will not work properly.
