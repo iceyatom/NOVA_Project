@@ -72,7 +72,7 @@ Usage
   - docker run -d --name nilesbio --env-file .env.development -p 3307:3306 mysql:8.0
 
 3. Enter the following command into the terminal to access the MySQL terminal:
-  - docker exec -it nilesbio mysql -u <username> -p
+  - docker exec -it nilesbio mysql -u root -p
   - Username and password can be found in internal documentation.
 
 4. Special privileges must be granted to the nilesbio database user so that Prisma can perform operations properly. Enter this series of commands into the MySQL terminal to grant these privileges:
@@ -81,30 +81,6 @@ Usage
   - GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON `nilesbio_shadow`.* TO 'app'@'%';
 
 5. To remove, stop, or make other changes to the Docker container, click on the Container icon in the left pane of Visual Studio Code.
-
-## Prisma
-
-This project uses Prisma for database management. Prisma must be properly installed and configured on your machine to contribute database-bound tasks. 
-
-Installation instructions
-1. Navigate to the project root from the terminal (nova_project).
-
-2. Enter the following install command into the terminal to generate the Prisma client:
-  - npm install
-
-3. Create .env and .env.development files.
-  - View internal documentation for specific environment variables.
-
-Usage
-Before using Prisma, please set up Docker and the nilesbio database properly or some functionalities of Prisma will not work properly.
-
-1. Whenever schema.prisma file is modified, if the client was never generated, if development shifts to prod, or if dependencies are installed (such as npm install), enter the following command into the terminal to generate or update the Prisma client:
-  - npx prisma generate
-
-2. During the development phase, when changing the schema.prisma file, you must track the schema changes by running the following command into the terminal:
-  - npx prisma migrate dev 
-  or 
-  - npx prisma migrate dev -n <schema change purpose>
 
 ## SCRUM-59-Navigation-&-Routing-Links
 
