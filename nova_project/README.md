@@ -167,6 +167,43 @@ The DoD Documents folder has the following structure:
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## SCRUM-75-Implement-Catalog-Grid-Layout
+
+ Catelog Grid provides a layout for how indivdiual item cards are presented on the Catalog Page.
+
+ - All cards are identical and consistent
+ - The page automatically adjusts for different screen sizes for desktop and mobile screen.
+    - The screen resizes from 4 -> 3 -> 2 -> 1
+ - Images are resized and not clipped when resizing
+ - No 404 and performance errors
+
+
+Columns
+ - Mobile: 1 column 
+ - Tablet: 2 columns
+ - Desktop: 3 – 4 columns 
+ - Uses CSS Grid with grid-template-columns and repeat() to scale automatically.
+
+Spacing
+ - Consistent gutters between cards 
+ - Outer padding for page edges 
+ - Equal spacing between rows 
+
+Card Sizing
+ - Cards have equal width within a row Height grows with content
+ - Prevents overlap or clipping
+ 
+Overflow 
+ - Handling Text wraps normally
+ - Images scale so it fits within cards
+
+Accessibility & Focus
+ - Outline remains visible and accessible 
+ - Maintains readable color contrast 
+
+Performance 
+ - Renders only fields required for the grid view
+
 ## Getting Started
 
 First, run the development server:
