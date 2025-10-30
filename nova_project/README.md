@@ -200,8 +200,6 @@ Creating configured Prisma files so everyone works with the same files. Providin
 
 2. Provided documentation in the README:
   - Docker installation and usage
-  - Prisma installation and usage
-
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
