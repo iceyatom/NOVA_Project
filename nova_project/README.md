@@ -55,6 +55,51 @@
   - npm run prisma:deploy: deploys schema migrations to the production database
   - npm run db:seed: seeds the database with initial data from prisma/seed.ts
 
+## Docker
+
+For the app development phase, please use Docker to develop the app.
+
+Installation instructions
+1. Install Docker Desktop:
+  - https://www.docker.com/products/docker-desktop/ 
+
+2. Get the Docker extension by Microsoft in Visual Studio Code.
+
+Usage
+1. Open the Docker Desktop app and complete the initial setup.
+
+2. Enter the following command into the terminal to instantiate a Docker container for nilesbio:
+  - docker run -d --name nilesbio --env-file .env.development -p 3307:3306 mysql:8.0
+
+3. Enter the following command into the terminal to access the MySQL terminal:
+  - docker exec -it nilesbio mysql -u <username> -p
+  - Username and password can be found in internal documentation.
+
+4. Special privileges must be granted to the nilesbio database user so that Prisma can perform operations properly. Enter this series of commands into the MySQL terminal to grant these privileges:
+  - CREATE DATABASE nilesbio_shadow;
+  - GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON `nilesbio`.* TO 'app'@'%';
+  - GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON `nilesbio_shadow`.* TO 'app'@'%';
+
+5. To remove, stop, or make other changes to the Docker container, click on the Container icon in the left pane of Visual Studio Code.
+
+## Prisma
+
+This project uses Prisma for database management. Prisma must be properly installed and configured on your machine to contribute database-bound tasks. 
+
+Installation instructions
+[MUSTAFA SCRUM-77 HERE]
+
+Usage
+Before using Prisma, please set up Docker and the nilesbio database properly or some functionalities of Prisma will not work properly.
+
+1. Whenever schema.prisma file is modified, if the client was never generated, if development shifts to prod, or if dependencies are installed (such as npm install), enter the following command into the terminal to generate or update the Prisma client:
+  - npx prisma generate
+
+2. During the development phase, when changing the schema.prisma file, you must track the schema changes by running the following command into the terminal:
+  - npx prisma migrate dev 
+  or 
+  - npx prisma migrate dev -n <schema change purpose>
+
 ## SCRUM-59-Navigation-&-Routing-Links
 
 This change implements navigation links in the header and simple route stubs so users can move between pages without full page reloads.
@@ -164,6 +209,17 @@ The DoD Documents folder has the following structure:
     - Environment variables (TBD) 
     - Database connection (TBD) 
     - Vercel deploy steps (TBD) 
+
+## SCRUM-78-Docker-Desktop-for-Local-MySQL-and-Prisma-Integration
+
+Creating configured Prisma files so everyone works with the same files. Providing instructions on how to setup Docker and Prisma as well as how to use them during the current development phase.
+
+1. Added files to configure Prisma and to initialize migration
+
+2. Provided documentation in the README:
+  - Docker installation and usage
+  - Prisma installation and usage
+
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
