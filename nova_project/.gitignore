@@ -42,6 +42,3 @@ next-env.d.ts
 
 #lighthouse reports
 /docs/lighthouse/
-
-# Prisma
-/src/generated/prisma
