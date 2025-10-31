@@ -42,3 +42,9 @@ next-env.d.ts
 
 #lighthouse reports
 /docs/lighthouse/
+
+# Prisma Client
+/src/generated/prisma
+
+# Prisma Migrations
+prisma/migrations/

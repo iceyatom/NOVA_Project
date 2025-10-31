@@ -11,11 +11,16 @@ export default function Page() {
 
   return (
     <main>
-
       {/* Hero section */}
       <section className="hero-section">
         <div className="hero-div">
-          <Link className="CTA" href="/catalog" aria-label="Browse product catalog">Browse Products</Link>
+          <Link
+            className="CTA"
+            href="/catalog"
+            aria-label="Browse product catalog"
+          >
+            Browse Products
+          </Link>
         </div>
       </section>
 

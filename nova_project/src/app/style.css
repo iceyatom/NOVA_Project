@@ -147,7 +147,9 @@ header {
   color: black;
   text-decoration: none;
   font-weight: 600;
-  transition: background 500ms ease, box-shadow 350ms ease;
+  transition:
+    background 500ms ease,
+    box-shadow 350ms ease;
 }
 
 .CTA:hover {
@@ -323,17 +325,17 @@ header {
   /* 1 column (mobile) */
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;         
-  max-width: 1200px;         
+  gap: 1rem;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;            
+  padding: 1rem;
 }
 
 /* 2 columns (tablet) */
 @media (min-width: 600px) {
   .catalog-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;            
+    gap: 1.25rem;
     padding: 1.25rem;
   }
 }
@@ -360,17 +362,15 @@ header {
   flex-direction: column;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  overflow: hidden;         
+  overflow: hidden;
   background: #fff;
 }
-
 
 .card-body {
   display: grid;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
 }
-
 
 .card img {
   width: 100%;
@@ -379,14 +379,12 @@ header {
   object-fit: cover;
 }
 
-
 .card h3,
 .card p {
   overflow-wrap: anywhere;
   word-break: break-word;
   margin: 0;
 }
-
 
 .card a:focus-visible,
 .card button:focus-visible {
@@ -395,6 +393,7 @@ header {
   border-radius: 8px;
 }
 
-html, body {
+html,
+body {
   overflow-x: hidden;
 }
