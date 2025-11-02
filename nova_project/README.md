@@ -146,6 +146,20 @@ Before using Prisma, please set up Docker and the nilesbio database properly or 
   or
 - npx prisma migrate dev -n <schema change purpose>
 
+## Local Database Setup & Verification
+
+The project uses a Prisma-based connection layer to communicate with a local MySQL database running in Docker Desktop. This ensures a consistent and reproducible development environment across all team members.
+
+Using database connection method:
+Example – lib/db.ts defines a shared Prisma client (singleton) that reads configuration from .env.development. All database operations import this client, maintaining consistent connection handling across the app.
+
+Developer notes:
+
+- Docker Desktop and the local MySQL container must be running.
+- .env.development should contain a valid DATABASE_URL.
+- Run Prisma commands (generate, migrate, seed) before launching the app.
+- Use the Catalog page to visually verify a successful connection.
+
 ## SCRUM-59-Navigation-&-Routing-Links
 
 This change implements navigation links in the header and simple route stubs so users can move between pages without full page reloads.
