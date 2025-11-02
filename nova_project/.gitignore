@@ -49,3 +49,4 @@ next-env.d.ts
 
 # Prisma Migrations
 prisma/migrations/
+/src/generated/prisma
