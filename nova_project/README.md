@@ -131,9 +131,33 @@ You can view and verify the seeded records using:
 This project uses Prisma for database management. Prisma must be properly installed and configured on your machine to contribute database-bound tasks.
 
 Installation instructions
-[MUSTAFA SCRUM-77 HERE]
 
-Usage
+## SCRUM-77-Set-Up-Prisma-ORM-for-MySQL-Integration
+
+This task involves installing Prisma and its client package, initializing the Prisma project files, updating configuration settings for MySQL compatibility, and setting up environment variable files for local and development environments.
+
+Based on fresh clone
+
+1. Install dependencies in console:
+
+- npm install
+- npm install prisma
+- npm install @prima/client
+
+2. Move seed.ts out of existing primsa folder and then delete that folder
+
+3. Run 'npm prisma init' on console then move the seed.ts file back into the newly created prisma folder
+
+4. Make the following changes to the schema.primsa file
+
+- datasource db provider= "postgresql" --> "mysql"
+- generator client provider=prisma-client-js instead of prisma-client
+- generator client output="../node_modules/.prisma/client" instead of “..src/generated/prisma”
+
+5. Create a .env and a .env.development file under the nova_project directory and delete any content inside them
+
+#### Usage
+
 Before using Prisma, please set up Docker and the nilesbio database properly or some functionalities of Prisma will not work properly.
 
 1. Whenever schema.prisma file is modified, if the client was never generated, if development shifts to prod, or if dependencies are installed (such as npm install), enter the following command into the terminal to generate or update the Prisma client:
