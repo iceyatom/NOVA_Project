@@ -5,7 +5,7 @@ import Footer from "./components/Footer";
 
 export const metadata: Metadata = {
   title: "Niles Biological Inc.",
-  description: "Modern catalog & staff dashboard",
+  description: "Educational biological specimens and supplies",
 };
 
 export default function RootLayout({
@@ -23,3 +23,4 @@ export default function RootLayout({
     </html>
   );
 }
+

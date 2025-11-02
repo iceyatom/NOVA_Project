@@ -1,95 +1,61 @@
-"use client";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+// Home page: three-pane layout
+import Link from 'next/link';
 
-export default function Page() {
-  const [now, setNow] = useState<string>("");
+const leftLinks = [
+  { label: 'Microscope Slides', href: '/catalog?c=slides' },
+  { label: 'Preserved Specimens', href: '/catalog?c=preserved' },
+  { label: 'Live Cultures', href: '/catalog?c=cultures' },
+  { label: 'Dissection Kits', href: '/catalog?c=dissection' },
+];
 
-  useEffect(() => {
-    setNow(new Date().toLocaleString()); // replaces the old <script> that set #date
-  }, []);
+const rightLinks = [
+  { label: 'Classroom Kits', href: '/catalog?c=kits' },
+  { label: 'Model Organisms', href: '/catalog?c=models' },
+  { label: 'Reagents', href: '/catalog?c=reagents' },
+  { label: 'Accessories', href: '/catalog?c=accessories' },
+];
 
+export default function HomePage() {
   return (
-    <main>
-
-      {/* Hero section */}
-      <section className="hero-section">
-        <div className="hero-div">
-          <Link className="CTA" href="/catalog" aria-label="Browse product catalog">Browse Products</Link>
-        </div>
+    <div className="three-pane">
+      {/* Center: company intro + secondary CTA */}
+      <section className="pane pane-center" aria-labelledby="hero-heading">
+        <h1 id="hero-heading" className="hero-title">Niles Biological</h1>
+        <p className="hero-subtitle">
+          We supply classrooms and labs with reliable biological specimens, slides, and kits—so educators can focus on teaching.
+        </p>
+        <p className="hero-cta">
+          <Link className="button-secondary" href="/catalog">Browse the Catalog</Link>
+        </p>
       </section>
 
-      <h1>Niles Biological Starter Page</h1>
-      <p>
-        Created at: <strong id="date">{now}</strong>
-      </p>
+      {/* Right: quick-start links */}
+      <aside className="pane pane-right" aria-labelledby="right-nav-heading">
+        <h2 id="right-nav-heading" className="pane-title">Start Here</h2>
+        <nav aria-label="Right catalog links">
+          <ul className="pane-list">
+            {rightLinks.map((l) => (
+              <li key={l.href}>
+                <Link className="nav-link" href={l.href}>{l.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
 
-      <p>
-        This is a basic HTML file to practice version control with Git and
-        GitHub.
-      </p>
-
-      <button
-        id="sayHi"
-        onClick={() => alert("Hello! You just clicked the button.")}
-      >
-        Click Me
-      </button>
-
-      <section>
-        <h2>Team Member Names</h2>
-        <p>Each person can add their name below to practice Github commits:</p>
-        <ul>
-          <li>
-            Name: Jonathan Herman
-            <ul>
-              <li>Date: 9-28-2025</li>
-            </ul>
-          </li>
-          <li>
-            Name: Adam Fedorowicz
-            <ul>
-              <li>Date: 9-30-2025</li>
-            </ul>
-          </li>
-          <li>
-            Name: Mustafa El Attar
-            <ul>
-              <li>Date: 10-2-2025</li>
-            </ul>
-          </li>
-          <li>
-            Name: Alan Kushnir
-            <ul>
-              <li>Date: 10-1-2025</li>
-            </ul>
-          </li>
-          <li>
-            Name: Ronit Narayan
-            <ul>
-              <li>Date: 10-2-2025</li>
-            </ul>
-          </li>
-          <li>
-            Name: Mohamed Ismail
-            <ul>
-              <li>Date: 10-3-2025</li>
-            </ul>
-          </li>
-          <li>
-            Name: Brandon Casey
-            <ul>
-              <li>Date: 10-4-2025</li>
-            </ul>
-          </li>
-          <li>
-            Name: Thomas Nguyen
-            <ul>
-              <li>Date: 10-5-2025</li>
-            </ul>
-          </li>
-        </ul>
-      </section>
-    </main>
+      {/* Left: explore links */}
+      <aside className="pane pane-left" aria-labelledby="left-nav-heading">
+        <h2 id="left-nav-heading" className="pane-title">Explore</h2>
+        <nav aria-label="Left catalog links">
+          <ul className="pane-list">
+            {leftLinks.map((l) => (
+              <li key={l.href}>
+                <Link className="nav-link" href={l.href}>{l.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+    </div>
   );
 }
