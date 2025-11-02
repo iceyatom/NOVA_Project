@@ -1,15 +1,13 @@
 // src/lib/prisma.ts
-import { PrismaClient } from '../../../node_modules/.prisma/client'
-
-
+import { PrismaClient } from "../../../node_modules/.prisma/client";
 
 // This ensures only ONE PrismaClient instance is used during dev (hot reload safe)
-const globalForPrisma = global as unknown as { prisma?: PrismaClient }
+const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['warn', 'error'], // you can add 'query' if you want to debug queries
-  })
+    log: ["warn", "error"], // you can add 'query' if you want to debug queries
+  });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

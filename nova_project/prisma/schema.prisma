@@ -30,4 +30,3 @@ model CatalogItem {
   reorderLevel      Int?      @default(0)
   unitCost          Float?    @default(0.0)
 }
-
