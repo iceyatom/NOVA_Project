@@ -42,13 +42,9 @@ next-env.d.ts
 
 #lighthouse reports
 /docs/lighthouse/
-<<<<<<< Updated upstream
-=======
 
 # Prisma Client
 /src/generated/prisma
 
 # Prisma Migrations
 prisma/migrations/
-/src/generated/prisma
->>>>>>> Stashed changes
