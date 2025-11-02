@@ -12,4 +12,22 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
+
+model CatalogItem {
+  id                Int       @id @default(autoincrement())
+  itemName          String
+  category          String?
+  description       String?
+  price              Float?    @default(0.0)
+  quantityInStock   Int?      @default(0)
+  unitOfMeasure     String?
+  storageLocation   String?
+  storageConditions String?
+  expirationDate    DateTime?
+  dateAcquired      DateTime?
+  reorderLevel      Int?      @default(0)
+  unitCost          Float?    @default(0.0)
+}
+
