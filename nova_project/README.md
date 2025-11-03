@@ -382,4 +382,25 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Configure Security & Networking (Docker Local + AWS RDS)
+
+#### Prerequisites
+- AWS RDS MySQL instance created and running.
+- Docker Desktop + Docker Compose installed locally.
+- Your public IP allowlisted in the RDS Security Group (TCP 3306).
+- `.env` and `.env.development` files in the project root with correct credentials.
+
+#### Add IP address to the Inbound Rules in the VPC security group
+1. Go to the AWS Management Console → RDS → Databases → select your database.
+2. Scroll to the Connectivity & security tab.
+3. Under VPC security groups, click the linked security group ID (e.g., sg-Babc123def456).
+- This opens the EC2 > Security Groups page.
+4. Select the group, then click the Inbound rules tab.
+5. Click Edit inbound rules
+- Add rule.
+6. Fill it out like this:
+- Type: MySQL/Aurora (or the DB engine's port)
+- Protocol: TCP
+- Port Range: 3306
+- Source: My IP
+AWS automatically fills your current public IP with /32 (e.g. 123.45.67.89/32 ).
