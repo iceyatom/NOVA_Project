@@ -382,4 +382,24 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
+## 🧱 Configure Security & Networking (Docker Local + AWS RDS)
+
+### Overview
+This section describes how to securely connect a local Dockerized environment to an AWS RDS instance while ensuring only authorized IPs can access the database.
+
+---
+
+### 🧩 Prerequisites
+- AWS RDS MySQL instance created and running.
+- Docker Desktop + Docker Compose installed locally.
+- Your public IP allowlisted in the RDS Security Group (TCP 3306).
+- `.env.local` file in the project root with RDS credentials.
+
+---
+
+### ⚙️ Environment Variables
+Create a `.env.local` file in your project root:
+
+
+
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
