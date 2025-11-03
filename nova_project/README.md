@@ -185,7 +185,7 @@ Developer notes:
 - Use the Catalog page to visually verify a successful connection.
 
 
-# 🔐 AWS IAM Accounts for RDS Access
+# AWS IAM Accounts for RDS Access
 
 ### Overview
 This setup ensures every developer connects to the AWS RDS database using **their own IAM account**, not shared admin or root credentials.  
@@ -196,7 +196,7 @@ This provides:
 
 ---
 
-## 🧩 Key Concepts
+## Key Concepts
 
 | Term | Description |
 |------|--------------|
@@ -208,7 +208,7 @@ This provides:
 
 ---
 
-## ⚙️ IAM User Setup (Admin Steps) SCRUM-76: create IAM Accounts for AWS RDS Access
+## IAM User Setup (Admin Steps) SCRUM-76: create IAM Accounts for AWS RDS Access
 
 Performed by the **AWS account admin** or whoever manages infrastructure.
 
@@ -255,13 +255,13 @@ Performed by the **AWS account admin** or whoever manages infrastructure.
 
 ---
 
-## 👩‍💻 Developer Setup (Individual Steps)
+## Developer Setup (Individual Steps)
 
 Follow these steps after your IAM user is created.
 
 ### 1. Configure AWS CLI
 Install the AWS CLI (if not already):
-```bash
+
 # macOS / Linux
 brew install awscli
 
@@ -466,24 +466,4 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-## 🧱 Configure Security & Networking (Docker Local + AWS RDS)
-
-### Overview
-This section describes how to securely connect a local Dockerized environment to an AWS RDS instance while ensuring only authorized IPs can access the database.
-
----
-
-### 🧩 Prerequisites
-- AWS RDS MySQL instance created and running.
-- Docker Desktop + Docker Compose installed locally.
-- Your public IP allowlisted in the RDS Security Group (TCP 3306).
-- `.env.local` file in the project root with RDS credentials.
-
----
-
-### ⚙️ Environment Variables
-Create a `.env.local` file in your project root:
-
-
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Configure Security & Networking (Docker Local + AWS RDS)
