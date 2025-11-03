@@ -184,6 +184,90 @@ Developer notes:
 - Run Prisma commands (generate, migrate, seed) before launching the app.
 - Use the Catalog page to visually verify a successful connection.
 
+
+# AWS IAM Accounts for RDS Access
+
+### Overview
+This setup ensures every developer connects to the AWS RDS database using **their own IAM account**, not shared admin or root credentials.  
+This provides:
+- **Traceability** — Each connection is tied to an individual user.  
+- **Security** — Access follows the **principle of least privilege**.  
+- **Compliance** — Prevents accidental exposure of shared keys or over-permissive roles.
+
+---
+
+## Key Concepts
+
+| Term | Description |
+|------|--------------|
+| **IAM (Identity and Access Management)** | AWS service for managing users, roles, and permissions. |
+| **IAM Policy** | JSON document that defines what actions a user can perform. |
+| **Access Key ID / Secret Access Key** | Credentials used for programmatic or CLI access to AWS. |
+| **RDS Access Policy** | A restrictive policy allowing connection and basic management of an RDS instance. |
+| **Least Privilege Principle** | Users receive only the minimal permissions needed to do their job. |
+
+---
+
+## IAM User Setup (Admin Steps) SCRUM-76: create IAM Accounts for AWS RDS Access
+
+Performed by the **AWS account admin** or whoever manages infrastructure.
+
+1. **Navigate to IAM Console**
+   - Go to **AWS Management Console → IAM → Users → Add users**.
+
+2. **Create User**
+   - Username: `<developer-name>` (e.g., `alice-dev`)
+   - Select **Access type → Programmatic access**.
+
+3. **Attach Permissions**
+   - Choose **Attach existing policies directly**.
+   - Click **Create policy** and paste this example policy (modify `Resource` for your DB ARN):
+
+     ```json
+     {
+       "Version": "2012-10-17",
+       "Statement": [
+         {
+           "Sid": "AllowBasicRDSAccess",
+           "Effect": "Allow",
+           "Action": [
+             "rds:DescribeDBInstances",
+             "rds:DescribeDBClusters",
+             "rds:DescribeDBSubnetGroups",
+             "rds:DescribeDBSnapshots",
+             "rds:Connect"
+           ],
+           "Resource": "*"
+         }
+       ]
+     }
+     ```
+
+   - Save and name it something like **RDSDeveloperAccessPolicy**.
+   - Attach this policy to the user.
+
+4. **Download Credentials**
+   - After creation, download the `.csv` file or securely copy the:
+     - **Access Key ID**
+     - **Secret Access Key**
+   - Share via a secure channel (e.g., 1Password vault, encrypted password manager).
+   - **Never share via Slack, email, or text.**
+
+---
+
+## Developer Setup (Individual Steps)
+
+Follow these steps after your IAM user is created.
+
+### 1. Configure AWS CLI
+Install the AWS CLI (if not already):
+
+# macOS / Linux
+brew install awscli
+
+# Windows (PowerShell)
+choco install awscli
+
 ## SCRUM-59-Navigation-&-Routing-Links
 
 This change implements navigation links in the header and simple route stubs so users can move between pages without full page reloads.
