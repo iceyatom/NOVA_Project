@@ -1,4 +1,4 @@
-export default function AboutPage() {
+export default function ContactPage() {
   return (
     <main>
       <h1>Contact Us</h1>

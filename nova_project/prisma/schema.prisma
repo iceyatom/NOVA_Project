@@ -17,10 +17,13 @@ datasource db {
 
 model CatalogItem {
   id                Int       @id @default(autoincrement())
+  sku               String?
   itemName          String
-  category          String?
+  price             Float?    @default(0.0)
+  category3         String?
+  category2         String?
+  category1         String?
   description       String?
-  price              Float?    @default(0.0)
   quantityInStock   Int?      @default(0)
   unitOfMeasure     String?
   storageLocation   String?

@@ -184,27 +184,28 @@ Developer notes:
 - Run Prisma commands (generate, migrate, seed) before launching the app.
 - Use the Catalog page to visually verify a successful connection.
 
-
 # AWS IAM Accounts for RDS Access
 
 ### Overview
+
 This setup ensures every developer connects to the AWS RDS database using **their own IAM account**, not shared admin or root credentials.  
 This provides:
-- **Traceability** — Each connection is tied to an individual user.  
-- **Security** — Access follows the **principle of least privilege**.  
+
+- **Traceability** — Each connection is tied to an individual user.
+- **Security** — Access follows the **principle of least privilege**.
 - **Compliance** — Prevents accidental exposure of shared keys or over-permissive roles.
 
 ---
 
 ## Key Concepts
 
-| Term | Description |
-|------|--------------|
-| **IAM (Identity and Access Management)** | AWS service for managing users, roles, and permissions. |
-| **IAM Policy** | JSON document that defines what actions a user can perform. |
-| **Access Key ID / Secret Access Key** | Credentials used for programmatic or CLI access to AWS. |
-| **RDS Access Policy** | A restrictive policy allowing connection and basic management of an RDS instance. |
-| **Least Privilege Principle** | Users receive only the minimal permissions needed to do their job. |
+| Term                                     | Description                                                                       |
+| ---------------------------------------- | --------------------------------------------------------------------------------- |
+| **IAM (Identity and Access Management)** | AWS service for managing users, roles, and permissions.                           |
+| **IAM Policy**                           | JSON document that defines what actions a user can perform.                       |
+| **Access Key ID / Secret Access Key**    | Credentials used for programmatic or CLI access to AWS.                           |
+| **RDS Access Policy**                    | A restrictive policy allowing connection and basic management of an RDS instance. |
+| **Least Privilege Principle**            | Users receive only the minimal permissions needed to do their job.                |
 
 ---
 
@@ -260,12 +261,15 @@ Performed by the **AWS account admin** or whoever manages infrastructure.
 Follow these steps after your IAM user is created.
 
 ### 1. Configure AWS CLI
+
 Install the AWS CLI (if not already):
 
 # macOS / Linux
+
 brew install awscli
 
 # Windows (PowerShell)
+
 choco install awscli
 
 ## SCRUM-59-Navigation-&-Routing-Links
@@ -469,22 +473,29 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 ## Configure Security & Networking (Docker Local + AWS RDS)
 
 #### Prerequisites
+
 - AWS RDS MySQL instance created and running.
 - Docker Desktop + Docker Compose installed locally.
 - Your public IP allowlisted in the RDS Security Group (TCP 3306).
 - `.env` and `.env.development` files in the project root with correct credentials.
 
 #### Add IP address to the Inbound Rules in the VPC security group
+
 1. Go to the AWS Management Console → RDS → Databases → select your database.
 2. Scroll to the Connectivity & security tab.
 3. Under VPC security groups, click the linked security group ID (e.g., sg-Babc123def456).
+
 - This opens the EC2 > Security Groups page.
+
 4. Select the group, then click the Inbound rules tab.
 5. Click Edit inbound rules
+
 - Add rule.
+
 6. Fill it out like this:
+
 - Type: MySQL/Aurora (or the DB engine's port)
 - Protocol: TCP
 - Port Range: 3306
 - Source: My IP
-AWS automatically fills your current public IP with /32 (e.g. 123.45.67.89/32 ).
+  AWS automatically fills your current public IP with /32 (e.g. 123.45.67.89/32 ).

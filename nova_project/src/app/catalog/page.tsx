@@ -15,7 +15,7 @@ function getItems() {
       imageUrl: "https://www.nilesbio.com/images/NilesBio_01.jpg",
       category: "Category 1",
       description: "This is a description for Item 1.",
-      unitCost: 10.50,
+      unitCost: 10.5,
       unitType: "each",
       quantity: 1,
       stock: 10,
@@ -139,12 +139,25 @@ export default async function CatalogPage() {
 
   // --- DB test variables (simple connectivity + list of ids/names) ---
   let dbStatus: string;
-  let dbItems: { id: number; itemName: string }[] = [];
+  type DbItem = {
+    id: number;
+    sku: string | null;
+    itemName: string;
+    price: number | null;
+    category3: string | null;
+  };
+  let dbItems: DbItem[] = [];
 
   try {
     dbItems = await prisma.catalogItem.findMany({
-      select: { id: true, itemName: true }, // matches your schema
-      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        sku: true,
+        itemName: true,
+        price: true,
+        category3: true,
+      }, // matches your schema
+      orderBy: [{ category3: "asc" }, { id: "asc" }],
     });
     dbStatus = `Connected to database. ${dbItems.length} catalog items found.`;
   } catch (err: unknown) {
@@ -156,6 +169,17 @@ export default async function CatalogPage() {
   }
   // -------------------------------------------------------------------
 
+  const groupedDbEntries = Object.entries(
+    dbItems.reduce<Record<string, DbItem[]>>((acc, item) => {
+      const key = item.category3?.trim() || "Uncategorized";
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(item);
+      return acc;
+    }, {}),
+  ).sort(([categoryA], [categoryB]) => categoryA.localeCompare(categoryB));
+
   if (!items.length) {
     return (
       <main className="catalog-grid">
@@ -164,19 +188,63 @@ export default async function CatalogPage() {
         {/* DB test block still renders below, even if placeholder list is empty */}
         <section
           className="bg-gray-50 border rounded-lg p-4"
-          style={{ marginTop: "1rem" }}
+          style={{
+            marginTop: "1rem",
+            marginLeft: "auto",
+            marginRight: "auto",
+            maxWidth: "960px",
+          }}
         >
           <h2 className="font-medium mb-2">Database Status</h2>
           <p>{dbStatus}</p>
-          {dbItems.length > 0 && (
-            <ul className="mt-4 list-disc list-inside">
-              {dbItems.map((it) => (
-                <li key={it.id}>
-                  <strong>ID:</strong> {it.id} — <strong>Item Name:</strong>{" "}
-                  {it.itemName}
-                </li>
-              ))}
-            </ul>
+          {groupedDbEntries.length > 0 && (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full border border-gray-200 text-sm">
+                <thead className="bg-gray-100 text-left">
+                  <tr>
+                    <th className="border-b border-gray-200 px-3 py-2">ID</th>
+                    <th className="border-b border-gray-200 px-3 py-2">SKU</th>
+                    <th className="border-b border-gray-200 px-3 py-2">
+                      Item Name
+                    </th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-right">
+                      Price
+                    </th>
+                  </tr>
+                </thead>
+                {groupedDbEntries.map(([category, itemsInCategory]) => (
+                  <tbody key={category}>
+                    <tr>
+                      <th
+                        scope="colgroup"
+                        colSpan={4}
+                        className="bg-gray-200 border-t border-gray-300 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide"
+                      >
+                        {category}
+                      </th>
+                    </tr>
+                    {itemsInCategory.map((it) => (
+                      <tr key={it.id}>
+                        <td className="border-t border-gray-200 px-3 py-2">
+                          {it.id}
+                        </td>
+                        <td className="border-t border-gray-200 px-3 py-2">
+                          {it.sku ?? "N/A"}
+                        </td>
+                        <td className="border-t border-gray-200 px-3 py-2">
+                          {it.itemName}
+                        </td>
+                        <td className="border-t border-gray-200 px-3 py-2 text-right">
+                          {it.price !== null
+                            ? `$${it.price.toFixed(2)}`
+                            : "N/A"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
+              </table>
+            </div>
           )}
         </section>
       </main>
@@ -196,20 +264,57 @@ export default async function CatalogPage() {
       {/* --- DB TESTS BELOW EXISTING CONTENT --- */}
       <section
         className="bg-gray-50 border rounded-lg p-4"
-        style={{ margin: "1rem" }}
+        style={{ margin: "1rem auto", maxWidth: "960px" }}
       >
         <h2 className="font-medium mb-2">Database Status</h2>
         <p>{dbStatus}</p>
 
-        {dbItems.length > 0 && (
-          <ul className="mt-4 list-disc list-inside">
-            {dbItems.map((it) => (
-              <li key={it.id}>
-                <strong>ID:</strong> {it.id} — <strong>Item Name:</strong>{" "}
-                {it.itemName}
-              </li>
-            ))}
-          </ul>
+        {groupedDbEntries.length > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full border border-gray-200 text-sm">
+              <thead className="bg-gray-100 text-left">
+                <tr>
+                  <th className="border-b border-gray-200 px-3 py-2">ID</th>
+                  <th className="border-b border-gray-200 px-3 py-2">SKU</th>
+                  <th className="border-b border-gray-200 px-3 py-2">
+                    Item Name
+                  </th>
+                  <th className="border-b border-gray-200 px-3 py-2 text-right">
+                    Price
+                  </th>
+                </tr>
+              </thead>
+              {groupedDbEntries.map(([category, itemsInCategory]) => (
+                <tbody key={category}>
+                  <tr>
+                    <th
+                      scope="colgroup"
+                      colSpan={4}
+                      className="bg-gray-200 border-t border-gray-300 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide"
+                    >
+                      {category}
+                    </th>
+                  </tr>
+                  {itemsInCategory.map((it) => (
+                    <tr key={it.id}>
+                      <td className="border-t border-gray-200 px-3 py-2">
+                        {it.id}
+                      </td>
+                      <td className="border-t border-gray-200 px-3 py-2">
+                        {it.sku ?? "N/A"}
+                      </td>
+                      <td className="border-t border-gray-200 px-3 py-2">
+                        {it.itemName}
+                      </td>
+                      <td className="border-t border-gray-200 px-3 py-2 text-right">
+                        {it.price !== null ? `$${it.price.toFixed(2)}` : "N/A"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
+            </table>
+          </div>
         )}
       </section>
     </main>
