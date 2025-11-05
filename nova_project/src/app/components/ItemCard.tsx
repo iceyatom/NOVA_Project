@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 type Item = {
   id: number;
@@ -26,18 +27,24 @@ export default function ItemCard({ item }: { item: Item }) {
     stock,
   } = item;
 
+  const safeSrc =
+    imageUrl && (imageUrl.startsWith("/") || imageUrl.startsWith("http"))
+      ? imageUrl
+      : "/FillerImage.png";
+
   // Function
   const handleClick = (
     event:
       | React.KeyboardEvent<HTMLDivElement>
       | React.MouseEvent<HTMLDivElement>,
   ) => {
-    if (event.type === "keydown" && event.key !== "Enter") return;
+    if (event.type === "keydown" && "key" in event && event.key !== "Enter")
+      return;
     if (event.type === "click") event.preventDefault();
 
     event.preventDefault();
     // Send to the item page - for now, open image in new tab
-    window.open(imageUrl, "_self");
+    window.open(safeSrc, "_self");
   };
 
   // Styles
@@ -57,7 +64,6 @@ export default function ItemCard({ item }: { item: Item }) {
   };
 
   const imageStyle = {
-    objectFit: "cover",
     width: "100%",
     height: "auto",
     minHeight: "200px",
@@ -117,10 +123,12 @@ export default function ItemCard({ item }: { item: Item }) {
       <h2 className="item-card-title" style={titleStyle}>
         {itemName}
       </h2>
-      <img
+      <Image
         className="item-card-image"
-        src={imageUrl}
+        src={safeSrc}
         alt={itemName}
+        width={400}
+        height={400}
         style={imageStyle}
       />
       <p className="item-card-description" style={descriptionStyle}>
