@@ -1,5 +1,5 @@
 // src/lib/prisma.ts
-import { PrismaClient } from "../../../node_modules/.prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 // This ensures only ONE PrismaClient instance is used during dev (hot reload safe)
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
