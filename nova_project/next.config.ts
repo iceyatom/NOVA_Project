@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: "www.nilesbio.com",
         pathname: "/images/**",
       },
+      {
+        protocol: "https",
+        hostname: "**",
+        pathname: "/**",
+      },
     ],
     // or: domains: ["www.nilesbio.com"],
   },
