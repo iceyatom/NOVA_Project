@@ -12,7 +12,8 @@ function getItems() {
     {
       id: 1,
       itemName: "Item 1 That has a Really Long Name",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_01.jpg",
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/e/eb/Ash_Tree_-_geograph.org.uk_-_590710.jpg",
       category: "Category 1",
       description: "This is a description for Item 1.",
       unitCost: 10.5,
