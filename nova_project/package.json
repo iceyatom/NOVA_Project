@@ -1,0 +1,42 @@
+{
+  "name": "nova_project",
+  "version": "0.1.0",
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "format": "prettier --write .",
+    "check": "prettier --check .",
+    "health": "curl -s http://localhost:3000/api/health",
+    "lh:local": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Path 'docs/lighthouse' -Force | Out-Null\";npx lighthouse http://localhost:3000 --preset=desktop --output=html --output-path=./docs/lighthouse/local-desktop.html",
+    "lh:preview": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Path 'docs/lighthouse' -Force | Out-Null\"; npx lighthouse https://nova-project-umber.vercel.app --preset=desktop --only-categories=performance,accessibility,best-practices,seo --output=html --output-path=./docs/lighthouse/preview-desktop.html"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.18.0",
+    "next": "15.5.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "cross-env": "^7.0.3",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "prettier": "^3.6.2",
+    "prisma": "^6.18.0",
+    "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
