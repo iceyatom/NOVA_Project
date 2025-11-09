@@ -192,6 +192,35 @@ header {
   }
 }
 
+/* Extra small screens: stack links evenly */
+@media (max-width: 475px) {
+  .menu-toggle {
+    display: inline-block;
+  }
+  .topbar {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .links {
+    display: none;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+    text-align: center;
+  }
+  .links .navlink {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: clamp(0.3rem, 1.2vw, 0.45rem) clamp(0.5rem, 2.5vw, 0.9rem);
+    font-size: clamp(0.8rem, 2vw, 0.95rem);
+    white-space: nowrap;
+  }
+}
+
 /* Footer */
 .site-footer {
   background: var(--brand-teal);
