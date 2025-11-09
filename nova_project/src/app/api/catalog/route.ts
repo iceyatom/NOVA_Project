@@ -9,10 +9,21 @@ export async function GET() {
     const catalogItems = await prisma.catalogItem.findMany({
       select: {
         id: true,
+        sku: true,
         itemName: true,
-        category: true,
-        description: true,
         price: true,
+        category1: true,
+        category2: true,
+        category3: true,
+        description: true,
+        quantityInStock: true,
+        unitOfMeasure: true,
+        storageLocation: true,
+        storageConditions: true,
+        expirationDate: true,
+        dateAcquired: true,
+        reorderLevel: true,
+        unitCost: true,
       },
       orderBy: {
         id: "asc",
