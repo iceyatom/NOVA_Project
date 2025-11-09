@@ -232,7 +232,7 @@ header {
 .footer-grid {
   display: grid;
   gap: 1.25rem;
-  padding: 1.25rem 0;
+  padding: 1.25rem;
   align-items: start;
   grid-template-columns: 1fr;
 }
