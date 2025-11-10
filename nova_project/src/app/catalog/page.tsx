@@ -142,6 +142,8 @@ type DbItem = {
   itemName: string;
   price: number | null;
   category3: string | null;
+  description: string | null;
+  quantityInStock: number | null;
 };
 
 type CatalogApiResponse = {
@@ -152,6 +154,8 @@ type CatalogApiResponse = {
     itemName: string;
     price: number | null;
     category3: string | null;
+    description: string | null;
+    quantityInStock: number | null;
   }[];
   count?: number;
   error?: string;
@@ -286,6 +290,8 @@ export default async function CatalogPage() {
         itemName: true,
         price: true,
         category3: true,
+        description: true,
+        quantityInStock: true,
       }, // matches your schema
       orderBy: [{ category3: "asc" }, { id: "asc" }],
     });
@@ -322,6 +328,8 @@ export default async function CatalogPage() {
       itemName: item.itemName,
       price: item.price ?? null,
       category3: item.category3 ?? null,
+      description: item.description ?? null,
+      quantityInStock: item.quantityInStock ?? null,
     }));
 
     apiStatus = `Catalog API reachable. ${
@@ -335,6 +343,56 @@ export default async function CatalogPage() {
 
   const groupedDbEntries = groupItemsByCategory(dbItems);
   const groupedApiEntries = groupItemsByCategory(apiItems);
+
+  // Populate first card with live data using API (proof of concept)
+  const CARD_ID = 1;
+  const apiItem1 = apiItems.find(x => x.id === CARD_ID) ?? null;
+
+  const displayItems = apiItem1
+    ? [
+        {
+          ...items[0],
+          id: apiItem1.id,
+          itemName: apiItem1.itemName,
+          category: apiItem1.category3 ?? items[0].category ?? "Uncategorized",
+          unitCost: apiItem1.price ?? items[0].unitCost ?? 0.0,
+          description: apiItem1.description ?? items[0].description ?? "",
+          quantity: apiItem1.quantityInStock ?? items[0].quantity ?? 0,
+        },
+        ...items.slice(1),
+      ]
+    : items;
+
+    // Construct states (empty, error)
+    let stateMsg: React.ReactNode = null;
+
+    // Error
+    if (apiStatus.startsWith("Catalog API request failed")) {
+      stateMsg = (
+        <div
+          role="alert"
+          style={{
+            marginLeft: "1rem",
+            marginRight: "1rem",
+            marginBottom: "1rem",
+            borderRadius: "0.25rem",
+            border: "1px solid #fca5a5", // light red border
+            backgroundColor: "#fef2f2",   // soft red background
+            padding: "0.5rem 0.75rem",
+            fontSize: "0.875rem",
+            color: "#b91c1c",             // red text
+          }}
+        >
+          Failed to load CatalogItem {CARD_ID}. {apiStatus}
+        </div>
+      )
+    }
+    // Empty
+    else if (!apiItem1) {
+      // For the future: should load a page with a statement that states no catalog items found.
+      // Also, change apiItem1 to length check
+      console.error("Empty: defaulting to placeholders.")
+    }
 
   if (!items.length) {
     return (
@@ -362,8 +420,10 @@ export default async function CatalogPage() {
     <main>
       <h1 style={{ padding: "1rem", margin: 0 }}>Catalog</h1>
 
+      {stateMsg}
+
       <section className="catalog-grid" aria-label="Catalog items">
-        {items.map((item) => (
+        {displayItems.map((item) => (
           <ItemCard key={item.id} item={item} />
         ))}
       </section>
