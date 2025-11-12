@@ -1,11 +1,9 @@
 // src/app/catalog/page.tsx
 
 // Page shows the catalog using placeholder items (for now)
-// and, at the bottom, includes a simple Prisma connectivity test
-// that lists all CatalogItem ids and itemNames from the DB.
+// and, at the bottom, includes a diagnostics panel sourced from the API.
 
 import ItemCard from "../components/ItemCard";
-import { prisma } from "@/lib/db"; // direct Prisma test
 
 export const dynamic = "force-dynamic";
 
@@ -278,32 +276,8 @@ function getSafeErrorMessage(error: unknown, fallback: string) {
 export default async function CatalogPage() {
   const items = getItems();
 
-  // --- Direct Prisma test block ---
-  let dbStatus: string;
-  let dbItems: DbItem[] = [];
-
-  try {
-    dbItems = await prisma.catalogItem.findMany({
-      select: {
-        id: true,
-        sku: true,
-        itemName: true,
-        price: true,
-        category3: true,
-        description: true,
-        quantityInStock: true,
-      }, // matches your schema
-      orderBy: [{ category3: "asc" }, { id: "asc" }],
-    });
-    dbStatus = `Connected to database. ${dbItems.length} catalog items found.`;
-  } catch (err: unknown) {
-    const message = getSafeErrorMessage(err, "Unknown error");
-    dbStatus = `Database request failed: ${message}`;
-  }
-  // -------------------------------------------------------------------
-
   // --- API route test block ---
-  let apiStatus = "Loading catalog via API…";
+  let apiStatus = "Loading catalog via API...";
   let apiItems: DbItem[] = [];
 
   try {
@@ -341,12 +315,11 @@ export default async function CatalogPage() {
   }
   // -------------------------------------------------------------------
 
-  const groupedDbEntries = groupItemsByCategory(dbItems);
   const groupedApiEntries = groupItemsByCategory(apiItems);
 
   // Populate first card with live data using API (proof of concept)
   const CARD_ID = 1;
-  const apiItem1 = apiItems.find(x => x.id === CARD_ID) ?? null;
+  const apiItem1 = apiItems.find((x) => x.id === CARD_ID) ?? null;
 
   const displayItems = apiItem1
     ? [
@@ -363,48 +336,41 @@ export default async function CatalogPage() {
       ]
     : items;
 
-    // Construct states (empty, error)
-    let stateMsg: React.ReactNode = null;
+  // Construct states (empty, error)
+  let stateMsg: React.ReactNode = null;
 
-    // Error
-    if (apiStatus.startsWith("Catalog API request failed")) {
-      stateMsg = (
-        <div
-          role="alert"
-          style={{
-            marginLeft: "1rem",
-            marginRight: "1rem",
-            marginBottom: "1rem",
-            borderRadius: "0.25rem",
-            border: "1px solid #fca5a5", // light red border
-            backgroundColor: "#fef2f2",   // soft red background
-            padding: "0.5rem 0.75rem",
-            fontSize: "0.875rem",
-            color: "#b91c1c",             // red text
-          }}
-        >
-          Failed to load CatalogItem {CARD_ID}. {apiStatus}
-        </div>
-      )
-    }
-    // Empty
-    else if (!apiItem1) {
-      // For the future: should load a page with a statement that states no catalog items found.
-      // Also, change apiItem1 to length check
-      console.error("Empty: defaulting to placeholders.")
-    }
+  // Error
+  if (apiStatus.startsWith("Catalog API request failed")) {
+    stateMsg = (
+      <div
+        role="alert"
+        style={{
+          marginLeft: "1rem",
+          marginRight: "1rem",
+          marginBottom: "1rem",
+          borderRadius: "0.25rem",
+          border: "1px solid #fca5a5", // light red border
+          backgroundColor: "#fef2f2", // soft red background
+          padding: "0.5rem 0.75rem",
+          fontSize: "0.875rem",
+          color: "#b91c1c", // red text
+        }}
+      >
+        Failed to load CatalogItem {CARD_ID}. {apiStatus}
+      </div>
+    );
+  }
+  // Empty
+  else if (!apiItem1) {
+    // For the future: should load a page with a statement that states no catalog items found.
+    // Also, change apiItem1 to length check
+    console.error("Empty: defaulting to placeholders.");
+  }
 
   if (!items.length) {
     return (
       <main className="catalog-grid">
         <p role="status">No items in stock</p>
-
-        {/* Direct Prisma table still renders below, even if placeholder list is empty */}
-        <DiagnosticsPanel
-          title="Database Status (Prisma)"
-          status={dbStatus}
-          entries={groupedDbEntries}
-        />
 
         {/* API route table mirrors the Prisma data but through /api/catalog */}
         <DiagnosticsPanel
@@ -427,13 +393,6 @@ export default async function CatalogPage() {
           <ItemCard key={item.id} item={item} />
         ))}
       </section>
-
-      {/* --- Direct Prisma table (shows raw DB query results) --- */}
-      <DiagnosticsPanel
-        title="Database Status (Prisma)"
-        status={dbStatus}
-        entries={groupedDbEntries}
-      />
 
       {/* --- API route table (same data fetched via /api/catalog) --- */}
       <DiagnosticsPanel
