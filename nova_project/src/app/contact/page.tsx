@@ -1,8 +1,78 @@
+import { contactContent } from "../siteContent";
+
 export default function ContactPage() {
+  const c = contactContent;
+
   return (
-    <main>
-      <h1>Contact Us</h1>
-      <p>Welcome to the Contact Us page!</p>
-    </main>
+    <section
+      className="contact-page"
+      aria-labelledby="contact-heading"
+    >
+      <header className="contact-header">
+        <h1 id="contact-heading">{c.heading}</h1>
+        <p>{c.intro}</p>
+      </header>
+
+      <div className="contact-grid">
+        {/* Address */}
+        <section className="contact-card">
+          <h2 className="contact-card-title">{c.addressLabel}</h2>
+          <address className="contact-address">
+            {c.addressLines.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
+          </address>
+        </section>
+
+        {/* Phone & Email */}
+        <section className="contact-card">
+          <h2 className="contact-card-title">Get in Touch</h2>
+
+          <div className="contact-field">
+            <span className="contact-field-label">{c.phoneLabel}</span>
+            <a
+              href={`tel:${c.phoneHref}`}
+              className="contact-link"
+            >
+              {c.phoneDisplay}
+            </a>
+          </div>
+
+          <div className="contact-field">
+            <span className="contact-field-label">{c.emailLabel}</span>
+            <a
+              href={`mailto:${c.email}`}
+              className="contact-link"
+            >
+              {c.email}
+            </a>
+          </div>
+        </section>
+
+        {/* Business Hours */}
+        <section className="contact-card">
+          <h2 className="contact-card-title">{c.hoursLabel}</h2>
+          <dl className="contact-hours">
+            {c.hours.map((row) => (
+              <div className="contact-hours-row" key={row.label}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {/* Map / image placeholder */}
+        <section className="contact-card contact-card-wide">
+          <h2 className="contact-card-title">{c.mapLabel}</h2>
+         {/* FIX THIS LATER!!!
+           <img
+            src={c.mapImageUrl}
+            alt={c.mapImageAlt}
+            className="contact-map"
+          /> */}
+        </section>
+      </div>
+    </section>
   );
 }
