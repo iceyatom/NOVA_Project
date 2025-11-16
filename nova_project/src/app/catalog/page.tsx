@@ -1,11 +1,11 @@
 // src/app/catalog/page.tsx
 
 // Page shows the catalog using placeholder items (for now)
-// and, at the bottom, includes a simple Prisma connectivity test
-// that lists all CatalogItem ids and itemNames from the DB.
+// and, at the bottom, includes a diagnostics panel sourced from the API.
 
 import ItemCard from "../components/ItemCard";
-import { prisma } from "@/lib/db"; // added: shared Prisma client
+
+export const dynamic = "force-dynamic";
 
 function getItems() {
   return [
@@ -134,44 +134,34 @@ function getItems() {
   ];
 }
 
-// made async so we can await Prisma queries below
-export default async function CatalogPage() {
-  const items = getItems();
+type DbItem = {
+  id: number;
+  sku: string | null;
+  itemName: string;
+  price: number | null;
+  category3: string | null;
+  description: string | null;
+  quantityInStock: number | null;
+};
 
-  // --- DB test variables (simple connectivity + list of ids/names) ---
-  let dbStatus: string;
-  type DbItem = {
+type CatalogApiResponse = {
+  success: boolean;
+  data?: {
     id: number;
     sku: string | null;
     itemName: string;
     price: number | null;
     category3: string | null;
-  };
-  let dbItems: DbItem[] = [];
+    description: string | null;
+    quantityInStock: number | null;
+  }[];
+  count?: number;
+  error?: string;
+};
 
-  try {
-    dbItems = await prisma.catalogItem.findMany({
-      select: {
-        id: true,
-        sku: true,
-        itemName: true,
-        price: true,
-        category3: true,
-      }, // matches your schema
-      orderBy: [{ category3: "asc" }, { id: "asc" }],
-    });
-    dbStatus = `Connected to database. ${dbItems.length} catalog items found.`;
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      dbStatus = `Database connection failed: ${err.message}`;
-    } else {
-      dbStatus = "Database connection failed: Unknown error";
-    }
-  }
-  // -------------------------------------------------------------------
-
-  const groupedDbEntries = Object.entries(
-    dbItems.reduce<Record<string, DbItem[]>>((acc, item) => {
+function groupItemsByCategory(items: DbItem[]) {
+  return Object.entries(
+    items.reduce<Record<string, DbItem[]>>((acc, item) => {
       const key = item.category3?.trim() || "Uncategorized";
       if (!acc[key]) {
         acc[key] = [];
@@ -180,74 +170,214 @@ export default async function CatalogPage() {
       return acc;
     }, {}),
   ).sort(([categoryA], [categoryB]) => categoryA.localeCompare(categoryB));
+}
+
+function renderGroupedTable(entries: [string, DbItem[]][]) {
+  if (!entries.length) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 overflow-x-auto">
+      <table className="min-w-full border border-gray-200 text-sm">
+        <thead className="bg-gray-100 text-left">
+          <tr>
+            <th className="border-b border-gray-200 px-3 py-2">ID</th>
+            <th className="border-b border-gray-200 px-3 py-2">SKU</th>
+            <th className="border-b border-gray-200 px-3 py-2">Item Name</th>
+            <th className="border-b border-gray-200 px-3 py-2 text-right">
+              Price
+            </th>
+          </tr>
+        </thead>
+        {entries.map(([category, itemsInCategory]) => (
+          <tbody key={category}>
+            <tr>
+              <th
+                scope="colgroup"
+                colSpan={4}
+                className="bg-gray-200 border-t border-gray-300 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide"
+              >
+                {category}
+              </th>
+            </tr>
+            {itemsInCategory.map((it) => (
+              <tr key={it.id}>
+                <td className="border-t border-gray-200 px-3 py-2">{it.id}</td>
+                <td className="border-t border-gray-200 px-3 py-2">
+                  {it.sku ?? "N/A"}
+                </td>
+                <td className="border-t border-gray-200 px-3 py-2">
+                  {it.itemName}
+                </td>
+                <td className="border-t border-gray-200 px-3 py-2 text-right">
+                  {it.price !== null ? `$${it.price.toFixed(2)}` : "N/A"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
+      </table>
+    </div>
+  );
+}
+
+function DiagnosticsPanel({
+  title,
+  status,
+  entries,
+}: {
+  title: string;
+  status: string;
+  entries: [string, DbItem[]][];
+}) {
+  return (
+    <section className="diagnostics-panel">
+      <details className="diagnostics-panel__details">
+        <summary className="diagnostics-panel__summary">
+          <span className="diagnostics-panel__title">{title}</span>
+          <span className="diagnostics-panel__status">{status}</span>
+        </summary>
+        <div className="diagnostics-panel__content">
+          {renderGroupedTable(entries) ?? (
+            <p className="text-sm text-gray-600">No items to display.</p>
+          )}
+        </div>
+      </details>
+    </section>
+  );
+}
+
+function getBaseUrl() {
+  const envUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ??
+    (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
+
+  try {
+    return new URL(envUrl).toString().replace(/\/$/, "");
+  } catch {
+    return "http://localhost:3000";
+  }
+}
+
+function getSafeErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) {
+    const firstLine = error.message.split("\n")[0]?.trim();
+    if (firstLine) {
+      return firstLine;
+    }
+  }
+  return fallback;
+}
+
+// made async so we can await Prisma queries below
+export default async function CatalogPage() {
+  const items = getItems();
+
+  // --- API route test block ---
+  let apiStatus = "Loading catalog via API...";
+  let apiItems: DbItem[] = [];
+
+  try {
+    const baseUrl = getBaseUrl();
+    const apiResponse = await fetch(`${baseUrl}/api/catalog`, {
+      cache: "no-store",
+    });
+
+    if (!apiResponse.ok) {
+      throw new Error(`Catalog API returned ${apiResponse.status}`);
+    }
+
+    const payload = (await apiResponse.json()) as CatalogApiResponse;
+
+    if (!payload.success || !payload.data) {
+      throw new Error(payload.error ?? "Catalog API responded without data");
+    }
+
+    apiItems = payload.data.map((item) => ({
+      id: item.id,
+      sku: item.sku ?? null,
+      itemName: item.itemName,
+      price: item.price ?? null,
+      category3: item.category3 ?? null,
+      description: item.description ?? null,
+      quantityInStock: item.quantityInStock ?? null,
+    }));
+
+    apiStatus = `Catalog API reachable. ${
+      payload.count ?? payload.data.length
+    } catalog items found.`;
+  } catch (err: unknown) {
+    const message = getSafeErrorMessage(err, "Unknown error");
+    apiStatus = `Catalog API request failed: ${message}`;
+  }
+  // -------------------------------------------------------------------
+
+  const groupedApiEntries = groupItemsByCategory(apiItems);
+
+  // Populate first card with live data using API (proof of concept)
+  const CARD_ID = 1;
+  const apiItem1 = apiItems.find((x) => x.id === CARD_ID) ?? null;
+
+  const displayItems = apiItem1
+    ? [
+        {
+          ...items[0],
+          id: apiItem1.id,
+          itemName: apiItem1.itemName,
+          category: apiItem1.category3 ?? items[0].category ?? "Uncategorized",
+          unitCost: apiItem1.price ?? items[0].unitCost ?? 0.0,
+          description: apiItem1.description ?? items[0].description ?? "",
+          quantity: apiItem1.quantityInStock ?? items[0].quantity ?? 0,
+        },
+        ...items.slice(1),
+      ]
+    : items;
+
+  // Construct states (empty, error)
+  let stateMsg: React.ReactNode = null;
+
+  // Error
+  if (apiStatus.startsWith("Catalog API request failed")) {
+    stateMsg = (
+      <div
+        role="alert"
+        style={{
+          marginLeft: "1rem",
+          marginRight: "1rem",
+          marginBottom: "1rem",
+          borderRadius: "0.25rem",
+          border: "1px solid #fca5a5", // light red border
+          backgroundColor: "#fef2f2", // soft red background
+          padding: "0.5rem 0.75rem",
+          fontSize: "0.875rem",
+          color: "#b91c1c", // red text
+        }}
+      >
+        Failed to load CatalogItem {CARD_ID}. {apiStatus}
+      </div>
+    );
+  }
+  // Empty
+  else if (!apiItem1) {
+    // For the future: should load a page with a statement that states no catalog items found.
+    // Also, change apiItem1 to length check
+    console.error("Empty: defaulting to placeholders.");
+  }
 
   if (!items.length) {
     return (
       <main className="catalog-grid">
         <p role="status">No items in stock</p>
 
-        {/* DB test block still renders below, even if placeholder list is empty */}
-        <section
-          className="bg-gray-50 border rounded-lg p-4"
-          style={{
-            marginTop: "1rem",
-            marginLeft: "auto",
-            marginRight: "auto",
-            maxWidth: "960px",
-          }}
-        >
-          <h2 className="font-medium mb-2">Database Status</h2>
-          <p>{dbStatus}</p>
-          {groupedDbEntries.length > 0 && (
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full border border-gray-200 text-sm">
-                <thead className="bg-gray-100 text-left">
-                  <tr>
-                    <th className="border-b border-gray-200 px-3 py-2">ID</th>
-                    <th className="border-b border-gray-200 px-3 py-2">SKU</th>
-                    <th className="border-b border-gray-200 px-3 py-2">
-                      Item Name
-                    </th>
-                    <th className="border-b border-gray-200 px-3 py-2 text-right">
-                      Price
-                    </th>
-                  </tr>
-                </thead>
-                {groupedDbEntries.map(([category, itemsInCategory]) => (
-                  <tbody key={category}>
-                    <tr>
-                      <th
-                        scope="colgroup"
-                        colSpan={4}
-                        className="bg-gray-200 border-t border-gray-300 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide"
-                      >
-                        {category}
-                      </th>
-                    </tr>
-                    {itemsInCategory.map((it) => (
-                      <tr key={it.id}>
-                        <td className="border-t border-gray-200 px-3 py-2">
-                          {it.id}
-                        </td>
-                        <td className="border-t border-gray-200 px-3 py-2">
-                          {it.sku ?? "N/A"}
-                        </td>
-                        <td className="border-t border-gray-200 px-3 py-2">
-                          {it.itemName}
-                        </td>
-                        <td className="border-t border-gray-200 px-3 py-2 text-right">
-                          {it.price !== null
-                            ? `$${it.price.toFixed(2)}`
-                            : "N/A"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                ))}
-              </table>
-            </div>
-          )}
-        </section>
+        {/* API route table mirrors the Prisma data but through /api/catalog */}
+        <DiagnosticsPanel
+          title="Catalog API Status"
+          status={apiStatus}
+          entries={groupedApiEntries}
+        />
       </main>
     );
   }
@@ -256,68 +386,20 @@ export default async function CatalogPage() {
     <main>
       <h1 style={{ padding: "1rem", margin: 0 }}>Catalog</h1>
 
+      {stateMsg}
+
       <section className="catalog-grid" aria-label="Catalog items">
-        {items.map((item) => (
+        {displayItems.map((item) => (
           <ItemCard key={item.id} item={item} />
         ))}
       </section>
 
-      {/* --- DB TESTS BELOW EXISTING CONTENT --- */}
-      <section
-        className="bg-gray-50 border rounded-lg p-4"
-        style={{ margin: "1rem auto", maxWidth: "960px" }}
-      >
-        <h2 className="font-medium mb-2">Database Status</h2>
-        <p>{dbStatus}</p>
-
-        {groupedDbEntries.length > 0 && (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border border-gray-200 text-sm">
-              <thead className="bg-gray-100 text-left">
-                <tr>
-                  <th className="border-b border-gray-200 px-3 py-2">ID</th>
-                  <th className="border-b border-gray-200 px-3 py-2">SKU</th>
-                  <th className="border-b border-gray-200 px-3 py-2">
-                    Item Name
-                  </th>
-                  <th className="border-b border-gray-200 px-3 py-2 text-right">
-                    Price
-                  </th>
-                </tr>
-              </thead>
-              {groupedDbEntries.map(([category, itemsInCategory]) => (
-                <tbody key={category}>
-                  <tr>
-                    <th
-                      scope="colgroup"
-                      colSpan={4}
-                      className="bg-gray-200 border-t border-gray-300 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide"
-                    >
-                      {category}
-                    </th>
-                  </tr>
-                  {itemsInCategory.map((it) => (
-                    <tr key={it.id}>
-                      <td className="border-t border-gray-200 px-3 py-2">
-                        {it.id}
-                      </td>
-                      <td className="border-t border-gray-200 px-3 py-2">
-                        {it.sku ?? "N/A"}
-                      </td>
-                      <td className="border-t border-gray-200 px-3 py-2">
-                        {it.itemName}
-                      </td>
-                      <td className="border-t border-gray-200 px-3 py-2 text-right">
-                        {it.price !== null ? `$${it.price.toFixed(2)}` : "N/A"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              ))}
-            </table>
-          </div>
-        )}
-      </section>
+      {/* --- API route table (same data fetched via /api/catalog) --- */}
+      <DiagnosticsPanel
+        title="Catalog API Status"
+        status={apiStatus}
+        entries={groupedApiEntries}
+      />
     </main>
   );
 }
