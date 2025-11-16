@@ -65,7 +65,7 @@ export const homeContent: HomeContent = {
       title: "Largest Supplier of Owl Pellets",
       description:
         "Niles Biological is one of the world's largest suppliers of owl pellets, partnering with collectors across new habitats to study ecosystem changes.",
-      image: "https://www.nilesbio.com/images/categories/C452.jpg",
+      image: "/Owl.webp",
       imageAlt: "Close-up of an owl pellet featured by Niles Biological.",
       href: "https://www.nilesbio.com/cat452.html",
       ctaLabel: "Shop Owl Pellets",
@@ -75,10 +75,10 @@ export const homeContent: HomeContent = {
       title: "Searchable Mini-Encyclopedia",
       description:
         "We include rich background information alongside every specimen, giving students a mini reference library while teachers shop for lab materials.",
-      image: "https://www.nilesbio.com/images/NilesBio_03.jpg",
+      image: "/Searchable.webp",
       imageAlt:
         "Screenshot collage of the Niles Biological online catalog highlighting educational copy.",
-      href: "https://www.nilesbio.com/cat115.html",
+      href: "/catalog",
       ctaLabel: "Explore Catalog Pages",
     },
     {
@@ -86,7 +86,7 @@ export const homeContent: HomeContent = {
       title: "Live Delivery Promise",
       description:
         "Order one week ahead so we can ship Monday-Wednesday; we guarantee 100% live delivery and will reship or credit any specimen that doesn't arrive healthy.",
-      image: "https://www.nilesbio.com/images/NilesBio_05.jpg",
+      image: "/Delivery.webp",
       imageAlt:
         "Laboratory glassware and live culture containers prepared for shipment.",
       href: "https://www.nilesbio.com/cat8.html",
