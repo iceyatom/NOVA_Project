@@ -87,7 +87,7 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "8px",
   };
 
-  const category1Style = {
+  const category3Style = {
     fontSize: "12px",
     color: "#555555",
     marginTop: "4px",
@@ -99,7 +99,7 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "4px",
   };
 
-  const category3Style = {
+  const category1Style = {
     fontSize: "12px",
     color: "#555555",
     marginTop: "4px",

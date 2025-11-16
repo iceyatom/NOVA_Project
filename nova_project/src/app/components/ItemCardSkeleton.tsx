@@ -31,10 +31,11 @@ export default function ItemCardSkeleton() {
   const titleStyle = {
     color: "#000000",
     fontSize: "18px",
+    backgroundColor: "#EEEEEE",
+    borderRadius: '4px',
   };
 
-  const imageStyle: React.CSSProperties = {
-    objectFit: 'cover',
+  const imageSkeletonStyle: React.CSSProperties = {
     width: '100%',
     height: 'auto',
     minHeight: '200px',
@@ -43,50 +44,71 @@ export default function ItemCardSkeleton() {
     marginTop: 'auto',
     marginBottom: 'auto',
     borderRadius: '8px',
-    border: '1px solid #7F7F7F',
+    border: '1px solid #EEEEEE',
+    backgroundColor: "#EEEEEE",
   };
 
   const descriptionStyle = {
     fontSize: "14px",
     color: "#555555",
     marginTop: "8px",
-  };
-
-  const category1Style = {
-    fontSize: "12px",
-    color: "#555555",
-    marginTop: "4px",
-  };
-
-  const category2Style = {
-    fontSize: "12px",
-    color: "#555555",
-    marginTop: "4px",
+    backgroundColor: "#EEEEEE",
+    borderRadius: '4px',
   };
 
   const category3Style = {
     fontSize: "12px",
     color: "#555555",
     marginTop: "4px",
+    backgroundColor: "#EEEEEE",
+    borderRadius: '4px',
+    width: '75%',
+  };
+
+  const category2Style = {
+    fontSize: "12px",
+    color: "#555555",
+    marginTop: "4px",
+    backgroundColor: "#EEEEEE",
+    borderRadius: '4px',
+    width: '75%',
+  };
+
+  const category1Style = {
+    fontSize: "12px",
+    color: "#555555",
+    marginTop: "4px",
+    backgroundColor: "#EEEEEE",
+    borderRadius: '4px',
+    width: '75%',
   };
 
   const costStyle = {
     fontSize: "12px",
     color: "#555555",
     marginTop: "4px",
+    backgroundColor: "#EEEEEE",
+    borderRadius: '4px',
+    width: '25%',
+    
   };
 
   const unitStyle = {
     fontSize: "12px",
     color: "#aaaaaa",
     marginTop: "4px",
+    backgroundColor: "#EEEEEE",
+    borderRadius: '4px',
   };
 
   const stockStyle = {
-        fontSize: "12px",
-        color: "#FF0000",
-        marginTop: "4px",
-      };
+    fontSize: "12px",
+    color: "#FF0000",
+    marginTop: "4px",
+    backgroundColor: "#EEEEEE",
+    borderRadius: '4px',
+    width: '50%',
+  };
 
   // HTML
   return (
@@ -95,33 +117,29 @@ export default function ItemCardSkeleton() {
       style={itemCardStyle}
     >
       <h2 className="item-card-title" style={titleStyle}>
-        {"A"}
+        &nbsp;
       </h2>
-      <Image
+      <p
         className="item-card-image"
-        src=""
-        alt=""
-        width={512}
-        height={512}
-        style={imageStyle}
+        style={imageSkeletonStyle}
       />
       <p className="item-card-description" style={descriptionStyle}>
-        Description: {}
+        &nbsp;<br/>&nbsp;
       </p>
       <p className="item-card-category3" style={category3Style}>
-        Category 3: {}
+        &nbsp;
       </p>
       <p className="item-card-category2" style={category2Style}>
-        Category 2: {}
+        &nbsp;
       </p>
       <p className="item-card-category1" style={category1Style}>
-        Category 1: {}
+        &nbsp;
       </p>
       <p className="item-card-cost" style={costStyle}>
-        Cost: {"N/A"}
+        &nbsp;
       </p>
       <p className="item-card-stock" style={stockStyle}>
-        {"Out of Stock"}
+        &nbsp;
       </p>
     </div>
   );

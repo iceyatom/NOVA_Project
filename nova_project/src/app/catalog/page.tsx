@@ -4,162 +4,13 @@
 // and, at the bottom, includes a simple Prisma connectivity test
 // that lists all CatalogItem ids and itemNames from the DB.
 
-import { Console } from "console";
+import { cache } from 'react';
 import ItemCard from "../components/ItemCard";
 import ItemCardSkeleton from "../components/ItemCardSkeleton";
 import APIError from "./APIError";
 import { prisma } from "@/lib/db"; // direct Prisma test
 
 export const dynamic = "force-dynamic";
-
-function getItems() {
-  return [
-    {
-      id: 1,
-      itemName: "Item 1 That has a Really Long Name",
-      imageUrl:
-        "https://upload.wikimedia.org/wikipedia/commons/e/eb/Ash_Tree_-_geograph.org.uk_-_590710.jpg",
-      category3: "Category 1.3",
-      category2: "Category 1.2",
-      category1: "Category 1.1",
-      description: "This is a description for Item 1.",
-      unitCost: 10.5,
-      unitType: "each",
-      quantity: 1,
-      stock: 10,
-    },
-    {
-      id: 2,
-      itemName: "Item 2",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_02.jpg",
-      category3: "Category 2.3",
-      category2: "Category 2.2",
-      category1: "Category 2.1",
-      description: "This is a description for Item 2.",
-      unitCost: 2.75,
-      unitType: "per box",
-      quantity: 5,
-      stock: 2,
-    },
-    {
-      id: 3,
-      itemName: "Item 3",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_03.jpg",
-      category3: "Category 3.3",
-      category2: "Category 3.2",
-      category1: "Category 3.1",
-      description: "This is a description for Item 3.",
-      unitCost: 5.05,
-      unitType: "each",
-      quantity: 1,
-      stock: 0,
-    },
-    {
-      id: 4,
-      itemName: "Item 4",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_04.jpg",
-      category3: "Category 4.3",
-      category2: "Category 4.2",
-      category1: "Category 4.1",
-      description: "This is a description for Item 4.",
-      unitCost: 5.5,
-      unitType: "per crate",
-      quantity: 10,
-      stock: 4,
-    },
-    {
-      id: 5,
-      itemName: "Item 5",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_05.jpg",
-      category3: "Category 5.3",
-      category2: "Category 5.2",
-      category1: "Category 5.1",
-      description: "This is a description for Item 5.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 5,
-      stock: 7,
-    },
-    {
-      id: 6,
-      itemName: "Item 6",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_06.jpg",
-      category3: "Category 6.3",
-      category2: "Category 6.2",
-      category1: "Category 6.1",
-      description: "This is a description for Item 6.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 7,
-      stock: 0,
-    },
-    {
-      id: 7,
-      itemName: "Item 7",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_07.jpg",
-      category3: "Category 7.3",
-      category2: "Category 7.2",
-      category1: "Category 7.1",
-      description: "This is a description for Item 7.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 17,
-      stock: 20,
-    },
-    {
-      id: 8,
-      itemName: "Item 8",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_08.jpg",
-      category3: "Category 8.3",
-      category2: "Category 8.2",
-      category1: "Category 8.1",
-      description: "This is a description for Item 8.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 20,
-      stock: 15,
-    },
-    {
-      id: 9,
-      itemName: "Item 9",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_09.jpg",
-      category3: "Category 9.3",
-      category2: "Category 9.2",
-      category1: "Category 9.1",
-      description: "This is a description for Item 9.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 2,
-      stock: 10,
-    },
-    {
-      id: 10,
-      itemName: "Item 10",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_10.jpg",
-      category3: "Category 10.3",
-      category2: "Category 10.2",
-      category1: "Category 10.1",
-      description: "This is a description for Item 10.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 2,
-      stock: 10,
-    },
-    {
-      id: 11,
-      itemName: "Item 11",
-      imageUrl: "none",
-      category3: "Category 11.3",
-      category2: "Category 11.2",
-      category1: "Category 11.1",
-      description: "description",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 2,
-      stock: 10,
-    },
-  ];
-}
 
 type DbItem = {
   id: number;
@@ -475,7 +326,7 @@ export default async function CatalogPage() {
     let stateMsg: React.ReactNode = null;
 
     // Error
-    if (true/*apiStatus.startsWith("Catalog API request failed")*/) {
+    if (apiStatus.startsWith("Catalog API request failed")) {
       stateMsg = <APIError title="Failed to load CatalogItem data." message="The Catalog API is not reachable." apiStatus={apiStatus} />;
     }
 
@@ -509,8 +360,7 @@ export default async function CatalogPage() {
 
       <section className="catalog-grid" aria-label="Catalog items">
         {displayItems.map((item) => (
-          <ItemCard key={item.id} item={item} />
-          //<ItemCardSkeleton/>
+          <ItemCard key={item.id} item={item}/>
         ))}
       </section>
 
