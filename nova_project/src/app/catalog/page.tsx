@@ -4,7 +4,6 @@
 // and, at the bottom, includes a simple Prisma connectivity test
 // that lists all CatalogItem ids and itemNames from the DB.
 
-import { cache } from 'react';
 import ItemCard from "../components/ItemCard";
 import ItemCardSkeleton from "../components/ItemCardSkeleton";
 import APIError from "./APIError";

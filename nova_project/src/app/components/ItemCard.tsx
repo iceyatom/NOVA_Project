@@ -16,6 +16,7 @@ type Item = {
 };
 
 export default function ItemCard({ item }: { item: Item }) {
+
   // Destructure data
   const {
     id,
