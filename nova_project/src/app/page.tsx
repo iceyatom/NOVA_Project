@@ -24,7 +24,11 @@ const { mission, highlights, fallbacks } = homeContent;
 const missionEyebrow = mission.eyebrow ?? "Welcome to Niles Biological";
 const missionHeading = mission.heading ?? "Niles Biological";
 const missionSummary = mission.summary ?? fallbacks.description;
-const missionDetail = mission.detail ?? "";
+const missionDetailParagraphs = Array.isArray(mission.detail)
+  ? mission.detail
+  : mission.detail
+    ? [mission.detail]
+    : [];
 const missionImage = mission.image ?? fallbacks.image;
 const missionImageAlt = mission.imageAlt ?? fallbacks.imageAlt;
 const missionSupportingPoints =
@@ -68,7 +72,11 @@ export default function HomePage() {
                 {missionCta.label}
               </Link>
             </p>
-            {missionDetail && <p className="hero-detail">{missionDetail}</p>}
+            {missionDetailParagraphs.map((detail, index) => (
+              <p className="hero-detail" key={`mission-detail-${index}`}>
+                {detail}
+              </p>
+            ))}
             <ul className="mission-points">
               {missionSupportingPoints.map((point, index) => (
                 <li key={`${point}-${index}`}>{point}</li>
@@ -79,9 +87,9 @@ export default function HomePage() {
             <Image
               src={missionImage}
               alt={missionImageAlt}
-              width={1200}
-              height={800}
-              sizes="(max-width: 900px) 100vw, 50vw"
+              width={640}
+              height={428}
+              sizes="(max-width: 900px) 100vw, 320px"
               priority
             />
           </div>

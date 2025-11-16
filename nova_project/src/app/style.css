@@ -431,7 +431,7 @@ header {
 .hero-banner {
   background-image:
     linear-gradient(120deg, rgba(4, 120, 87, 0.85), rgba(6, 95, 70, 0.65)),
-    url("/LabRoom.JPG");
+    url("/LabRoom.webp");
   background-size: cover;
   background-position: center;
   border-radius: 18px;
@@ -542,9 +542,9 @@ header {
 
 .highlight-image img {
   width: 100%;
-  height: 180px;
-  object-fit: cover;
-  display: block;
+  height: 300px;
+  object-fit: scale-down;
+  display: inline;
 }
 
 .highlight-content {

@@ -16,7 +16,7 @@ export type MissionContent = {
   eyebrow?: string;
   heading?: string;
   summary?: string;
-  detail?: string;
+  detail?: string | string[];
   supportingPoints?: string[];
   image?: string;
   imageAlt?: string;
@@ -41,13 +41,16 @@ export const homeContent: HomeContent = {
   mission: {
     eyebrow: "Niles Biological",
     heading: "More than just a Biological Supply Company",
-    image: "/logo-frog.jpg",
+    image: "/logo-frog.webp",
     summary:
       "We hope to inspire many generations of students by providing a useful source of information, mixing tasteful presentations with vibrant imagery.",
-    detail:
+    detail: [
       "Every product page doubles as a searchable mini-encyclopedia so teachers can let students browse, discover, and learn while they shop for specimens.",
+      "We have gone the extra step of including information about the many specimens we provide that will compliment and augment the study experience.",
+      'We provide your students with a "searchable mini-encyclopedia" built right into the presentation of our products so teachers can introduce students to discovering all of the information available.',
+    ],
     supportingPoints: [
-      "17+ years serving classrooms, labs, and field programs with curated biology supplies.",
+      "30+ years serving classrooms, labs, and field programs with curated biology supplies.",
       "Information-rich catalog entries that complement and augment each lesson plan.",
       "Friendly support - call 916-386-2665 if you need help planning the next lab.",
     ],
