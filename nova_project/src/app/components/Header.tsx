@@ -23,7 +23,7 @@ export default function Header() {
           className="brand-link"
         >
           <Image
-            src="/logo-frog.jpg"
+            src="/logo-frog.webp"
             alt="Niles Biological logo"
             width={128}
             height={128}

@@ -1,8 +1,7 @@
 // src/app/catalog/page.tsx
 
 // Page shows the catalog using placeholder items (for now)
-// and, at the bottom, includes a simple Prisma connectivity test
-// that lists all CatalogItem ids and itemNames from the DB.
+// and, at the bottom, includes a diagnostics panel sourced from the API.
 
 import ItemCard from "../components/ItemCard";
 import ItemCardSkeleton from "../components/ItemCardSkeleton";
@@ -156,34 +155,8 @@ function getSafeErrorMessage(error: unknown, fallback: string) {
 // made async so we can await Prisma queries below
 export default async function CatalogPage() {
 
-  // --- Direct Prisma test block ---
-  let dbStatus: string;
-  let dbItems: DbItem[] = [];
-
-  try {
-    dbItems = await prisma.catalogItem.findMany({
-      select: {
-        id: true,
-        sku: true,
-        itemName: true,
-        price: true,
-        category3: true,
-        category2: true,
-        category1: true,
-        description: true,
-        quantityInStock: true,
-      }, // matches your schema
-      orderBy: [{ category3: "asc" }, { id: "asc" }],
-    });
-    dbStatus = `Connected to database. ${dbItems.length} catalog items found.`;
-  } catch (err: unknown) {
-    const message = getSafeErrorMessage(err, "Unknown error");
-    dbStatus = `Database request failed: ${message}`;
-  }
-  // -------------------------------------------------------------------
-
   // --- API route test block ---
-  let apiStatus = "Loading catalog via API…";
+  let apiStatus = "Loading catalog via API...";
   let apiItems: DbItem[] = [];
 
   // Page filters 
@@ -301,7 +274,6 @@ export default async function CatalogPage() {
   }
   // -------------------------------------------------------------------
 
-  const groupedDbEntries = groupItemsByCategory(dbItems);
   const groupedApiEntries = groupItemsByCategory(apiItems);
 
   console.log(apiItems);
@@ -321,8 +293,8 @@ export default async function CatalogPage() {
         stock: apiItem.quantityInStock ?? 0,
       }));
 
-    // Construct states (empty, error)
-    let stateMsg: React.ReactNode = null;
+  // Construct states (empty, error)
+  let stateMsg: React.ReactNode = null;
 
     // Error
     if (apiStatus.startsWith("Catalog API request failed")) {
@@ -333,13 +305,6 @@ export default async function CatalogPage() {
     return (
       <main className="catalog-grid">
         <p role="status">No items available.</p>
-
-        {/* Direct Prisma table still renders below, even if placeholder list is empty */}
-        <DiagnosticsPanel
-          title="Database Status (Prisma)"
-          status={dbStatus}
-          entries={groupedDbEntries}
-        />
 
         {/* API route table mirrors the Prisma data but through /api/catalog */}
         <DiagnosticsPanel
@@ -362,13 +327,6 @@ export default async function CatalogPage() {
           <ItemCard key={item.id} item={item}/>
         ))}
       </section>
-
-      {/* --- Direct Prisma table (shows raw DB query results) --- */}
-      <DiagnosticsPanel
-        title="Database Status (Prisma)"
-        status={dbStatus}
-        entries={groupedDbEntries}
-      />
 
       {/* --- API route table (same data fetched via /api/catalog) --- */}
       <DiagnosticsPanel
