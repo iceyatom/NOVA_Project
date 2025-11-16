@@ -15,45 +15,10 @@ type Item = {
   stock: number;
 };
 
-export default function ItemCard({ item }: { item: Item }) {
-  // Destructure data
-  const {
-    id,
-    itemName,
-    category1,
-    category2,
-    category3,
-    description,
-    unitCost,
-    unitType,
-    quantity,
-    imageUrl,
-    stock,
-  } = item;
-
-  const safeSrc =
-    imageUrl && (imageUrl.startsWith("/") || imageUrl.startsWith("http"))
-      ? imageUrl
-      : "/FillerImage.png";
-
-  // Function
-  const handleClick = (
-    event:
-      | React.KeyboardEvent<HTMLDivElement>
-      | React.MouseEvent<HTMLDivElement>,
-  ) => {
-    if (event.type === "keydown" && "key" in event && event.key !== "Enter")
-      return;
-    if (event.type === "click") event.preventDefault();
-
-    event.preventDefault();
-    // Send to the item page - for now, open image in new tab
-    window.open(safeSrc, "_self");
-  };
+export default function ItemCardSkeleton() {
 
   // Styles
   const itemCardStyle = {
-    cursor: "pointer",
     border: "1px solid #cccccc",
     borderRadius: "8px",
     padding: "16px",
@@ -117,13 +82,7 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "4px",
   };
 
-  const stockStyle = stock
-    ? {
-        fontSize: "12px",
-        color: "#008000",
-        marginTop: "4px",
-      }
-    : {
+  const stockStyle = {
         fontSize: "12px",
         color: "#FF0000",
         marginTop: "4px",
@@ -134,38 +93,35 @@ export default function ItemCard({ item }: { item: Item }) {
     <div
       className="item-card"
       style={itemCardStyle}
-      onClick={handleClick}
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && handleClick(e)}
     >
       <h2 className="item-card-title" style={titleStyle}>
-        {itemName}
+        {"A"}
       </h2>
       <Image
         className="item-card-image"
-        src={safeSrc}
-        alt={itemName}
+        src=""
+        alt=""
         width={512}
         height={512}
         style={imageStyle}
       />
       <p className="item-card-description" style={descriptionStyle}>
-        Description: {description}
+        Description: {}
       </p>
       <p className="item-card-category3" style={category3Style}>
-        Category 3: {category3}
+        Category 3: {}
       </p>
       <p className="item-card-category2" style={category2Style}>
-        Category 2: {category2}
+        Category 2: {}
       </p>
       <p className="item-card-category1" style={category1Style}>
-        Category 1: {category1}
+        Category 1: {}
       </p>
       <p className="item-card-cost" style={costStyle}>
-        Cost: {unitCost === null ? "N/A" : `$${unitCost.toFixed(2)}`}
+        Cost: {"N/A"}
       </p>
       <p className="item-card-stock" style={stockStyle}>
-        {stock ? stock + " available" : "Out of Stock"}
+        {"Out of Stock"}
       </p>
     </div>
   );
