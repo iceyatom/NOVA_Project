@@ -1,13 +1,13 @@
+// app/contact/page.tsx
+
 import { contactContent } from "../siteContent";
+import Image from "next/image";
 
 export default function ContactPage() {
   const c = contactContent;
 
   return (
-    <section
-      className="contact-page"
-      aria-labelledby="contact-heading"
-    >
+    <section className="contact-page" aria-labelledby="contact-heading">
       <header className="contact-header">
         <h1 id="contact-heading">{c.heading}</h1>
         <p>{c.intro}</p>
@@ -30,20 +30,14 @@ export default function ContactPage() {
 
           <div className="contact-field">
             <span className="contact-field-label">{c.phoneLabel}</span>
-            <a
-              href={`tel:${c.phoneHref}`}
-              className="contact-link"
-            >
+            <a href={`tel:${c.phoneHref}`} className="contact-link">
               {c.phoneDisplay}
             </a>
           </div>
 
           <div className="contact-field">
             <span className="contact-field-label">{c.emailLabel}</span>
-            <a
-              href={`mailto:${c.email}`}
-              className="contact-link"
-            >
+            <a href={`mailto:${c.email}`} className="contact-link">
               {c.email}
             </a>
           </div>
@@ -62,15 +56,25 @@ export default function ContactPage() {
           </dl>
         </section>
 
-        {/* Map / image placeholder */}
-        <section className="contact-card contact-card-wide">
+        {/* Location / Map */}
+        <section className="contact-card">
           <h2 className="contact-card-title">{c.mapLabel}</h2>
-         {/* FIX THIS LATER!!!
-           <img
-            src={c.mapImageUrl}
-            alt={c.mapImageAlt}
-            className="contact-map"
-          /> */}
+          <a
+            href={c.mapLinkHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="contact-map-link"
+          >
+            <Image
+              src={c.mapImageUrl}
+              alt={c.mapImageAlt}
+              width={800}
+              height={400}
+              className="contact-map"
+              sizes="(min-width: 768px) 50vw, 100vw"
+            />
+          </a>
+          <p className="contact-map-caption">{c.mapLinkLabel}</p>
         </section>
       </div>
     </section>
