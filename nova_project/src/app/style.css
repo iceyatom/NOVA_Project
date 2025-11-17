@@ -988,3 +988,66 @@ body {
 .diagnostics-panel__content table {
   margin: 0;
 }
+
+
+/* === Catalog hero search banner === */
+.hero-search {
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+}
+
+.hero-search .hero-inner {
+  width: min(1200px, 100% - 2rem);
+  margin-inline: auto;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.hero-search .hero-title {
+  color: #ffffff;
+  font-size: clamp(1.75rem, 3.2vw + 1rem, 3rem);
+  line-height: 1.1;
+  font-weight: 800;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  margin: 0;
+}
+
+.hero-form { width: min(760px, 100%); }
+.hero-input-group {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hero-input {
+  height: 56px;
+  padding: 0 1rem;
+  border-radius: 9999px;
+  border: none;
+  outline: none;
+  background: #ffffff;
+  color: #1c1c1c;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  font-size: 1rem;
+}
+.hero-input:focus { outline: 3px solid rgba(255, 255, 255, 0.9); outline-offset: 2px; }
+
+.hero-button {
+  height: 56px; width: 64px; border: none; border-radius: 9999px;
+  display: grid; place-items: center; background: #0c6b44; color: #fff;
+  font-weight: 700; box-shadow: 0 8px 22px rgba(0,0,0,.22);
+  cursor: pointer; transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+}
+.hero-button:hover:not([disabled]) { filter: brightness(1.05); transform: translateY(-1px); }
+.hero-button[disabled] { opacity: 0.6; cursor: not-allowed; }
+
+.hero-echo { margin: 0.75rem 0 1.25rem; color: var(--muted, #5f6a73); font-size: 0.95rem; }
+.hero-echo-label { font-weight: 600; }
+
+/* slight top spacing for the grid following the hero */
+.catalog-grid { margin-top: 0.75rem; }

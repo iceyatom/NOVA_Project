@@ -4,6 +4,7 @@
 // and, at the bottom, includes a diagnostics panel sourced from the API.
 
 import ItemCard from "../components/ItemCard";
+import SearchBar from "../components/SearchBar";
 
 export const dynamic = "force-dynamic";
 
@@ -384,7 +385,8 @@ export default async function CatalogPage() {
 
   return (
     <main>
-      <h1 style={{ padding: "1rem", margin: 0 }}>Catalog</h1>
+      {/* HERO search banner directly under the header */}
+      <SearchBar bgImage="/hero-lab.jpg" />
 
       {stateMsg}
 
