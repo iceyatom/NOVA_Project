@@ -3,7 +3,10 @@
 // Page shows the catalog using placeholder items (for now)
 // and, at the bottom, includes a diagnostics panel sourced from the API.
 
+import type React from "react";
+
 import ItemCard from "../components/ItemCard";
+import { prisma } from "../lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -305,6 +308,8 @@ export default async function CatalogPage() {
   }
   // -------------------------------------------------------------------
 
+  const groupedDbEntries = groupItemsByCategory(dbItems);
+
   // --- API route test block ---
   let apiStatus = "Loading catalog via API...";
   let apiItems: DbItem[] = [];
@@ -401,6 +406,13 @@ export default async function CatalogPage() {
       <main className="catalog-grid">
         <p role="status">No items in stock</p>
 
+        {/* Direct Prisma read */}
+        <DiagnosticsPanel
+          title="Direct Database Status"
+          status={dbStatus}
+          entries={groupedDbEntries}
+        />
+
         {/* API route table mirrors the Prisma data but through /api/catalog */}
         <DiagnosticsPanel
           title="Catalog API Status"
@@ -422,6 +434,13 @@ export default async function CatalogPage() {
           <ItemCard key={item.id} item={item} />
         ))}
       </section>
+
+      {/* --- Direct Prisma read --- */}
+      <DiagnosticsPanel
+        title="Direct Database Status"
+        status={dbStatus}
+        entries={groupedDbEntries}
+      />
 
       {/* --- API route table (same data fetched via /api/catalog) --- */}
       <DiagnosticsPanel

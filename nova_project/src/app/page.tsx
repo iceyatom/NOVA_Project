@@ -178,31 +178,6 @@ export default function HomePage() {
         <h1 id="hero-heading" className="hero-title">
           Niles Biological
         </h1>
-        <p className="hero-subtitle">
-          We supply classrooms and labs with reliable biological specimens,
-          slides, and kits—so educators can focus on teaching.
-        </p>
-        <p className="hero-cta">
-          <Link className="button-secondary" href="/catalog">
-            Browse the Catalog
-          </Link>
-        </p>
-
-        {/* ✅ AWS connection status */}
-        <div className="mt-6 text-center">
-          <StatusBadge state={state} />
-          {details}
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={fetchHealth}
-              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
-              aria-label="Retry health check"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
         <div className="hero-banner">
           <div className="hero-banner-inner">
             <p className="hero-eyebrow">{missionEyebrow}</p>
@@ -287,6 +262,21 @@ export default function HomePage() {
             );
           })}
         </div>
+        {/* ✅ AWS connection status */}
+        <div className="mt-6 text-center">
+          <StatusBadge state={state} />
+          {details}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={fetchHealth}
+              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
+              aria-label="Retry health check"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Right: quick-start links */}
@@ -325,5 +315,6 @@ export default function HomePage() {
         </nav>
       </aside>
     </div>
+    
   );
 }
