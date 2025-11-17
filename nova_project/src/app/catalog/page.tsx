@@ -6,7 +6,6 @@
 import type React from "react";
 
 import ItemCard from "../components/ItemCard";
-import { prisma } from "../lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -279,37 +278,6 @@ function getSafeErrorMessage(error: unknown, fallback: string) {
 export default async function CatalogPage() {
   const items = getItems();
 
-  // --- Direct Prisma test block ---
-  let dbStatus: string;
-  let dbItems: DbItem[] = [];
-
-  try {
-    const rawDbItems = await prisma.catalogItem.findMany({
-      select: {
-        id: true,
-        sku: true,
-        itemName: true,
-        price: true,
-        category3: true,
-        description: true,
-        quantityInStock: true,
-      }, // matches your schema
-      orderBy: [{ category3: "asc" }, { id: "asc" }],
-    });
-    dbItems = rawDbItems.map((item) => ({
-      ...item,
-      // Prisma Decimal -> number for rendering
-      price: item.price === null ? null : Number(item.price),
-    }));
-    dbStatus = `Connected to database. ${dbItems.length} catalog items found.`;
-  } catch (err: unknown) {
-    const message = getSafeErrorMessage(err, "Unknown error");
-    dbStatus = `Database request failed: ${message}`;
-  }
-  // -------------------------------------------------------------------
-
-  const groupedDbEntries = groupItemsByCategory(dbItems);
-
   // --- API route test block ---
   let apiStatus = "Loading catalog via API...";
   let apiItems: DbItem[] = [];
@@ -406,13 +374,6 @@ export default async function CatalogPage() {
       <main className="catalog-grid">
         <p role="status">No items in stock</p>
 
-        {/* Direct Prisma read */}
-        <DiagnosticsPanel
-          title="Direct Database Status"
-          status={dbStatus}
-          entries={groupedDbEntries}
-        />
-
         {/* API route table mirrors the Prisma data but through /api/catalog */}
         <DiagnosticsPanel
           title="Catalog API Status"
@@ -434,13 +395,6 @@ export default async function CatalogPage() {
           <ItemCard key={item.id} item={item} />
         ))}
       </section>
-
-      {/* --- Direct Prisma read --- */}
-      <DiagnosticsPanel
-        title="Direct Database Status"
-        status={dbStatus}
-        entries={groupedDbEntries}
-      />
 
       {/* --- API route table (same data fetched via /api/catalog) --- */}
       <DiagnosticsPanel
