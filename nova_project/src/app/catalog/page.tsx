@@ -315,8 +315,8 @@ export default async function CatalogPage() {
           {stateMsg}
 
           <div className="catalog-grid">
-            {displayItems.map((item) => (
-              <ItemCard key={item.id} item={item} />
+            {apiItems.map((item, index) => (
+              <ItemCard key={item.id ?? `item-${index}`} item={item} />
             ))}
           </div>
 
