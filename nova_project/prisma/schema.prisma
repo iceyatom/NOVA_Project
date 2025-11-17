@@ -12,7 +12,7 @@ datasource db {
 
 model CatalogItem {
   id                Int       @id @default(autoincrement())
-  sku               String?   @unique
+  sku               String?
   itemName          String
   price             Decimal   @db.Decimal(10, 2) @default(0)
   category3         String?

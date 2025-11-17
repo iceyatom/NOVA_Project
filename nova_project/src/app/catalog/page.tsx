@@ -283,7 +283,7 @@ export default async function CatalogPage() {
   let dbItems: DbItem[] = [];
 
   try {
-    dbItems = await prisma.catalogItem.findMany({
+    const rawDbItems = await prisma.catalogItem.findMany({
       select: {
         id: true,
         sku: true,
@@ -295,6 +295,11 @@ export default async function CatalogPage() {
       }, // matches your schema
       orderBy: [{ category3: "asc" }, { id: "asc" }],
     });
+    dbItems = rawDbItems.map((item) => ({
+      ...item,
+      // Prisma Decimal -> number for rendering
+      price: item.price === null ? null : Number(item.price),
+    }));
     dbStatus = `Connected to database. ${dbItems.length} catalog items found.`;
   } catch (err: unknown) {
     const message = getSafeErrorMessage(err, "Unknown error");
@@ -326,7 +331,7 @@ export default async function CatalogPage() {
       id: item.id,
       sku: item.sku ?? null,
       itemName: item.itemName,
-      price: item.price ?? null,
+      price: item.price === null ? null : Number(item.price),
       category3: item.category3 ?? null,
       description: item.description ?? null,
       quantityInStock: item.quantityInStock ?? null,
@@ -346,7 +351,7 @@ export default async function CatalogPage() {
 
   // Populate first card with live data using API (proof of concept)
   const CARD_ID = 1;
-  const apiItem1 = apiItems.find(x => x.id === CARD_ID) ?? null;
+  const apiItem1 = apiItems.find((x) => x.id === CARD_ID) ?? null;
 
   const displayItems = apiItem1
     ? [
@@ -363,36 +368,36 @@ export default async function CatalogPage() {
       ]
     : items;
 
-    // Construct states (empty, error)
-    let stateMsg: React.ReactNode = null;
+  // Construct states (empty, error)
+  let stateMsg: React.ReactNode = null;
 
-    // Error
-    if (apiStatus.startsWith("Catalog API request failed")) {
-      stateMsg = (
-        <div
-          role="alert"
-          style={{
-            marginLeft: "1rem",
-            marginRight: "1rem",
-            marginBottom: "1rem",
-            borderRadius: "0.25rem",
-            border: "1px solid #fca5a5", // light red border
-            backgroundColor: "#fef2f2",   // soft red background
-            padding: "0.5rem 0.75rem",
-            fontSize: "0.875rem",
-            color: "#b91c1c",             // red text
-          }}
-        >
-          Failed to load CatalogItem {CARD_ID}. {apiStatus}
-        </div>
-      )
-    }
-    // Empty
-    else if (!apiItem1) {
-      // For the future: should load a page with a statement that states no catalog items found.
-      // Also, change apiItem1 to length check
-      console.error("Empty: defaulting to placeholders.")
-    }
+  // Error
+  if (apiStatus.startsWith("Catalog API request failed")) {
+    stateMsg = (
+      <div
+        role="alert"
+        style={{
+          marginLeft: "1rem",
+          marginRight: "1rem",
+          marginBottom: "1rem",
+          borderRadius: "0.25rem",
+          border: "1px solid #fca5a5", // light red border
+          backgroundColor: "#fef2f2", // soft red background
+          padding: "0.5rem 0.75rem",
+          fontSize: "0.875rem",
+          color: "#b91c1c", // red text
+        }}
+      >
+        Failed to load CatalogItem {CARD_ID}. {apiStatus}
+      </div>
+    );
+  }
+  // Empty
+  else if (!apiItem1) {
+    // For the future: should load a page with a statement that states no catalog items found.
+    // Also, change apiItem1 to length check
+    console.error("Empty: defaulting to placeholders.");
+  }
 
   if (!items.length) {
     return (
