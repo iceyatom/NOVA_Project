@@ -2,17 +2,18 @@
 import Image from "next/image";
 
 type Item = {
-  id: number;
-  itemName: string;
-  category1: string;
-  category2: string;
-  category3: string;
-  description: string;
-  unitCost: number;
-  unitType: string;
-  quantity: number;
-  imageUrl: string;
-  stock: number;
+  id: number | null;
+  sku: string | null;
+  itemName: string | null;
+  imageUrl: string | null;
+  category3: string | null;
+  category2: string | null;
+  category1: string | null;
+  description: string | null;
+  price: number | null;
+  unitOfMeasure: string | null;
+  quantity: number | null;
+  quantityInStock: number | null;
 };
 
 export default function ItemCard({ item }: { item: Item }) {
@@ -20,16 +21,17 @@ export default function ItemCard({ item }: { item: Item }) {
   // Destructure data
   const {
     id,
+    sku,
     itemName,
-    category1,
-    category2,
-    category3,
-    description,
-    unitCost,
-    unitType,
-    quantity,
     imageUrl,
-    stock,
+    category3,
+    category2,
+    category1,
+    description,
+    price,
+    unitOfMeasure,
+    quantity,
+    quantityInStock,
   } = item;
 
   const safeSrc =
@@ -118,7 +120,7 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "4px",
   };
 
-  const stockStyle = stock
+  const stockStyle = quantityInStock
     ? {
         fontSize: "12px",
         color: "#008000",
@@ -140,33 +142,33 @@ export default function ItemCard({ item }: { item: Item }) {
       onKeyDown={(e) => e.key === "Enter" && handleClick(e)}
     >
       <h2 className="item-card-title" style={titleStyle}>
-        {itemName}
+        {itemName === null ? "N/A" : itemName}
       </h2>
       <Image
         className="item-card-image"
         src={safeSrc}
-        alt={itemName}
+        alt={itemName === null ? "N/A" : itemName}
         width={512}
         height={512}
         style={imageStyle}
       />
       <p className="item-card-description" style={descriptionStyle}>
-        Description: {description}
+        Description: {description === null ? "N/A" : description}
       </p>
       <p className="item-card-category3" style={category3Style}>
-        Category 3: {category3}
+        Category 3: {category3 === null ? "N/A" : category3}
       </p>
       <p className="item-card-category2" style={category2Style}>
-        Category 2: {category2}
+        Category 2: {category2 === null ? "N/A" : category2}
       </p>
       <p className="item-card-category1" style={category1Style}>
-        Category 1: {category1}
+        Category 1: {category1 === null ? "N/A" : category1}
       </p>
       <p className="item-card-cost" style={costStyle}>
-        Cost: {unitCost === null ? "N/A" : `$${unitCost.toFixed(2)}`}
+        Cost: {price === null ? "N/A" : `$${price.toFixed(2)}`}
       </p>
       <p className="item-card-stock" style={stockStyle}>
-        {stock ? stock + " available" : "Out of Stock"}
+        {quantityInStock === null ? "N/A" : quantityInStock > 0 ? quantityInStock + " available" : "Out of Stock"}
       </p>
     </div>
   );

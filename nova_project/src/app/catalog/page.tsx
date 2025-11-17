@@ -10,38 +10,24 @@ import { prisma } from "@/lib/db"; // direct Prisma test
 
 export const dynamic = "force-dynamic";
 
-type DbItem = {
-  id: number;
+type Item = {
+  id: number | null;
   sku: string | null;
-  itemName: string;
-  price: number | null;
-  category3: string | null;
-  category2: string | null;
+  itemName: string | null;
   category1: string | null;
+  category2: string | null;
+  category3: string | null;
   description: string | null;
+  price: number | null;
+  unitOfMeasure: string | null;
+  quantity: number | null;
+  imageUrl: string | null;
   quantityInStock: number | null;
 };
 
-type CatalogApiResponse = {
-  success: boolean;
-  data?: {
-    id: number;
-    sku: string | null;
-    itemName: string;
-    price: number | null;
-    category3: string | null;
-    category2: string | null;
-    category1: string | null;
-    description: string | null;
-    quantityInStock: number | null;
-  }[];
-  count?: number;
-  error?: string;
-};
-
-function groupItemsByCategory(items: DbItem[]) {
+function groupItemsByCategory(items: Item[]) {
   return Object.entries(
-    items.reduce<Record<string, DbItem[]>>((acc, item) => {
+    items.reduce<Record<string, Item[]>>((acc, item) => {
       const key = item.category3?.trim() || "Uncategorized";
       if (!acc[key]) {
         acc[key] = [];
@@ -52,7 +38,7 @@ function groupItemsByCategory(items: DbItem[]) {
   ).sort(([categoryA], [categoryB]) => categoryA.localeCompare(categoryB));
 }
 
-function renderGroupedTable(entries: [string, DbItem[]][]) {
+function renderGroupedTable(entries: [string, Item[]][]) {
   if (!entries.length) {
     return null;
   }
@@ -109,7 +95,7 @@ function DiagnosticsPanel({
 }: {
   title: string;
   status: string;
-  entries: [string, DbItem[]][];
+  entries: [string, Item[]][];
 }) {
   return (
     <section className="diagnostics-panel">
@@ -157,7 +143,8 @@ export default async function CatalogPage() {
 
   // --- API route test block ---
   let apiStatus = "Loading catalog via API...";
-  let apiItems: DbItem[] = [];
+  let apiItems: Item[] = [];
+  let groupedApiEntries: [string, Item[]][] = [];
 
   // Page filters 
   let page: number | null = null;
@@ -184,11 +171,11 @@ export default async function CatalogPage() {
   let idOrder: "asc" | "desc" | null = null;
   let skuOrder: "asc" | "desc" | null = null;
   let itemNameOrder: "asc" | "desc" | null = null;
-  let priceOrder: "asc" | "desc" | null = null;
   let category3Order: "asc" | "desc" | null = null;
   let category2Order: "asc" | "desc" | null = null;
   let category1Order: "asc" | "desc" | null = null;
   let descriptionOrder: "asc" | "desc" | null = null;
+  let priceOrder: "asc" | "desc" | null = null;
   let quantityInStockOrder: "asc" | "desc" | null = null;
 
   try {
@@ -198,11 +185,12 @@ export default async function CatalogPage() {
           id: true,
           sku: true,
           itemName: true,
-          price: true,
+          //imageUrl: true, // TODO 
           category3: true,
           category2: true,
           category1: true,
           description: true,
+          price: true,
           quantityInStock: true,
         },
         where: {
@@ -243,11 +231,11 @@ export default async function CatalogPage() {
           { id: idOrder ?? undefined },
           { sku: skuOrder ?? undefined },
           { itemName: itemNameOrder ?? undefined },
-          { price: priceOrder ?? undefined },
           { category3: category3Order ?? undefined },
           { category2: category2Order ?? undefined },
           { category1: category1Order ?? undefined },
           { description: descriptionOrder ?? undefined },
+          { price: priceOrder ?? undefined },
           { quantityInStock: quantityInStockOrder ?? undefined },
         ],
         skip: skip ?? undefined,
@@ -257,14 +245,17 @@ export default async function CatalogPage() {
 
     apiItems = result.map((item) => ({
       id: item.id,
-      sku: item.sku ?? "N/A",
-      itemName: item.itemName ?? "N/A",
-      price: item.price ?? null,
-      category3: item.category3 ?? "N/A",
-      category2: item.category2 ?? "N/A",
-      category1: item.category1 ?? "N/A",
-      description: item.description ?? "N/A",
-      quantityInStock: item.quantityInStock ?? null,
+      sku: item.sku,
+      itemName: item.itemName,
+      imageUrl: null, // TODO 
+      category3: item.category3,
+      category2: item.category2,
+      category1: item.category1,
+      description: item.description,
+      price: item.price,
+      unitOfMeasure: null, // TODO 
+      quantity: null, // TODO 
+      quantityInStock: item.quantityInStock,
     }));
 
     apiStatus = `Catalog API reachable. ${result.length} catalog items found.`;
@@ -272,34 +263,16 @@ export default async function CatalogPage() {
     const message = getSafeErrorMessage(err, "Unknown error");
     apiStatus = `Catalog API request failed: ${message}`;
   }
-  // -------------------------------------------------------------------
 
-  const groupedApiEntries = groupItemsByCategory(apiItems);
-
-  console.log(apiItems);
-
-  // Populate all cards with live data using API 
-  const displayItems = apiItems.map(apiItem => ({
-        id: apiItem.id,
-        itemName: apiItem.itemName,
-        category3: apiItem.category3 ?? "Uncategorized",
-        category2: apiItem.category2 ?? "Uncategorized",
-        category1: apiItem.category1 ?? "Uncategorized",
-        description: apiItem.description ?? "",
-        unitCost: apiItem.price ?? 0.0,
-        unitType: "",
-        quantity: apiItem.quantityInStock ?? 0,
-        imageUrl: "",
-        stock: apiItem.quantityInStock ?? 0,
-      }));
+  groupedApiEntries = groupItemsByCategory(apiItems);
 
   // Construct states (empty, error)
   let stateMsg: React.ReactNode = null;
 
-    // Error
-    if (apiStatus.startsWith("Catalog API request failed")) {
-      stateMsg = <APIError title="Failed to load CatalogItem data." message="The Catalog API is not reachable." apiStatus={apiStatus} />;
-    }
+  // Error
+  if (apiStatus.startsWith("Catalog API request failed")) {
+    stateMsg = <APIError title="Failed to load CatalogItem data." message="The Catalog API is not reachable." apiStatus={apiStatus} />;
+  }
 
   if (!apiItems.length) {
     return (
@@ -323,7 +296,7 @@ export default async function CatalogPage() {
       {stateMsg}
 
       <section className="catalog-grid" aria-label="Catalog items">
-        {displayItems.map((item) => (
+        {apiItems.map((item) => (
           <ItemCard key={item.id} item={item}/>
         ))}
       </section>
