@@ -30,7 +30,7 @@ export default function ItemCard({ item }: { item: Item }) {
   const safeSrc =
     imageUrl && (imageUrl.startsWith("/") || imageUrl.startsWith("http"))
       ? imageUrl
-      : "/FillerImage.png";
+      : "/FillerImage.webp";
 
   // Function
   const handleClick = (
