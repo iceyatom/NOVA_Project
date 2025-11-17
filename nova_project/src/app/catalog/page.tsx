@@ -383,7 +383,7 @@ export default async function CatalogPage() {
   }
 
   return (
-    <main aria-label="Catalog Layout">
+  <main aria-label="Catalog Layout">
     <div className="catalog-three-pane">
 
       {/* Left Pane */}
@@ -394,16 +394,15 @@ export default async function CatalogPage() {
       >
         <h2 className="pane-title">Filters</h2>
 
-        {/* Temp filters*/}
         <ul className="pane-list">
-          <li><button className="nav-link">Laboratory Supplies(temp)</button></li>
-          <li><button className="nav-link">In Stock(temp)</button></li>
-          <li><button className="nav-link">Out of Stock(temp)</button></li>
+          <li><button className="nav-link">Laboratory Supplies (temp)</button></li>
+          <li><button className="nav-link">In Stock (temp)</button></li>
+          <li><button className="nav-link">Out of Stock (temp)</button></li>
         </ul>
       </aside>
 
       {/* Center Pane */}
-      <main
+      <section
         id="catalog"
         aria-label="Catalog items"
         className="catalog-pane catalog-pane-center"
@@ -411,46 +410,29 @@ export default async function CatalogPage() {
         <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
         {stateMsg}
 
-        <section className="catalog-grid">
+        <div className="catalog-grid">
           {displayItems.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}
-        </section>
+        </div>
 
-        <DiagnosticsPanel
-          title="Database Status (Prisma)"
-          status={dbStatus}
-          entries={groupedDbEntries}
-        />
         <DiagnosticsPanel
           title="Catalog API Status"
           status={apiStatus}
           entries={groupedApiEntries}
         />
-      </main>
+      </section>
 
-{/* Right Pane */}
-<aside
-  id="context"
-  aria-label="Context panel"
-  className="catalog-pane catalog-pane-right"
->
-  <p style={{ margin: 0, opacity: 0.6 }}></p>
-</aside>
+      {/* Right Pane */}
+      <aside
+        id="context"
+        aria-label="Context panel"
+        className="catalog-pane catalog-pane-right"
+      >
+        <p style={{ margin: 0, opacity: 0.6 }}></p>
+      </aside>
 
-</div> {/* end of 3-pane container */}
-</main>
-
-<section className="catalog-grid" aria-label="Catalog items">
-  {displayItems.map((item) => (
-    <ItemCard key={item.id} item={item} />
-  ))}
-</section>
-
-<DiagnosticsPanel
-  title="Catalog API Status"
-  status={apiStatus}
-  entries={groupedApiEntries}
-/>
-  );
+    </div>
+  </main>
+);
 }
