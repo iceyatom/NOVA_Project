@@ -6,6 +6,7 @@
 import type React from "react";
 
 import ItemCard from "../components/ItemCard";
+import Filters from "../components/Filters";
 
 export const dynamic = "force-dynamic";
 
@@ -385,56 +386,51 @@ export default async function CatalogPage() {
   }
 
   return (
-  <main aria-label="Catalog Layout">
-    <div className="catalog-three-pane">
+    <main aria-label="Catalog Layout">
+      <div className="catalog-three-pane">
+        {/* Left Pane */}
+        <aside
+          id="filters"
+          aria-label="Filter panel"
+          className="catalog-pane catalog-pane-left"
+        >
+          <h2 className="pane-title">Filters</h2>
+          <Filters />
+        </aside>
 
-      {/* Left Pane */}
-      <aside
-        id="filters"
-        aria-label="Filter panel"
-        className="catalog-pane catalog-pane-left"
-      >
-        <h2 className="pane-title">Filters</h2>
+        {/* Center Pane */}
+        <section
+          id="catalog"
+          aria-label="Catalog items"
+          className="catalog-pane catalog-pane-center"
+        >
+          <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
+          {stateMsg}
 
-        <ul className="pane-list">
-          <li><button className="nav-link">Laboratory Supplies (temp)</button></li>
-          <li><button className="nav-link">In Stock (temp)</button></li>
-          <li><button className="nav-link">Out of Stock (temp)</button></li>
-        </ul>
-      </aside>
+          <div className="catalog-grid">
+            {displayItems.map((item) => (
+              <ItemCard key={item.id} item={item} />
+            ))}
+          </div>
 
-      {/* Center Pane */}
-      <section
-        id="catalog"
-        aria-label="Catalog items"
-        className="catalog-pane catalog-pane-center"
-      >
-        <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
-        {stateMsg}
+          <div style={{ marginTop: "1.5rem" }}>
+            <DiagnosticsPanel
+              title="Catalog API Status"
+              status={apiStatus}
+              entries={groupedApiEntries}
+            />
+          </div>
+        </section>
 
-        <div className="catalog-grid">
-          {displayItems.map((item) => (
-            <ItemCard key={item.id} item={item} />
-          ))}
-        </div>
-
-        <DiagnosticsPanel
-          title="Catalog API Status"
-          status={apiStatus}
-          entries={groupedApiEntries}
-        />
-      </section>
-
-      {/* Right Pane */}
-      <aside
-        id="context"
-        aria-label="Context panel"
-        className="catalog-pane catalog-pane-right"
-      >
-        <p style={{ margin: 0, opacity: 0.6 }}></p>
-      </aside>
-
-    </div>
-  </main>
-);
+        {/* Right Pane */}
+        <aside
+          id="context"
+          aria-label="Context panel"
+          className="catalog-pane catalog-pane-right"
+        >
+          <p style={{ margin: 0, opacity: 0.6 }}></p>
+        </aside>
+      </div>
+    </main>
+  );
 }
