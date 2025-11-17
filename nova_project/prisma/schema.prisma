@@ -1,35 +1,32 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
+  // output not needed; default is fine
 }
 
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+  // keep this only if you will run prisma migrate
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model CatalogItem {
   id                Int       @id @default(autoincrement())
-  sku               String?
+  sku               String?   @unique
   itemName          String
-  price             Float?    @default(0.0)
+  price             Decimal   @db.Decimal(10, 2) @default(0)
   category3         String?
   category2         String?
   category1         String?
   description       String?
-  quantityInStock   Int?      @default(0)
+  quantityInStock   Int       @default(0)
   unitOfMeasure     String?
   storageLocation   String?
   storageConditions String?
   expirationDate    DateTime?
   dateAcquired      DateTime?
-  reorderLevel      Int?      @default(0)
-  unitCost          Float?    @default(0.0)
+  reorderLevel      Int       @default(0)
+  unitCost          Decimal   @db.Decimal(10, 2) @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
