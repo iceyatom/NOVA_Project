@@ -3,6 +3,8 @@
 // Page shows the catalog using placeholder items (for now)
 // and, at the bottom, includes a diagnostics panel sourced from the API.
 
+import type React from "react";
+
 import ItemCard from "../components/ItemCard";
 import Filters from "../components/Filters";
 
@@ -301,7 +303,7 @@ export default async function CatalogPage() {
       id: item.id,
       sku: item.sku ?? null,
       itemName: item.itemName,
-      price: item.price ?? null,
+      price: item.price === null ? null : Number(item.price),
       category3: item.category3 ?? null,
       description: item.description ?? null,
       quantityInStock: item.quantityInStock ?? null,
@@ -384,10 +386,38 @@ export default async function CatalogPage() {
   }
 
   return (
-    <main>
-      <h1 style={{ padding: "1rem", margin: 0 }}>Catalog</h1>
+  <main aria-label="Catalog Layout">
+    <div className="catalog-three-pane">
 
-      {stateMsg}
+      {/* Left Pane */}
+      <aside
+        id="filters"
+        aria-label="Filter panel"
+        className="catalog-pane catalog-pane-left"
+      >
+        <h2 className="pane-title">Filters</h2>
+
+        <ul className="pane-list">
+          <li><button className="nav-link">Laboratory Supplies (temp)</button></li>
+          <li><button className="nav-link">In Stock (temp)</button></li>
+          <li><button className="nav-link">Out of Stock (temp)</button></li>
+        </ul>
+      </aside>
+
+      {/* Center Pane */}
+      <section
+        id="catalog"
+        aria-label="Catalog items"
+        className="catalog-pane catalog-pane-center"
+      >
+        <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
+        {stateMsg}
+
+        <div className="catalog-grid">
+          {displayItems.map((item) => (
+            <ItemCard key={item.id} item={item} />
+          ))}
+        </div>
 
       <div style={{ padding: "0 1rem 1.5rem" }}>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,260px) 1fr", gap: "1.5rem" }}>
@@ -408,4 +438,24 @@ export default async function CatalogPage() {
       </div>
     </main>
   );
+}
+        <DiagnosticsPanel
+          title="Catalog API Status"
+          status={apiStatus}
+          entries={groupedApiEntries}
+        />
+      </section>
+
+      {/* Right Pane */}
+      <aside
+        id="context"
+        aria-label="Context panel"
+        className="catalog-pane catalog-pane-right"
+      >
+        <p style={{ margin: 0, opacity: 0.6 }}></p>
+      </aside>
+
+    </div>
+  </main>
+);
 }

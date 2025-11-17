@@ -100,3 +100,73 @@ export const homeContent: HomeContent = {
     imageAlt: "Placeholder image for forthcoming Niles Biological content.",
   },
 };
+
+// ----- About page content (add this) -----
+
+export type Milestone = { date: string; title: string; detail?: string };
+export type MediaItem = { url: string; alt: string };
+
+export type AboutContent = {
+  company: {
+    name: string;
+    overview: string;
+    mission: string;
+    values: string[];
+  };
+  milestones: Milestone[];
+  media: {
+    team: MediaItem[];
+    facility: MediaItem[];
+  };
+  placeholders: {
+    text: string;
+    image: string;
+  };
+};
+
+// Seed About from parts of homeContent to avoid duplication
+export const aboutContent: AboutContent = {
+  company: {
+    name: homeContent.mission.eyebrow || "Niles Biological",
+    overview:
+      homeContent.mission.summary ||
+      "Niles Biological supplies classrooms and labs with reliable specimens, slides, and kits.",
+    mission:
+      (Array.isArray(homeContent.mission.detail) && homeContent.mission.detail[0]) ||
+      "Empower science education with safe, consistent, classroom-ready biology materials.",
+    values:
+      homeContent.mission.supportingPoints?.length
+        ? homeContent.mission.supportingPoints
+        : [
+            "Reliability for instructors and students",
+            "Ethical sourcing & quality control",
+            "Helpful documentation and support",
+            "On-time fulfillment and responsive service",
+          ],
+  },
+  milestones: [
+    { date: "1960s", title: " Founded", detail: "Began supplying local classrooms with curated specimens." },
+    { date: "1990s", title: " Expanded Catalog", detail: "Introduced prepared slides and dissection kits." },
+    { date: "2010s", title: " QA Modernization", detail: "Scaled quality systems and cold-chain logistics." },
+    { date: "Today",  title: " Nationwide Partner", detail: "Serving K-12 and higher-ed labs across the U.S." },
+  ],
+  media: {
+    team: [
+      {
+        url: "/TeamPlaceholder.webp",
+        alt: "Niles Biological team group photo (placeholder)",
+      },
+    ],
+    facility: [
+      {
+        url: "/FacilityPlaceholder.webp",
+        alt: "Niles Biological facility lab area (placeholder)",
+      },
+    ],
+  },
+  placeholders: {
+    text: homeContent.fallbacks.description || "N/A",
+    image: homeContent.fallbacks.image || "/FillerImage.png",
+  },
+};
+
