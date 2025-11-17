@@ -50,7 +50,7 @@ export const contactContent: ContactContent = {
   ],
 
   mapLabel: "Location",
-  mapImageUrl: "/nilesbio-location.png",
+  mapImageUrl: "/nilesbio-location.webp",
   mapImageAlt: "Map showing the location of Niles Biological.",
   mapLinkHref:
     "https://www.google.com/maps/search/?api=1&query=9296+Elder+Creek+Road,+Sacramento,+CA+95829",
