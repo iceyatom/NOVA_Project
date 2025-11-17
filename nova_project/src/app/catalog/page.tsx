@@ -385,23 +385,56 @@ export default async function CatalogPage() {
   }
 
   return (
-    <main>
-      <h1 style={{ padding: "1rem", margin: 0 }}>Catalog</h1>
+  <main aria-label="Catalog Layout">
+    <div className="catalog-three-pane">
 
-      {stateMsg}
+      {/* Left Pane */}
+      <aside
+        id="filters"
+        aria-label="Filter panel"
+        className="catalog-pane catalog-pane-left"
+      >
+        <h2 className="pane-title">Filters</h2>
 
-      <section className="catalog-grid" aria-label="Catalog items">
-        {displayItems.map((item) => (
-          <ItemCard key={item.id} item={item} />
-        ))}
+        <ul className="pane-list">
+          <li><button className="nav-link">Laboratory Supplies (temp)</button></li>
+          <li><button className="nav-link">In Stock (temp)</button></li>
+          <li><button className="nav-link">Out of Stock (temp)</button></li>
+        </ul>
+      </aside>
+
+      {/* Center Pane */}
+      <section
+        id="catalog"
+        aria-label="Catalog items"
+        className="catalog-pane catalog-pane-center"
+      >
+        <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
+        {stateMsg}
+
+        <div className="catalog-grid">
+          {displayItems.map((item) => (
+            <ItemCard key={item.id} item={item} />
+          ))}
+        </div>
+
+        <DiagnosticsPanel
+          title="Catalog API Status"
+          status={apiStatus}
+          entries={groupedApiEntries}
+        />
       </section>
 
-      {/* --- API route table (same data fetched via /api/catalog) --- */}
-      <DiagnosticsPanel
-        title="Catalog API Status"
-        status={apiStatus}
-        entries={groupedApiEntries}
-      />
-    </main>
-  );
+      {/* Right Pane */}
+      <aside
+        id="context"
+        aria-label="Context panel"
+        className="catalog-pane catalog-pane-right"
+      >
+        <p style={{ margin: 0, opacity: 0.6 }}></p>
+      </aside>
+
+    </div>
+  </main>
+);
 }
