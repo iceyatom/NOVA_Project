@@ -4,6 +4,7 @@
 // and, at the bottom, includes a diagnostics panel sourced from the API.
 
 import ItemCard from "../components/ItemCard";
+import Filters from "../components/Filters";
 
 export const dynamic = "force-dynamic";
 
@@ -388,18 +389,23 @@ export default async function CatalogPage() {
 
       {stateMsg}
 
-      <section className="catalog-grid" aria-label="Catalog items">
-        {displayItems.map((item) => (
-          <ItemCard key={item.id} item={item} />
-        ))}
-      </section>
+      <div style={{ padding: "0 1rem 1.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,260px) 1fr", gap: "1.5rem" }}>
+          <aside style={{ position: "sticky", top: "1rem", alignSelf: "start" }}>
+            <Filters />
+          </aside>
 
-      {/* --- API route table (same data fetched via /api/catalog) --- */}
-      <DiagnosticsPanel
-        title="Catalog API Status"
-        status={apiStatus}
-        entries={groupedApiEntries}
-      />
+          <section className="catalog-grid" aria-label="Catalog items">
+            {displayItems.map((item) => (
+              <ItemCard key={item.id} item={item} />
+            ))}
+
+            <div style={{ marginTop: "1.5rem" }}>
+              <DiagnosticsPanel title="Catalog API Status" status={apiStatus} entries={groupedApiEntries} />
+            </div>
+          </section>
+        </div>
+      </div>
     </main>
   );
 }
