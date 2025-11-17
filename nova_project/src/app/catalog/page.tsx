@@ -3,6 +3,8 @@
 // Page shows the catalog using placeholder items (for now)
 // and, at the bottom, includes a diagnostics panel sourced from the API.
 
+import type React from "react";
+
 import ItemCard from "../components/ItemCard";
 
 export const dynamic = "force-dynamic";
@@ -300,7 +302,7 @@ export default async function CatalogPage() {
       id: item.id,
       sku: item.sku ?? null,
       itemName: item.itemName,
-      price: item.price ?? null,
+      price: item.price === null ? null : Number(item.price),
       category3: item.category3 ?? null,
       description: item.description ?? null,
       quantityInStock: item.quantityInStock ?? null,
