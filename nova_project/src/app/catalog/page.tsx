@@ -388,7 +388,14 @@ export default async function CatalogPage() {
       <h1 style={{ padding: "1rem", margin: 0 }}>Catalog</h1>
 
       {stateMsg}
-
+      
+      {/* --- API route table (same data fetched via /api/catalog) --- */}
+      <DiagnosticsPanel
+        title="Catalog API Status"
+        status={apiStatus}
+        entries={groupedApiEntries}
+      />
+      
       <div style={{ padding: "0 1rem 1.5rem" }}>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,260px) 1fr", gap: "1.5rem" }}>
           <aside style={{ position: "sticky", top: "1rem", alignSelf: "start" }}>
