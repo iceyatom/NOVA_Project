@@ -3,166 +3,35 @@
 // Page shows the catalog using placeholder items (for now)
 // and, at the bottom, includes a diagnostics panel sourced from the API.
 
+import type React from "react";
+
 import ItemCard from "../components/ItemCard";
 import SearchBar from "../components/SearchBar";
+import ItemCardSkeleton from "../components/ItemCardSkeleton";
+import APIError from "./APIError";
+import { prisma } from "@/lib/db"; // direct Prisma test
+import Filters from "../components/Filters";
 
 export const dynamic = "force-dynamic";
 
-function getItems() {
-  return [
-    {
-      id: 1,
-      itemName: "Item 1 That has a Really Long Name",
-      imageUrl:
-        "https://upload.wikimedia.org/wikipedia/commons/e/eb/Ash_Tree_-_geograph.org.uk_-_590710.jpg",
-      category: "Category 1",
-      description: "This is a description for Item 1.",
-      unitCost: 10.5,
-      unitType: "each",
-      quantity: 1,
-      stock: 10,
-    },
-    {
-      id: 2,
-      itemName: "Item 2",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_02.jpg",
-      category: "Category 2",
-      description: "This is a description for Item 2.",
-      unitCost: 2.75,
-      unitType: "per box",
-      quantity: 5,
-      stock: 2,
-    },
-    {
-      id: 3,
-      itemName: "Item 3",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_03.jpg",
-      category: "Category 3",
-      description: "This is a description for Item 3.",
-      unitCost: 5.05,
-      unitType: "each",
-      quantity: 1,
-      stock: 0,
-    },
-    {
-      id: 4,
-      itemName: "Item 4",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_04.jpg",
-      category: "Category 4",
-      description: "This is a description for Item 4.",
-      unitCost: 5.5,
-      unitType: "per crate",
-      quantity: 10,
-      stock: 4,
-    },
-    {
-      id: 5,
-      itemName: "Item 5",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_05.jpg",
-      category: "Category 5",
-      description: "This is a description for Item 5.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 5,
-      stock: 7,
-    },
-    {
-      id: 6,
-      itemName: "Item 6",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_06.jpg",
-      category: "Category 6",
-      description: "This is a description for Item 6.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 7,
-      stock: 0,
-    },
-    {
-      id: 7,
-      itemName: "Item 7",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_07.jpg",
-      category: "Category 7",
-      description: "This is a description for Item 7.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 17,
-      stock: 20,
-    },
-    {
-      id: 8,
-      itemName: "Item 8",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_08.jpg",
-      category: "Category 8",
-      description: "This is a description for Item 8.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 20,
-      stock: 15,
-    },
-    {
-      id: 9,
-      itemName: "Item 9",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_09.jpg",
-      category: "Category 9",
-      description: "This is a description for Item 9.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 2,
-      stock: 10,
-    },
-    {
-      id: 10,
-      itemName: "Item 10",
-      imageUrl: "https://www.nilesbio.com/images/NilesBio_10.jpg",
-      category: "Category 10",
-      description: "This is a description for Item 10.",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 2,
-      stock: 10,
-    },
-    {
-      id: 11,
-      itemName: "Item 11",
-      imageUrl: "none",
-      category: "Category 11",
-      description: "description",
-      unitCost: 10,
-      unitType: "each",
-      quantity: 2,
-      stock: 10,
-    },
-  ];
-}
-
-type DbItem = {
-  id: number;
+type Item = {
+  id: number | null;
   sku: string | null;
-  itemName: string;
-  price: number | null;
+  itemName: string | null;
+  category1: string | null;
+  category2: string | null;
   category3: string | null;
   description: string | null;
+  price: number | null;
+  unitOfMeasure: string | null;
+  quantity: number | null;
+  imageUrl: string | null;
   quantityInStock: number | null;
 };
 
-type CatalogApiResponse = {
-  success: boolean;
-  data?: {
-    id: number;
-    sku: string | null;
-    itemName: string;
-    price: number | null;
-    category3: string | null;
-    description: string | null;
-    quantityInStock: number | null;
-  }[];
-  count?: number;
-  error?: string;
-};
-
-function groupItemsByCategory(items: DbItem[]) {
+function groupItemsByCategory(items: Item[]) {
   return Object.entries(
-    items.reduce<Record<string, DbItem[]>>((acc, item) => {
+    items.reduce<Record<string, Item[]>>((acc, item) => {
       const key = item.category3?.trim() || "Uncategorized";
       if (!acc[key]) {
         acc[key] = [];
@@ -173,7 +42,7 @@ function groupItemsByCategory(items: DbItem[]) {
   ).sort(([categoryA], [categoryB]) => categoryA.localeCompare(categoryB));
 }
 
-function renderGroupedTable(entries: [string, DbItem[]][]) {
+function renderGroupedTable(entries: [string, Item[]][]) {
   if (!entries.length) {
     return null;
   }
@@ -230,7 +99,7 @@ function DiagnosticsPanel({
 }: {
   title: string;
   status: string;
-  entries: [string, DbItem[]][];
+  entries: [string, Item[]][];
 }) {
   return (
     <section className="diagnostics-panel">
@@ -275,103 +144,144 @@ function getSafeErrorMessage(error: unknown, fallback: string) {
 
 // made async so we can await Prisma queries below
 export default async function CatalogPage() {
-  const items = getItems();
 
   // --- API route test block ---
   let apiStatus = "Loading catalog via API...";
-  let apiItems: DbItem[] = [];
+  let apiItems: Item[] = [];
+  let groupedApiEntries: [string, Item[]][] = [];
+
+  // Page filters 
+  const page: number | null = null;
+  const itemsPerPage: number | null = null;
+  const skip = page !== null && itemsPerPage !== null ? (page - 1) * itemsPerPage : null;
+  const take = itemsPerPage !== null ? itemsPerPage : null;
+
+  // Where filters 
+  const itemName: string | null = null;
+
+  const minPrice: number | null = null;
+  const maxPrice: number | null = null;
+
+  const category: string | null = null; // Used as a generic category 
+  const category3: string | null = null;
+  const category2: string | null = null;
+  const category1: string | null = null;
+
+  const description: string | null = null;
+
+  const inStock: boolean | null = null;
+
+  // Order by fields 
+  const idOrder: "asc" | "desc" | null = null;
+  const skuOrder: "asc" | "desc" | null = null;
+  const itemNameOrder: "asc" | "desc" | null = null;
+  const category3Order: "asc" | "desc" | null = null;
+  const category2Order: "asc" | "desc" | null = null;
+  const category1Order: "asc" | "desc" | null = null;
+  const descriptionOrder: "asc" | "desc" | null = null;
+  const priceOrder: "asc" | "desc" | null = null;
+  const quantityInStockOrder: "asc" | "desc" | null = null;
 
   try {
-    const baseUrl = getBaseUrl();
-    const apiResponse = await fetch(`${baseUrl}/api/catalog`, {
-      cache: "no-store",
-    });
+    const result = await prisma.catalogItem.findMany(
+      {
+        select: {
+          id: true,
+          sku: true,
+          itemName: true,
+          //imageUrl: true, // TODO 
+          category3: true,
+          category2: true,
+          category1: true,
+          description: true,
+          price: true,
+          quantityInStock: true,
+        },
+        where: {
+          AND: [
+            itemName !== null
+              ? { itemName: { contains: itemName } }
+              : {},
+            minPrice !== null
+              ? { price: { gte: minPrice } }
+              : {},
+            maxPrice !== null
+              ? { price: { lte: maxPrice } }
+              : {},
+            category !== null
+              ? {
+                  OR: [
+                    { category3: category },
+                    { category2: category },
+                    { category1: category },
+                  ],
+                }
+              : {
+                  category3: category3 ?? undefined,
+                  category2: category2 ?? undefined,
+                  category1: category1 ?? undefined,
+                },
+            description !== null
+              ? { description: { contains: description } }
+              : {},
+            inStock === null
+              ? {}
+              : inStock
+              ? { quantityInStock: { gt: 0 } }
+              : { quantityInStock: { lt: 1 } },
+          ],
+        },
+        orderBy: [
+          { id: idOrder ?? undefined },
+          { sku: skuOrder ?? undefined },
+          { itemName: itemNameOrder ?? undefined },
+          { category3: category3Order ?? undefined },
+          { category2: category2Order ?? undefined },
+          { category1: category1Order ?? undefined },
+          { description: descriptionOrder ?? undefined },
+          { price: priceOrder ?? undefined },
+          { quantityInStock: quantityInStockOrder ?? undefined },
+        ],
+        skip: skip ?? undefined,
+        take: take ?? undefined,
+      }
+    );
 
-    if (!apiResponse.ok) {
-      throw new Error(`Catalog API returned ${apiResponse.status}`);
-    }
-
-    const payload = (await apiResponse.json()) as CatalogApiResponse;
-
-    if (!payload.success || !payload.data) {
-      throw new Error(payload.error ?? "Catalog API responded without data");
-    }
-
-    apiItems = payload.data.map((item) => ({
+    apiItems = result.map((item) => ({
       id: item.id,
-      sku: item.sku ?? null,
+      sku: item.sku,
       itemName: item.itemName,
-      price: item.price ?? null,
-      category3: item.category3 ?? null,
-      description: item.description ?? null,
-      quantityInStock: item.quantityInStock ?? null,
+      imageUrl: null, // TODO 
+      category3: item.category3,
+      category2: item.category2,
+      category1: item.category1,
+      description: item.description,
+      price: item.price === null ? null : Number(item.price),
+      unitOfMeasure: null, // TODO 
+      quantity: null, // TODO 
+      quantityInStock: item.quantityInStock,
     }));
 
-    apiStatus = `Catalog API reachable. ${
-      payload.count ?? payload.data.length
-    } catalog items found.`;
+    apiStatus = `Catalog API reachable. ${result.length} catalog items found.`;
   } catch (err: unknown) {
     const message = getSafeErrorMessage(err, "Unknown error");
     apiStatus = `Catalog API request failed: ${message}`;
   }
-  // -------------------------------------------------------------------
 
-  const groupedApiEntries = groupItemsByCategory(apiItems);
-
-  // Populate first card with live data using API (proof of concept)
-  const CARD_ID = 1;
-  const apiItem1 = apiItems.find((x) => x.id === CARD_ID) ?? null;
-
-  const displayItems = apiItem1
-    ? [
-        {
-          ...items[0],
-          id: apiItem1.id,
-          itemName: apiItem1.itemName,
-          category: apiItem1.category3 ?? items[0].category ?? "Uncategorized",
-          unitCost: apiItem1.price ?? items[0].unitCost ?? 0.0,
-          description: apiItem1.description ?? items[0].description ?? "",
-          quantity: apiItem1.quantityInStock ?? items[0].quantity ?? 0,
-        },
-        ...items.slice(1),
-      ]
-    : items;
+  groupedApiEntries = groupItemsByCategory(apiItems);
 
   // Construct states (empty, error)
   let stateMsg: React.ReactNode = null;
 
   // Error
   if (apiStatus.startsWith("Catalog API request failed")) {
-    stateMsg = (
-      <div
-        role="alert"
-        style={{
-          marginLeft: "1rem",
-          marginRight: "1rem",
-          marginBottom: "1rem",
-          borderRadius: "0.25rem",
-          border: "1px solid #fca5a5", // light red border
-          backgroundColor: "#fef2f2", // soft red background
-          padding: "0.5rem 0.75rem",
-          fontSize: "0.875rem",
-          color: "#b91c1c", // red text
-        }}
-      >
-        Failed to load CatalogItem {CARD_ID}. {apiStatus}
-      </div>
-    );
-  }
-  // Empty
-  else if (!apiItem1) {
-    // For the future: should load a page with a statement that states no catalog items found.
-    // Also, change apiItem1 to length check
-    console.error("Empty: defaulting to placeholders.");
+    stateMsg = <APIError title="Failed to load CatalogItem data." message="The Catalog API is not reachable." apiStatus={apiStatus} />;
   }
 
-  if (!items.length) {
+  if (!apiItems.length) {
     return (
       <main className="catalog-grid">
-        <p role="status">No items in stock</p>
+        <p role="status">No items available.</p>
 
         {/* API route table mirrors the Prisma data but through /api/catalog */}
         <DiagnosticsPanel
@@ -402,6 +312,51 @@ export default async function CatalogPage() {
         status={apiStatus}
         entries={groupedApiEntries}
       />
+    <main aria-label="Catalog Layout">
+      <div className="catalog-three-pane">
+        {/* Left Pane */}
+        <aside
+          id="filters"
+          aria-label="Filter panel"
+          className="catalog-pane catalog-pane-left"
+        >
+          <h2 className="pane-title">Filters</h2>
+          <Filters />
+        </aside>
+
+        {/* Center Pane */}
+        <section
+          id="catalog"
+          aria-label="Catalog items"
+          className="catalog-pane catalog-pane-center"
+        >
+          <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
+          {stateMsg}
+
+          <div className="catalog-grid">
+            {apiItems.map((item, index) => (
+              <ItemCard key={item.id ?? `item-${index}`} item={item} />
+            ))}
+          </div>
+
+          <div style={{ marginTop: "1.5rem" }}>
+            <DiagnosticsPanel
+              title="Catalog API Status"
+              status={apiStatus}
+              entries={groupedApiEntries}
+            />
+          </div>
+        </section>
+
+        {/* Right Pane */}
+        <aside
+          id="context"
+          aria-label="Context panel"
+          className="catalog-pane catalog-pane-right"
+        >
+          <p style={{ margin: 0, opacity: 0.6 }}></p>
+        </aside>
+      </div>
     </main>
   );
 }

@@ -2,35 +2,42 @@
 import Image from "next/image";
 
 type Item = {
-  id: number;
-  itemName: string;
-  category: string;
-  description: string;
-  unitCost: number;
-  unitType: string;
-  quantity: number;
-  imageUrl: string;
-  stock: number;
+  id: number | null;
+  sku: string | null;
+  itemName: string | null;
+  imageUrl: string | null;
+  category3: string | null;
+  category2: string | null;
+  category1: string | null;
+  description: string | null;
+  price: number | null;
+  unitOfMeasure: string | null;
+  quantity: number | null;
+  quantityInStock: number | null;
 };
 
 export default function ItemCard({ item }: { item: Item }) {
+
   // Destructure data
   const {
     id,
+    sku,
     itemName,
-    category,
-    description,
-    unitCost,
-    unitType,
-    quantity,
     imageUrl,
-    stock,
+    category3,
+    category2,
+    category1,
+    description,
+    price,
+    unitOfMeasure,
+    quantity,
+    quantityInStock,
   } = item;
 
   const safeSrc =
     imageUrl && (imageUrl.startsWith("/") || imageUrl.startsWith("http"))
       ? imageUrl
-      : "/FillerImage.png";
+      : "/FillerImage.webp";
 
   // Function
   const handleClick = (
@@ -49,6 +56,7 @@ export default function ItemCard({ item }: { item: Item }) {
 
   // Styles
   const itemCardStyle = {
+    cursor: "pointer",
     border: "1px solid #cccccc",
     borderRadius: "8px",
     padding: "16px",
@@ -63,16 +71,17 @@ export default function ItemCard({ item }: { item: Item }) {
     fontSize: "18px",
   };
 
-  const imageStyle = {
-    width: "100%",
-    height: "auto",
-    minHeight: "200px",
-    maxHeight: "200px",
-    display: "block",
-    marginTop: "auto",
-    marginBottom: "auto",
-    borderRadius: "8px",
-    border: "1px solid #7F7F7F",
+  const imageStyle: React.CSSProperties = {
+    objectFit: 'cover',
+    width: '100%',
+    height: 'auto',
+    minHeight: '200px',
+    maxHeight: '200px',
+    display: 'block',
+    marginTop: 'auto',
+    marginBottom: 'auto',
+    borderRadius: '8px',
+    border: '1px solid #7F7F7F',
   };
 
   const descriptionStyle = {
@@ -81,7 +90,19 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "8px",
   };
 
-  const categoryStyle = {
+  const category3Style = {
+    fontSize: "12px",
+    color: "#555555",
+    marginTop: "4px",
+  };
+
+  const category2Style = {
+    fontSize: "12px",
+    color: "#555555",
+    marginTop: "4px",
+  };
+
+  const category1Style = {
     fontSize: "12px",
     color: "#555555",
     marginTop: "4px",
@@ -99,7 +120,7 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "4px",
   };
 
-  const stockStyle = stock
+  const stockStyle = quantityInStock
     ? {
         fontSize: "12px",
         color: "#008000",
@@ -115,33 +136,39 @@ export default function ItemCard({ item }: { item: Item }) {
   return (
     <div
       className="item-card"
-      onClick={handleClick}
       style={itemCardStyle}
+      onClick={handleClick}
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && handleClick(e)}
     >
       <h2 className="item-card-title" style={titleStyle}>
-        {itemName}
+        {itemName === null ? "N/A" : itemName}
       </h2>
       <Image
         className="item-card-image"
         src={safeSrc}
-        alt={itemName}
-        width={400}
-        height={400}
+        alt={itemName === null ? "N/A" : itemName}
+        width={512}
+        height={512}
         style={imageStyle}
       />
       <p className="item-card-description" style={descriptionStyle}>
-        Description: {description}
+        Description: {description === null ? "N/A" : description}
       </p>
-      <p className="item-card-category" style={categoryStyle}>
-        Category: {category}
+      <p className="item-card-category3" style={category3Style}>
+        Category 3: {category3 === null ? "N/A" : category3}
+      </p>
+      <p className="item-card-category2" style={category2Style}>
+        Category 2: {category2 === null ? "N/A" : category2}
+      </p>
+      <p className="item-card-category1" style={category1Style}>
+        Category 1: {category1 === null ? "N/A" : category1}
       </p>
       <p className="item-card-cost" style={costStyle}>
-        Cost: ${unitCost.toFixed(2)}
+        Cost: {price === null ? "N/A" : `$${price.toFixed(2)}`}
       </p>
       <p className="item-card-stock" style={stockStyle}>
-        {stock ? stock + " available" : "Out of Stock"}
+        {quantityInStock === null ? "N/A" : quantityInStock > 0 ? quantityInStock + " available" : "Out of Stock"}
       </p>
     </div>
   );
