@@ -18,6 +18,7 @@
     "lh:preview": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Path 'docs/lighthouse' -Force | Out-Null\"; npx lighthouse https://nova-project-umber.vercel.app --preset=desktop --only-categories=performance,accessibility,best-practices,seo --output=html --output-path=./docs/lighthouse/preview-desktop.html"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.932.0",
     "@prisma/client": "^6.19.0",
     "next": "15.5.4",
     "react": "19.1.0",
@@ -25,8 +26,9 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@prisma/client": "^6.19.0",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.24",
+    "@types/node": "^20.19.25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "cross-env": "^7.0.3",
@@ -38,6 +40,7 @@
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }

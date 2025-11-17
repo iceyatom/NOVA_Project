@@ -437,6 +437,26 @@ Performance
 
 - Renders only fields required for the grid view
 
+## SCRUM-83-Three-Pane-Responsive-Layout-for-Catalog-Page
+
+Implemented a fully responsive, accessible 3-pane layout for the Catalog page. The layout consists of:
+  - Left pane: Filters
+  - Middle pane: Item cards (catalog grid)
+  - Right pane: Empty
+
+This layout adapts across desktop, tablet, and mobile while preserving accessibility, spacing, and semantic structure.
+
+- Added a 3-pane grid layout using CSS Grid. 
+
+Implemented responsive behavior by :
+  - Having the Desktop display all 3 panes in columns with consistent gutters.
+  - Adjust to Tablet/Phone automatically
+  - Hiding the right pane
+  - Stacks filters above the catalog grid,
+  - Keeps spacing readable and prevents horizontal overflow.
+  - No horizontal scrolling at standard widths
+
+
 ## Getting Started
 
 First, run the development server:
