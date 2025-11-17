@@ -1,7 +1,12 @@
 "use client";
 
+// Home page: three-pane layout
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+import type { HighlightContent } from "@/content/siteContent";
+import { homeContent } from "@/content/siteContent";
 
 const leftLinks = [
   { label: "Microscope Slides", href: "/catalog?c=slides" },
@@ -63,6 +68,36 @@ function StatusBadge({ state }: { state: "loading" | "ok" | "error" }) {
     </span>
   );
 }
+const { mission, highlights, fallbacks } = homeContent;
+
+const missionEyebrow = mission.eyebrow ?? "Welcome to Niles Biological";
+const missionHeading = mission.heading ?? "Niles Biological";
+const missionSummary = mission.summary ?? fallbacks.description;
+const missionDetailParagraphs = Array.isArray(mission.detail)
+  ? mission.detail
+  : mission.detail
+    ? [mission.detail]
+    : [];
+const missionImage = mission.image ?? fallbacks.image;
+const missionImageAlt = mission.imageAlt ?? fallbacks.imageAlt;
+const missionSupportingPoints =
+  mission.supportingPoints && mission.supportingPoints.length > 0
+    ? mission.supportingPoints
+    : [fallbacks.description];
+const missionCta = mission.cta ?? {
+  label: "Browse the Catalog",
+  href: "/catalog",
+};
+
+const highlightData: HighlightContent[] =
+  highlights.length > 0
+    ? highlights
+    : Array.from(
+        { length: 3 },
+        (_, index): HighlightContent => ({
+          id: `placeholder-${index}`,
+        }),
+      );
 
 export default function HomePage() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -138,7 +173,7 @@ export default function HomePage() {
 
   return (
     <div className="three-pane">
-      {/* Center: company intro + secondary CTA */}
+      {/* Center: mission storytelling */}
       <section className="pane pane-center" aria-labelledby="hero-heading">
         <h1 id="hero-heading" className="hero-title">
           Niles Biological
@@ -167,6 +202,90 @@ export default function HomePage() {
               Retry
             </button>
           </div>
+        </div>
+        <div className="hero-banner">
+          <div className="hero-banner-inner">
+            <p className="hero-eyebrow">{missionEyebrow}</p>
+            <h1 id="hero-heading" className="hero-title">
+              {missionHeading}
+            </h1>
+            <p className="hero-subtitle">{missionSummary}</p>
+          </div>
+        </div>
+
+        <div className="hero-grid">
+          <div className="hero-copy">
+            <p className="hero-cta">
+              <Link className="button-secondary" href={missionCta.href}>
+                {missionCta.label}
+              </Link>
+            </p>
+            {missionDetailParagraphs.map((detail, index) => (
+              <p className="hero-detail" key={`mission-detail-${index}`}>
+                {detail}
+              </p>
+            ))}
+            <ul className="mission-points">
+              {missionSupportingPoints.map((point, index) => (
+                <li key={`${point}-${index}`}>{point}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="hero-media">
+            <Image
+              src={missionImage}
+              alt={missionImageAlt}
+              width={640}
+              height={428}
+              sizes="(max-width: 900px) 100vw, 320px"
+              priority
+            />
+          </div>
+        </div>
+
+        <div className="home-highlights" aria-label="Featured highlights">
+          {highlightData.map((highlight) => {
+            const cardTitle = highlight.title ?? fallbacks.title;
+            const cardDescription =
+              highlight.description ?? fallbacks.description;
+            const cardImage = highlight.image ?? fallbacks.image;
+            const cardAlt = highlight.imageAlt ?? fallbacks.imageAlt;
+            const cardHref = highlight.href ?? "#";
+            const cardCta = highlight.ctaLabel ?? "Learn more";
+            const isInternalLink = cardHref.startsWith("/");
+
+            return (
+              <article className="highlight-card" key={highlight.id}>
+                <div className="highlight-image">
+                  <Image
+                    src={cardImage}
+                    alt={cardAlt}
+                    width={600}
+                    height={360}
+                    sizes="(max-width: 768px) 100vw, 320px"
+                  />
+                </div>
+                <div className="highlight-content">
+                  <h3>{cardTitle}</h3>
+                  <p>{cardDescription}</p>
+                  {isInternalLink ? (
+                    <Link className="highlight-cta" href={cardHref}>
+                      {cardCta}
+                    </Link>
+                  ) : (
+                    <a
+                      className="highlight-cta"
+                      href={cardHref}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {cardCta}
+                    </a>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 

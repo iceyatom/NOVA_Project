@@ -1,11 +1,9 @@
 // src/app/catalog/page.tsx
 
 // Page shows the catalog using placeholder items (for now)
-// and, at the bottom, includes a simple Prisma connectivity test
-// that lists all CatalogItem ids and itemNames from the DB.
+// and, at the bottom, includes a diagnostics panel sourced from the API.
 
 import ItemCard from "../components/ItemCard";
-import { prisma } from "@/lib/db"; // direct Prisma test
 
 export const dynamic = "force-dynamic";
 
@@ -308,7 +306,7 @@ export default async function CatalogPage() {
   // -------------------------------------------------------------------
 
   // --- API route test block ---
-  let apiStatus = "Loading catalog via API…";
+  let apiStatus = "Loading catalog via API...";
   let apiItems: DbItem[] = [];
 
   try {
@@ -346,7 +344,6 @@ export default async function CatalogPage() {
   }
   // -------------------------------------------------------------------
 
-  const groupedDbEntries = groupItemsByCategory(dbItems);
   const groupedApiEntries = groupItemsByCategory(apiItems);
 
   // Populate first card with live data using API (proof of concept)
@@ -404,13 +401,6 @@ export default async function CatalogPage() {
       <main className="catalog-grid">
         <p role="status">No items in stock</p>
 
-        {/* Direct Prisma table still renders below, even if placeholder list is empty */}
-        <DiagnosticsPanel
-          title="Database Status (Prisma)"
-          status={dbStatus}
-          entries={groupedDbEntries}
-        />
-
         {/* API route table mirrors the Prisma data but through /api/catalog */}
         <DiagnosticsPanel
           title="Catalog API Status"
@@ -432,13 +422,6 @@ export default async function CatalogPage() {
           <ItemCard key={item.id} item={item} />
         ))}
       </section>
-
-      {/* --- Direct Prisma table (shows raw DB query results) --- */}
-      <DiagnosticsPanel
-        title="Database Status (Prisma)"
-        status={dbStatus}
-        entries={groupedDbEntries}
-      />
 
       {/* --- API route table (same data fetched via /api/catalog) --- */}
       <DiagnosticsPanel
