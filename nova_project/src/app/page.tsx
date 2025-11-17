@@ -175,9 +175,6 @@ export default function HomePage() {
     <div className="three-pane">
       {/* Center: mission storytelling */}
       <section className="pane pane-center" aria-labelledby="hero-heading">
-        <h1 id="hero-heading" className="hero-title">
-          Niles Biological
-        </h1>
         <div className="hero-banner">
           <div className="hero-banner-inner">
             <p className="hero-eyebrow">{missionEyebrow}</p>
