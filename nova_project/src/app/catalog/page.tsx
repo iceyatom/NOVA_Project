@@ -147,36 +147,36 @@ export default async function CatalogPage() {
   let groupedApiEntries: [string, Item[]][] = [];
 
   // Page filters 
-  let page: number | null = null;
-  let itemsPerPage: number | null = null;
-  let skip = page !== null && itemsPerPage !== null ? (page - 1) * itemsPerPage : null;
-  let take = itemsPerPage !== null ? itemsPerPage : null;
+  const page: number | null = null;
+  const itemsPerPage: number | null = null;
+  const skip = page !== null && itemsPerPage !== null ? (page - 1) * itemsPerPage : null;
+  const take = itemsPerPage !== null ? itemsPerPage : null;
 
   // Where filters 
-  let itemName: string | null = null;
+  const itemName: string | null = null;
 
-  let minPrice: number | null = null;
-  let maxPrice: number | null = null;
+  const minPrice: number | null = null;
+  const maxPrice: number | null = null;
 
-  let category: string | null = null; // Used as a generic category 
-  let category3: string | null = null;
-  let category2: string | null = null;
-  let category1: string | null = null;
+  const category: string | null = null; // Used as a generic category 
+  const category3: string | null = null;
+  const category2: string | null = null;
+  const category1: string | null = null;
 
-  let description: string | null = null;
+  const description: string | null = null;
 
-  let inStock: boolean | null = null;
+  const inStock: boolean | null = null;
 
   // Order by fields 
-  let idOrder: "asc" | "desc" | null = null;
-  let skuOrder: "asc" | "desc" | null = null;
-  let itemNameOrder: "asc" | "desc" | null = null;
-  let category3Order: "asc" | "desc" | null = null;
-  let category2Order: "asc" | "desc" | null = null;
-  let category1Order: "asc" | "desc" | null = null;
-  let descriptionOrder: "asc" | "desc" | null = null;
-  let priceOrder: "asc" | "desc" | null = null;
-  let quantityInStockOrder: "asc" | "desc" | null = null;
+  const idOrder: "asc" | "desc" | null = null;
+  const skuOrder: "asc" | "desc" | null = null;
+  const itemNameOrder: "asc" | "desc" | null = null;
+  const category3Order: "asc" | "desc" | null = null;
+  const category2Order: "asc" | "desc" | null = null;
+  const category1Order: "asc" | "desc" | null = null;
+  const descriptionOrder: "asc" | "desc" | null = null;
+  const priceOrder: "asc" | "desc" | null = null;
+  const quantityInStockOrder: "asc" | "desc" | null = null;
 
   try {
     const result = await prisma.catalogItem.findMany(
@@ -252,7 +252,7 @@ export default async function CatalogPage() {
       category2: item.category2,
       category1: item.category1,
       description: item.description,
-      price: item.price,
+      price: item.price === null ? null : Number(item.price),
       unitOfMeasure: null, // TODO 
       quantity: null, // TODO 
       quantityInStock: item.quantityInStock,
@@ -296,8 +296,8 @@ export default async function CatalogPage() {
       {stateMsg}
 
       <section className="catalog-grid" aria-label="Catalog items">
-        {apiItems.map((item) => (
-          <ItemCard key={item.id} item={item}/>
+        {apiItems.map((item, index) => (
+          <ItemCard key={item.id ?? `item-${index}`} item={item} />
         ))}
       </section>
 
