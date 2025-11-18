@@ -144,25 +144,25 @@ function getSafeErrorMessage(error: unknown, fallback: string) {
 
 // made async so we can await Prisma queries below
 export default async function CatalogPage() {
-
   // --- API route test block ---
   let apiStatus = "Loading catalog via API...";
   let apiItems: Item[] = [];
   let groupedApiEntries: [string, Item[]][] = [];
 
-  // Page filters 
+  // Page filters
   const page: number | null = null;
   const itemsPerPage: number | null = null;
-  const skip = page !== null && itemsPerPage !== null ? (page - 1) * itemsPerPage : null;
+  const skip =
+    page !== null && itemsPerPage !== null ? (page - 1) * itemsPerPage : null;
   const take = itemsPerPage !== null ? itemsPerPage : null;
 
-  // Where filters 
+  // Where filters
   const itemName: string | null = null;
 
   const minPrice: number | null = null;
   const maxPrice: number | null = null;
 
-  const category: string | null = null; // Used as a generic category 
+  const category: string | null = null; // Used as a generic category
   const category3: string | null = null;
   const category2: string | null = null;
   const category1: string | null = null;
@@ -171,7 +171,7 @@ export default async function CatalogPage() {
 
   const inStock: boolean | null = null;
 
-  // Order by fields 
+  // Order by fields
   const idOrder: "asc" | "desc" | null = null;
   const skuOrder: "asc" | "desc" | null = null;
   const itemNameOrder: "asc" | "desc" | null = null;
@@ -183,82 +183,74 @@ export default async function CatalogPage() {
   const quantityInStockOrder: "asc" | "desc" | null = null;
 
   try {
-    const result = await prisma.catalogItem.findMany(
-      {
-        select: {
-          id: true,
-          sku: true,
-          itemName: true,
-          //imageUrl: true, // TODO 
-          category3: true,
-          category2: true,
-          category1: true,
-          description: true,
-          price: true,
-          quantityInStock: true,
-        },
-        where: {
-          AND: [
-            itemName !== null
-              ? { itemName: { contains: itemName } }
-              : {},
-            minPrice !== null
-              ? { price: { gte: minPrice } }
-              : {},
-            maxPrice !== null
-              ? { price: { lte: maxPrice } }
-              : {},
-            category !== null
-              ? {
-                  OR: [
-                    { category3: category },
-                    { category2: category },
-                    { category1: category },
-                  ],
-                }
-              : {
-                  category3: category3 ?? undefined,
-                  category2: category2 ?? undefined,
-                  category1: category1 ?? undefined,
-                },
-            description !== null
-              ? { description: { contains: description } }
-              : {},
-            inStock === null
-              ? {}
-              : inStock
+    const result = await prisma.catalogItem.findMany({
+      select: {
+        id: true,
+        sku: true,
+        itemName: true,
+        //imageUrl: true, // TODO
+        category3: true,
+        category2: true,
+        category1: true,
+        description: true,
+        price: true,
+        quantityInStock: true,
+      },
+      where: {
+        AND: [
+          itemName !== null ? { itemName: { contains: itemName } } : {},
+          minPrice !== null ? { price: { gte: minPrice } } : {},
+          maxPrice !== null ? { price: { lte: maxPrice } } : {},
+          category !== null
+            ? {
+                OR: [
+                  { category3: category },
+                  { category2: category },
+                  { category1: category },
+                ],
+              }
+            : {
+                category3: category3 ?? undefined,
+                category2: category2 ?? undefined,
+                category1: category1 ?? undefined,
+              },
+          description !== null
+            ? { description: { contains: description } }
+            : {},
+          inStock === null
+            ? {}
+            : inStock
               ? { quantityInStock: { gt: 0 } }
               : { quantityInStock: { lt: 1 } },
-          ],
-        },
-        orderBy: [
-          { id: idOrder ?? undefined },
-          { sku: skuOrder ?? undefined },
-          { itemName: itemNameOrder ?? undefined },
-          { category3: category3Order ?? undefined },
-          { category2: category2Order ?? undefined },
-          { category1: category1Order ?? undefined },
-          { description: descriptionOrder ?? undefined },
-          { price: priceOrder ?? undefined },
-          { quantityInStock: quantityInStockOrder ?? undefined },
         ],
-        skip: skip ?? undefined,
-        take: take ?? undefined,
-      }
-    );
+      },
+      orderBy: [
+        { id: idOrder ?? undefined },
+        { sku: skuOrder ?? undefined },
+        { itemName: itemNameOrder ?? undefined },
+        { category3: category3Order ?? undefined },
+        { category2: category2Order ?? undefined },
+        { category1: category1Order ?? undefined },
+        { description: descriptionOrder ?? undefined },
+        { price: priceOrder ?? undefined },
+        { quantityInStock: quantityInStockOrder ?? undefined },
+      ],
+      skip: skip ?? undefined,
+      take: take ?? undefined,
+    });
 
     apiItems = result.map((item) => ({
       id: item.id,
       sku: item.sku,
       itemName: item.itemName,
-      imageUrl: null, // TODO 
+      imageUrl: null, // TODO
       category3: item.category3,
       category2: item.category2,
       category1: item.category1,
       description: item.description,
       price: item.price === null ? null : Number(item.price),
-      unitOfMeasure: null, // TODO 
-      quantity: null, // TODO 
+      unitOfMeasure: null, // TODO
+      quantity: null, // TODO
       quantityInStock: item.quantityInStock,
     }));
 
@@ -275,7 +267,13 @@ export default async function CatalogPage() {
 
   // Error
   if (apiStatus.startsWith("Catalog API request failed")) {
-    stateMsg = <APIError title="Failed to load CatalogItem data." message="The Catalog API is not reachable." apiStatus={apiStatus} />;
+    stateMsg = (
+      <APIError
+        title="Failed to load CatalogItem data."
+        message="The Catalog API is not reachable."
+        apiStatus={apiStatus}
+      />
+    );
   }
 
   if (!apiItems.length) {
@@ -294,25 +292,12 @@ export default async function CatalogPage() {
   }
 
   return (
-    <main>
+    <main aria-label="Catalog Layout">
       {/* HERO search banner directly under the header */}
       <SearchBar bgImage="/hero-lab.jpg" />
 
       {stateMsg}
 
-      <section className="catalog-grid" aria-label="Catalog items">
-        {displayItems.map((item) => (
-          <ItemCard key={item.id} item={item} />
-        ))}
-      </section>
-
-      {/* --- API route table (same data fetched via /api/catalog) --- */}
-      <DiagnosticsPanel
-        title="Catalog API Status"
-        status={apiStatus}
-        entries={groupedApiEntries}
-      />
-    <main aria-label="Catalog Layout">
       <div className="catalog-three-pane">
         {/* Left Pane */}
         <aside
@@ -331,7 +316,6 @@ export default async function CatalogPage() {
           className="catalog-pane catalog-pane-center"
         >
           <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
-          {stateMsg}
 
           <div className="catalog-grid">
             {apiItems.map((item, index) => (

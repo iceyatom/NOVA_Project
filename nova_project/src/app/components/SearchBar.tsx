@@ -32,7 +32,9 @@ export default function SearchBar({
     if (el) {
       el.focus();
       const len = el.value.length;
-      try { el.setSelectionRange(len, len); } catch {}
+      try {
+        el.setSelectionRange(len, len);
+      } catch {}
     }
   }
 

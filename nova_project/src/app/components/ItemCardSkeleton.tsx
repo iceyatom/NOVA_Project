@@ -16,7 +16,6 @@ type Item = {
 };
 
 export default function ItemCardSkeleton() {
-
   // Styles
   const itemCardStyle = {
     border: "1px solid #cccccc",
@@ -32,19 +31,19 @@ export default function ItemCardSkeleton() {
     color: "#000000",
     fontSize: "18px",
     backgroundColor: "#EEEEEE",
-    borderRadius: '4px',
+    borderRadius: "4px",
   };
 
   const imageSkeletonStyle: React.CSSProperties = {
-    width: '100%',
-    height: 'auto',
-    minHeight: '200px',
-    maxHeight: '200px',
-    display: 'block',
-    marginTop: 'auto',
-    marginBottom: 'auto',
-    borderRadius: '8px',
-    border: '1px solid #EEEEEE',
+    width: "100%",
+    height: "auto",
+    minHeight: "200px",
+    maxHeight: "200px",
+    display: "block",
+    marginTop: "auto",
+    marginBottom: "auto",
+    borderRadius: "8px",
+    border: "1px solid #EEEEEE",
     backgroundColor: "#EEEEEE",
   };
 
@@ -53,7 +52,7 @@ export default function ItemCardSkeleton() {
     color: "#555555",
     marginTop: "8px",
     backgroundColor: "#EEEEEE",
-    borderRadius: '4px',
+    borderRadius: "4px",
   };
 
   const category3Style = {
@@ -61,8 +60,8 @@ export default function ItemCardSkeleton() {
     color: "#555555",
     marginTop: "4px",
     backgroundColor: "#EEEEEE",
-    borderRadius: '4px',
-    width: '75%',
+    borderRadius: "4px",
+    width: "75%",
   };
 
   const category2Style = {
@@ -70,8 +69,8 @@ export default function ItemCardSkeleton() {
     color: "#555555",
     marginTop: "4px",
     backgroundColor: "#EEEEEE",
-    borderRadius: '4px',
-    width: '75%',
+    borderRadius: "4px",
+    width: "75%",
   };
 
   const category1Style = {
@@ -79,8 +78,8 @@ export default function ItemCardSkeleton() {
     color: "#555555",
     marginTop: "4px",
     backgroundColor: "#EEEEEE",
-    borderRadius: '4px',
-    width: '75%',
+    borderRadius: "4px",
+    width: "75%",
   };
 
   const costStyle = {
@@ -88,9 +87,8 @@ export default function ItemCardSkeleton() {
     color: "#555555",
     marginTop: "4px",
     backgroundColor: "#EEEEEE",
-    borderRadius: '4px',
-    width: '25%',
-    
+    borderRadius: "4px",
+    width: "25%",
   };
 
   const unitStyle = {
@@ -98,7 +96,7 @@ export default function ItemCardSkeleton() {
     color: "#aaaaaa",
     marginTop: "4px",
     backgroundColor: "#EEEEEE",
-    borderRadius: '4px',
+    borderRadius: "4px",
   };
 
   const stockStyle = {
@@ -106,25 +104,21 @@ export default function ItemCardSkeleton() {
     color: "#FF0000",
     marginTop: "4px",
     backgroundColor: "#EEEEEE",
-    borderRadius: '4px',
-    width: '50%',
+    borderRadius: "4px",
+    width: "50%",
   };
 
   // HTML
   return (
-    <div
-      className="item-card"
-      style={itemCardStyle}
-    >
+    <div className="item-card" style={itemCardStyle}>
       <h2 className="item-card-title" style={titleStyle}>
         &nbsp;
       </h2>
-      <p
-        className="item-card-image"
-        style={imageSkeletonStyle}
-      />
+      <p className="item-card-image" style={imageSkeletonStyle} />
       <p className="item-card-description" style={descriptionStyle}>
-        &nbsp;<br/>&nbsp;
+        &nbsp;
+        <br />
+        &nbsp;
       </p>
       <p className="item-card-category3" style={category3Style}>
         &nbsp;

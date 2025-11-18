@@ -17,7 +17,6 @@ type Item = {
 };
 
 export default function ItemCard({ item }: { item: Item }) {
-
   // Destructure data
   const {
     id,
@@ -72,16 +71,16 @@ export default function ItemCard({ item }: { item: Item }) {
   };
 
   const imageStyle: React.CSSProperties = {
-    objectFit: 'cover',
-    width: '100%',
-    height: 'auto',
-    minHeight: '200px',
-    maxHeight: '200px',
-    display: 'block',
-    marginTop: 'auto',
-    marginBottom: 'auto',
-    borderRadius: '8px',
-    border: '1px solid #7F7F7F',
+    objectFit: "cover",
+    width: "100%",
+    height: "auto",
+    minHeight: "200px",
+    maxHeight: "200px",
+    display: "block",
+    marginTop: "auto",
+    marginBottom: "auto",
+    borderRadius: "8px",
+    border: "1px solid #7F7F7F",
   };
 
   const descriptionStyle = {
@@ -168,7 +167,11 @@ export default function ItemCard({ item }: { item: Item }) {
         Cost: {price === null ? "N/A" : `$${price.toFixed(2)}`}
       </p>
       <p className="item-card-stock" style={stockStyle}>
-        {quantityInStock === null ? "N/A" : quantityInStock > 0 ? quantityInStock + " available" : "Out of Stock"}
+        {quantityInStock === null
+          ? "N/A"
+          : quantityInStock > 0
+            ? quantityInStock + " available"
+            : "Out of Stock"}
       </p>
     </div>
   );
