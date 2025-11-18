@@ -10,15 +10,19 @@ const CATEGORIES = ["Equipment", "Chemicals", "Supplies", "Kits"];
 const PRICE_BUCKETS = ["Under $50", "$50–$99", "$100–$249", "$250+"];
 
 export default function Filters({ className = "" }: FilterPanelProps) {
-  const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = React.useState<string[]>(
+    [],
+  );
   const [selectedPrices, setSelectedPrices] = React.useState<string[]>([]);
 
   const toggle = (
     val: string,
     list: string[],
-    setList: (v: string[]) => void
+    setList: (v: string[]) => void,
   ) => {
-    setList(list.includes(val) ? list.filter((v) => v !== val) : [...list, val]);
+    setList(
+      list.includes(val) ? list.filter((v) => v !== val) : [...list, val],
+    );
   };
 
   const clearAll = () => {
@@ -42,7 +46,9 @@ export default function Filters({ className = "" }: FilterPanelProps) {
                     id={id}
                     type="checkbox"
                     checked={checked}
-                    onChange={() => toggle(cat, selectedCategories, setSelectedCategories)}
+                    onChange={() =>
+                      toggle(cat, selectedCategories, setSelectedCategories)
+                    }
                   />
                   <span className="filter-label">{cat}</span>
                 </label>
@@ -66,7 +72,9 @@ export default function Filters({ className = "" }: FilterPanelProps) {
                     id={id}
                     type="checkbox"
                     checked={checked}
-                    onChange={() => toggle(p, selectedPrices, setSelectedPrices)}
+                    onChange={() =>
+                      toggle(p, selectedPrices, setSelectedPrices)
+                    }
                   />
                   <span className="filter-label">{p}</span>
                 </label>

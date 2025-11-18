@@ -30,10 +30,7 @@ export const contactContent: ContactContent = {
     "Have a question about products, orders, or support? Reach out using the information below.",
 
   addressLabel: "Mailing Address",
-  addressLines: [
-    "9296 Elder Creek Road",
-    "Sacramento, CA 95829",
-  ],
+  addressLines: ["9296 Elder Creek Road", "Sacramento, CA 95829"],
 
   phoneLabel: "Phone",
   phoneDisplay: "(916) 720-1814",

@@ -312,6 +312,5 @@ export default function HomePage() {
         </nav>
       </aside>
     </div>
-    
   );
 }

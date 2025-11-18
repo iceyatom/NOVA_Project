@@ -132,23 +132,39 @@ export const aboutContent: AboutContent = {
       homeContent.mission.summary ||
       "Niles Biological supplies classrooms and labs with reliable specimens, slides, and kits.",
     mission:
-      (Array.isArray(homeContent.mission.detail) && homeContent.mission.detail[0]) ||
+      (Array.isArray(homeContent.mission.detail) &&
+        homeContent.mission.detail[0]) ||
       "Empower science education with safe, consistent, classroom-ready biology materials.",
-    values:
-      homeContent.mission.supportingPoints?.length
-        ? homeContent.mission.supportingPoints
-        : [
-            "Reliability for instructors and students",
-            "Ethical sourcing & quality control",
-            "Helpful documentation and support",
-            "On-time fulfillment and responsive service",
-          ],
+    values: homeContent.mission.supportingPoints?.length
+      ? homeContent.mission.supportingPoints
+      : [
+          "Reliability for instructors and students",
+          "Ethical sourcing & quality control",
+          "Helpful documentation and support",
+          "On-time fulfillment and responsive service",
+        ],
   },
   milestones: [
-    { date: "1960s", title: " Founded", detail: "Began supplying local classrooms with curated specimens." },
-    { date: "1990s", title: " Expanded Catalog", detail: "Introduced prepared slides and dissection kits." },
-    { date: "2010s", title: " QA Modernization", detail: "Scaled quality systems and cold-chain logistics." },
-    { date: "Today",  title: " Nationwide Partner", detail: "Serving K-12 and higher-ed labs across the U.S." },
+    {
+      date: "1960s",
+      title: " Founded",
+      detail: "Began supplying local classrooms with curated specimens.",
+    },
+    {
+      date: "1990s",
+      title: " Expanded Catalog",
+      detail: "Introduced prepared slides and dissection kits.",
+    },
+    {
+      date: "2010s",
+      title: " QA Modernization",
+      detail: "Scaled quality systems and cold-chain logistics.",
+    },
+    {
+      date: "Today",
+      title: " Nationwide Partner",
+      detail: "Serving K-12 and higher-ed labs across the U.S.",
+    },
   ],
   media: {
     team: [
@@ -169,4 +185,3 @@ export const aboutContent: AboutContent = {
     image: homeContent.fallbacks.image || "/FillerImage.png",
   },
 };
-
