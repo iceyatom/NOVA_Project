@@ -1,3 +1,23 @@
+## Project Synopsis — Niles Biological Website Application
+
+The Niles Biological Website Application is a full-scale modernization project developed by Team NOVA to replace Niles Biological’s outdated 2006-era website.
+
+The goal of this project is to:
+
+1. Overhaul the public-facing product catalog with a clean, maintainable, and scalable web application.
+2. Introduce a digitized record-keeping system to streamline internal operations and improve long-term data integrity.
+
+Built with Next.js, the application delivers a dynamic catalog interface backed by a MySQL database hosted on AWS RDS for high availability and production reliability. Prisma ORM handles schema management, migrations, and database interaction across all environments.
+
+To ensure consistency across contributors and environments, the project includes:
+
+- End-to-end health checks,
+- Lighthouse performance reporting,
+- Fully documented workflows for seeding, database migrations, and environment setup,
+- Repeatable development spin-up instructions for seamless onboarding.
+
+This application represents the foundation of Niles Bio’s transition toward modern web infrastructure and digital operations.
+
 ## Steps to Run the Next.js Project Locally
 
 1. Install Node.js
