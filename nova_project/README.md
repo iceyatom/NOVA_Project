@@ -49,6 +49,38 @@ This application represents the foundation of Niles Bio’s transition toward mo
 6. Stop the Server
    - To stop the local server, press Ctrl + C in the terminal.
 
+## Testing Instructions
+
+0) Prerequisites
+
+   - Docker Desktop running.
+
+   - Local MySQL container started (first time):
+
+      - docker run -d --name nilesbio --env-file .env.development -p 3307:3306 mysql:8.0
+
+
+      Subsequent runs:
+
+      - docker start nilesbio
+
+      Ensure local env files exist with DB URLs:
+
+      - DATABASE_URL="mysql://app:app@localhost:3307/nilesbio"
+      - SHADOW_DATABASE_URL="mysql://app:app@localhost:3307/nilesbio_shadow"
+
+
+      Generate Prisma Client (after fresh clone, dependency changes, or schema changes):
+
+      - npx prisma generate
+
+1) Smoke test (app boots)
+   - npm run dev
+
+
+      Open http://localhost:3000 and http://localhost:3000/catalog
+ 
+
 ## Scripts
 
 1. ESLint
