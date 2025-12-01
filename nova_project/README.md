@@ -77,9 +77,35 @@ This application represents the foundation of Niles Bio’s transition toward mo
 1) Smoke test (app boots)
    - npm run dev
 
-
       Open http://localhost:3000 and http://localhost:3000/catalog
- 
+
+2) Catalog Search (placeholder)
+
+   - Type → Enter / Search → “Last search” updates.
+
+   - Button disabled when empty; no items/network change.
+  
+3) Routing
+
+   - Use header links (Catalog/About/Login). Client-side nav only (no new “document” requests). Active link has aria-   current="page".
+
+4) Grid responsiveness
+
+   - Resize: 4 → 3 → 2 → 1 columns; no clipping/overflow.
+
+5) Health
+
+   - Visit /api/health or:
+
+   - npm run health
+
+
+6) DB connectivity
+
+   - On /catalog, “Database Status” shows Connected.
+   - If not: confirm container is running, then:
+      - npx prisma migrate dev -n "sync"
+      - npx prisma generate
 
 ## Scripts
 
