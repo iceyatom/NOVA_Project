@@ -227,6 +227,8 @@ The Prisma seed file (prisma/seed.ts) populates the nilesbio database with test 
 
 <img src="public/ERD.webp" alt="Database ERD" style="width:50%; height:auto;">
 
+Here is the Entity Relationship Diagram for the database. 
+
 Ensure your Prisma Client is up to date:
 
 - npx prisma generate
