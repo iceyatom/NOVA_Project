@@ -255,7 +255,7 @@ Installation instructions
 
 The Prisma seed file (prisma/seed.ts) populates the nilesbio database with test catalog data for development and UI testing. This includes 600+ sample entries containing the fields itemName, category, description, and price.
 
-<img src="public/ERD.webp" alt="Database ERD" style="width:50%; height:auto;">
+<img src="https://github.com/iceyatom/NOVA_Project/blob/Readme-Update/nova_project/public/ERD.webp" alt="Database ERD" style="width:50%; height:auto;">
 
 Here is the Entity Relationship Diagram for the database. 
 
