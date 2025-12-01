@@ -20,7 +20,6 @@ To ensure consistency across contributors and environments, the project includes
 This application represents the foundation of Niles Bio’s transition toward modern web infrastructure and digital operations.
 
 
-
 ## Deployment Instructions - Steps to Run the Next.js Project Locally
 
 1. Install Node.js
