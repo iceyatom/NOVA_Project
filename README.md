@@ -21,25 +21,32 @@ To ensure consistency across contributors and environments, the project includes
 This application represents the foundation of Niles Bio’s transition toward modern web infrastructure and digital operations.
 
 ## CSC 190 Milestone Timeline
-This section outlines our planned milestones and development goals for CSC 191 throughout the semester.
+This section outlines our milestones of development for CSC 190.
 
-| Sprint 2 | 10/6/25 - 10/20/25 | Landing Page & Deployment Setup | SCRUM-51 |
-| Sprint 3 | 10/11/25 - 11/3/25 | AWS RDS Integration Setup | SCRUM-66 |
-| Sprint 3 | 10/20/25 - 11/3/25 | Catalog Page Development | SCRUM-75 |
-| Sprint 4 | 11/3/25 - 11/17/25 | Search Bar, Filter Checklist, and Dynamic Catalog Grid - Catalog Page | SCRUM-81 |
-| Sprint 4 | 11/3/25 - 11/17/25 | Landing, Contact, and About Page Content Population | SCRUM-87 |
-| Sprint 4 | 11/3/25 - 11/17/25 | API Integration and AWS Database Connection Test | SCRUM-91 |
+| Sprint | Dates | Milestone / Feature | JIRA |
+| --- | --- | --- | --- |
+| 2 | 10/6/25 - 10/20/25 | Landing Page & Deployment Setup | SCRUM-51 |
+| 3 | 10/11/25 - 11/3/25 | AWS RDS Integration Setup | SCRUM-66 |
+| 3 | 10/20/25 - 11/3/25 | Catalog Page Development | SCRUM-75 |
+| 4 | 11/3/25 - 11/17/25 | Search Bar, Filter Checklist, and Dynamic Catalog Grid - Catalog Page | SCRUM-81 |
+| 4 | 11/3/25 - 11/17/25 | Landing, Contact, and About Page Content Population | SCRUM-87 |
+| 4 | 11/3/25 - 11/17/25 | API Integration and AWS Database Connection Test | SCRUM-91 |
 
 ## CSC 191 Timeline Goals
-This section outlines our planned milestones and development goals for CSC 191 throughout the semester.
+This section outlines our planned milestones and development goals for CSC 191.
 
-| Sprint 5 | 1/26/26 - 2/8/26 | Develop Account Logins/2FA by Email |
-| Sprint 6 | 2/9/26 - 2/22/26 | Create Database Management Tools |
-| Sprint 7 | 2/23/26 - 3/8/26 | Implement Staff Dashboard Summary Statistics |
-| Sprint 8 | 3/9/26 - 3/22/26 | Create Audit Logging & Activity Tracking |
-| Sprint 9 | 3/23/26 - 4/5/26 | Performance Testing |
+| Sprint | Dates | Milestone / Feature |
+| --- | --- | --- |
+| 5 | 1/26/26 - 2/8/26 | Develop Account Logins/2FA by Email |
+| 6 | 2/9/26 - 2/22/26 | Create Database Management Tools |
+| 7 | 2/23/26 - 3/8/26 | Implement Staff Dashboard Summary Statistics |
+| 8 | 3/9/26 - 3/22/26 | Create Audit Logging & Activity Tracking |
+| 9 | 3/23/26 - 4/5/26 | Performance Testing |
 
-
+## Deployment Instructions
+- Ensure Vercel published main branch successfully builds and is reachable
+- Verify Vercel deployment can reach the database.
+- Confirm that AWS RDS instance is correctly seeded and online with dynamic scaling turned off. 
 
 ## Testing Instructions
 
@@ -88,7 +95,6 @@ This section outlines our planned milestones and development goals for CSC 191 t
    - If not: confirm container is running, then:
       - npx prisma migrate dev -n "sync"
       - npx prisma generate
-
 
 ## Developer Instructions
 
@@ -325,7 +331,7 @@ Developer notes:
 - Run Prisma commands (generate, migrate, seed) before launching the app.
 - Use the Catalog page to visually verify a successful connection.
 
-## Configure Security & Networking (Docker Local + AWS RDS)
+### Configure Security & Networking (Docker Local + AWS RDS)
 
 ### Docker Local
 
