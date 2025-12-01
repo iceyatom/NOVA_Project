@@ -117,8 +117,9 @@ Usage
 
 ## Seeding the Database
 
-The Prisma seed file (prisma/seed.ts) populates the nilesbio database with test catalog data for development and UI testing. This includes 10–15 sample entries containing the fields itemName, category, description, and price.
-Usage
+The Prisma seed file (prisma/seed.ts) populates the nilesbio database with test catalog data for development and UI testing. This includes 600+ entries containing the fields SKU, itemName, categories, description, and price.
+
+<img src="public/ERD.webp" alt="Database ERD" style="width:50%; height:auto;">
 
 Ensure your Prisma Client is up to date:
 
@@ -322,7 +323,7 @@ Created links for the following pages:
   - No new document requests should display 'fetch'
 - Active link state:
   - The current link is visibly different (underline/bold).
-  - In DevTools → Elements, the active <a> has aria-current="page".
+  - In DevTools → Elements, the active `<a>` has aria-current="page".
 - Keyboard accessibility:
   - Press Tab to move and highlight each button link.
 
