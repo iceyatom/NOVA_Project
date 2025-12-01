@@ -1,4 +1,27 @@
-## Steps to Run the Next.js Project Locally
+## Project Synopsis — Niles Biological Website Application 
+<img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/56bf6453-be0e-48f1-bb8e-13d662d16ae6" />
+
+The Niles Biological Website Application is a full-scale modernization project developed by Team NOVA to replace Niles Biological’s outdated 2006-era website.
+
+The goal of this project is to:
+
+1. Overhaul the public-facing product catalog with a clean, maintainable, and scalable web application.
+2. Introduce a digitized record-keeping system to streamline internal operations and improve long-term data integrity.
+
+Built with Next.js, the application delivers a dynamic catalog interface backed by a MySQL database hosted on AWS RDS for high availability and production reliability. Prisma ORM handles schema management, migrations, and database interaction across all environments.
+
+To ensure consistency across contributors and environments, the project includes:
+
+- End-to-end health checks,
+- Lighthouse performance reporting,
+- Fully documented workflows for seeding, database migrations, and environment setup,
+- Repeatable development spin-up instructions for seamless onboarding.
+
+This application represents the foundation of Niles Bio’s transition toward modern web infrastructure and digital operations.
+
+
+
+## Deployment Instructions - Steps to Run the Next.js Project Locally
 
 1. Install Node.js
    - Download and install the latest LTS version of Node.js from https://nodejs.org
@@ -28,6 +51,109 @@
 
 6. Stop the Server
    - To stop the local server, press Ctrl + C in the terminal.
+
+## Testing Instructions
+
+0) Prerequisites
+
+   - Docker Desktop running.
+   - Local MySQL container started (first time):
+      - docker run -d --name nilesbio --env-file .env.development -p 3307:3306 mysql:8.0
+
+      Subsequent runs:
+      - docker start nilesbio
+
+      Ensure local env files exist with DB URLs:
+      - DATABASE_URL="mysql://app:app@localhost:3307/nilesbio"
+      - SHADOW_DATABASE_URL="mysql://app:app@localhost:3307/nilesbio_shadow"
+
+      Generate Prisma Client (after fresh clone, dependency changes, or schema changes):
+      - npx prisma generate
+
+1) Smoke test (app boots)
+   - npm run dev
+      - Open http://localhost:3000 and http://localhost:3000/catalog
+
+2) Catalog Search (placeholder)
+
+   - Type → Enter / Search → “Last search” updates.
+   - Button disabled when empty; no items/network change.
+  
+3) Routing
+
+   - Use header links (Catalog/About/Login). Client-side nav only (no new “document” requests). Active link has aria-   current="page".
+
+4) Grid responsiveness
+
+   - Resize: 4 → 3 → 2 → 1 columns; no clipping/overflow.
+
+5) Health
+
+   - Visit /api/health or:
+   - npm run health
+
+
+6) DB connectivity
+
+   - On /catalog, “Database Status” shows Connected.
+   - If not: confirm container is running, then:
+      - npx prisma migrate dev -n "sync"
+      - npx prisma generate
+
+
+## Developer Instructions
+
+1) Branching & commits
+   
+   - Branch name: SCRUM-###-concise-feature-name
+      - Example: SCRUM-81-Search-Hero-and-Grid
+   - Commit messages: SCRUM-81: short action summary
+      - Example: SCRUM-81: Add hero search placeholder with aria-live
+
+2) PR checklist
+
+   - Builds cleanly (npm run build)
+   - Lint/format pass (npm run lint, npm run format)
+   - Local tests pass (see Testing Instructions)
+   - No console errors in runtime
+   - Accessibility: form labels, focus, aria-live working
+   - Screenshots for visual changes
+   - If schema changed: migration included + notes
+
+3) Code style
+   - TypeScript strict where feasible.
+   - Prettier formatting; ESLint for quality.
+   - Accessible components: label inputs, manage focus, avoid color-only cues
+
+4) Database workflow (local)
+   - '#' after reboot (cheat sheet)
+     docker start nilesbio
+     npm install
+     npx prisma generate
+     npm run dev
+     
+   - Schema changed?
+        npx prisma migrate dev -n "change"
+
+   - Seeding (local only):
+        npx prisma db seed
+
+   - Env files (local)
+     Create both .env and .env.local in nova_project/:
+        DATABASE_URL="mysql://app:app@localhost:3307/nilesbio"
+        SHADOW_DATABASE_URL="mysql://app:app@localhost:3307/nilesbio_shadow"
+        APP_VERSION=dev
+5) Project Scripts
+   | Script                                   | What it does                                                                      |
+   | ---------------------------------------- | --------------------------------------------------------------------------------- |
+   | **npm run dev**                          | Dev server (Turbopack)                                                            |
+   | **npm run build**                        | Production build                                                                  |
+   | **npm run start**                        | Run production build                                                              |
+   | **npm run lint**                         | ESLint check                                                                      |
+   | **npm run check**                        | Prettier check (no write)                                                         |
+   | **npm run format**                       | Prettier write                                                                    |
+   | **npm run health**                       | Pings /api/health                                                                 |
+
 
 ## Scripts
 
