@@ -11,6 +11,7 @@ import ItemCardSkeleton from "../components/ItemCardSkeleton";
 import APIError from "./APIError";
 import { prisma } from "@/lib/db"; // direct Prisma test
 import Filters from "../components/Filters";
+import CatalogPagination from "../components/CatalogPagination";
 
 export const dynamic = "force-dynamic";
 
@@ -322,6 +323,12 @@ export default async function CatalogPage() {
               <ItemCard key={item.id ?? `item-${index}`} item={item} />
             ))}
           </div>
+
+          <CatalogPagination
+            totalItems={apiItems.length}
+            initialPageSize={20}
+            pageSizeOptions={[20, 50, 100]}
+          />
 
           <div style={{ marginTop: "1.5rem" }}>
             <DiagnosticsPanel
