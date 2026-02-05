@@ -334,6 +334,8 @@ header {
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+  overflow: visible;
+  min-width: 0;
 }
 
 /* pane tints (subtle color per section) */
@@ -605,6 +607,25 @@ header {
     padding-inline: clamp(6px, 0.8vw, 12px);
   }
 }
+
+/* Medium viewport: handle right panel clipping */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .container .three-pane {
+    grid-template-columns:
+      minmax(240px, 0.85fr)
+      minmax(0, 3fr)
+      minmax(220px, 0.85fr);
+    column-gap: 12px;
+  }
+  .pane-right {
+    overflow: visible;
+  }
+  /* Ensure right panel content doesn't overflow */
+  .pane-right .pane-list {
+    overflow-wrap: break-word;
+  }
+}
+
 @media (min-width: 1440px) {
   .container .three-pane {
     column-gap: 12px;
