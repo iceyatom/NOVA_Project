@@ -26,7 +26,7 @@ export default function Filters({ className = "" }: FilterPanelProps) {
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>(
     [],
   );
-  const [selectedPrices, setSelectedPrices] = React.useState<string[]>([]);
+  const [selectedPrice, setSelectedPrice] = React.useState<string | null>(null);
 
   const toggle = (
     val: string,
@@ -40,7 +40,7 @@ export default function Filters({ className = "" }: FilterPanelProps) {
 
   const clearAll = () => {
     setSelectedCategories([]);
-    setSelectedPrices([]);
+    setSelectedPrice(null);
   };
 
   return (
@@ -77,17 +77,16 @@ export default function Filters({ className = "" }: FilterPanelProps) {
         <ul className="filter-list">
           {PRICE_BUCKETS.map((p) => {
             const id = `price-${p.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}`;
-            const checked = selectedPrices.includes(p);
+            const checked = selectedPrice === p;
             return (
               <li key={p}>
                 <label htmlFor={id} className="filter-row">
                   <input
                     id={id}
-                    type="checkbox"
+                    type="radio"
+                    name="price"
                     checked={checked}
-                    onChange={() =>
-                      toggle(p, selectedPrices, setSelectedPrices)
-                    }
+                    onChange={() => setSelectedPrice(p)}
                   />
                   <span className="filter-label">{p}</span>
                 </label>
@@ -100,15 +99,13 @@ export default function Filters({ className = "" }: FilterPanelProps) {
       {/* Active Filters summary */}
       <div className="filters__summary" aria-live="polite" aria-atomic="true">
         <strong>Active Filters:</strong>{" "}
-        {selectedCategories.length === 0 && selectedPrices.length === 0
+        {selectedCategories.length === 0 && selectedPrice === null
           ? "None"
           : [
               selectedCategories.length
                 ? `Category [${selectedCategories.join(", ")}]`
                 : null,
-              selectedPrices.length
-                ? `Price [${selectedPrices.join(", ")}]`
-                : null,
+              selectedPrice ? `Price [${selectedPrice}]` : null,
             ]
               .filter(Boolean)
               .join("; ")}
