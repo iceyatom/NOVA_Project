@@ -8,12 +8,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HighlightContent } from "@/content/siteContent";
 import { homeContent } from "@/content/siteContent";
 
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/ & /g, " and ")
+    .replace(/[\s-]+/g, "-")
+    .replace(/[^\w-]+/g, "");
+
 const leftLinks = [
-  { label: "Microscope Slides", href: "/catalog?c=slides" },
-  { label: "Preserved Specimens", href: "/catalog?c=preserved" },
-  { label: "Live Cultures", href: "/catalog?c=cultures" },
-  { label: "Dissection Kits", href: "/catalog?c=dissection" },
-];
+  { label: "Owl pellets", href: "" },
+  { label: "Live Algae Specimens", href: "" },
+  { label: "Live Invertebrates", href: "" },
+  { label: "Live Vertebrates", href: "" },
+  { label: "Live Bacteria & Fungi Specimens", href: "" },
+  { label: "Live Plant Specimens", href: "" },
+  { label: "Live Protozoa Specimens", href: "" },
+  { label: "Preserved Invertebrates", href: "" },
+  { label: "Preserved Vertebrates", href: "" },
+].map((link) => ({ ...link, href: `/info/${slugify(link.label)}` }));
 
 const rightLinks = [
   { label: "Classroom Kits", href: "/catalog?c=kits" },

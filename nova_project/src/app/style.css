@@ -614,6 +614,27 @@ header {
   }
 }
 
+/* Mid-desktop: keep right pane visible by letting it drop below when space tight */
+@media (min-width: 1024px) and (max-width: 1599px) {
+  .container .three-pane {
+    grid-template-columns: minmax(240px, 0.95fr) minmax(0, 2.8fr);
+    grid-template-areas:
+      "left center"
+      "right center";
+    column-gap: 16px;
+    row-gap: 18px;
+  }
+  .pane-left {
+    grid-area: left;
+  }
+  .pane-center {
+    grid-area: center;
+  }
+  .pane-right {
+    grid-area: right;
+  }
+}
+
 /* accessibility helpers */
 .skip-link {
   position: absolute;
@@ -1291,29 +1312,7 @@ body {
     border-color 0.2s;
 }
 
-.filter-row input[type="radio"] {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 2px solid #9ca3af;
-  border-radius: 50%;
-  display: inline-block;
-  position: relative;
-  background-color: #fff;
-  cursor: pointer;
-  transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s;
-}
-
 .filter-row input[type="checkbox"]:hover {
-  border-color: #4b5563;
-}
-
-.filter-row input[type="radio"]:hover {
   border-color: #4b5563;
 }
 
@@ -1326,22 +1325,6 @@ body {
   bottom: 1.9px;
   border-radius: 2px;
   background-color: #409f60;
-}
-
-.filter-row input[type="radio"]:checked {
-  border-color: var(--brand-teal);
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
-}
-
-.filter-row input[type="radio"]:checked::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  right: 3px;
-  bottom: 3px;
-  border-radius: 999px;
-  background-color: var(--brand-teal);
 }
 
 /* Catalog Filter - Summary / Clear */
@@ -1399,24 +1382,12 @@ body {
   .catalog-pane-center {
     grid-area: center;
   }
-
-  .catalog-pane-right {
-    grid-area: right;
-    max-width: 240px;
-  }
 }
 
-@media (max-width: 1023px) {
-  .catalog-pane-right {
-    display: none !important;
-  }
+.info-body h3 {
+  margin-bottom: 4px;
+}
 
-  /* Filters above catalog */
-  .catalog-pane-left {
-    order: 1;
-  }
-
-  .catalog-pane-center {
-    order: 2;
-  }
+.info-body p {
+  margin-top: 4px;
 }
