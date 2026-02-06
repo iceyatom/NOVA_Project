@@ -5,12 +5,26 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 20;
 const ALLOWED_LIMITS = new Set([20, 50, 100]);
+const PRICE_BUCKETS = new Map<string, { min?: number; max?: number }>([
+  ["under-50", { max: 49.99 }],
+  ["50-99", { min: 50, max: 99.99 }],
+  ["100-249", { min: 100, max: 249.99 }],
+  ["250-plus", { min: 250 }],
+]);
 
 function parsePositiveInt(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return parsed;
+}
+
+function parseCsv(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 export async function GET(request: NextRequest) {
@@ -27,6 +41,56 @@ export async function GET(request: NextRequest) {
       parsePositiveInt(searchParams.get("offset")) ??
       (page ? (page - 1) * limit : 0);
     const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
+
+    const query = searchParams.get("q")?.trim() ?? "";
+    const categories = parseCsv(searchParams.get("categories"));
+    const priceBuckets = parseCsv(searchParams.get("priceBuckets"));
+
+    const whereFilters = [];
+
+    if (query) {
+      whereFilters.push({
+        OR: [
+          { itemName: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+          { sku: { contains: query, mode: "insensitive" } },
+        ],
+      });
+    }
+
+    if (categories.length > 0) {
+      whereFilters.push({
+        OR: [
+          { category1: { in: categories } },
+          { category2: { in: categories } },
+          { category3: { in: categories } },
+        ],
+      });
+    }
+
+    if (priceBuckets.length > 0) {
+      const ranges = priceBuckets
+        .map((bucket) => PRICE_BUCKETS.get(bucket))
+        .filter(Boolean) as Array<{ min?: number; max?: number }>;
+
+      if (ranges.length > 0) {
+        whereFilters.push({
+          OR: ranges.map((range) => ({
+            price: {
+              ...(range.min !== undefined ? { gte: range.min } : {}),
+              ...(range.max !== undefined ? { lte: range.max } : {}),
+            },
+          })),
+        });
+      }
+    }
+
+    const where =
+      whereFilters.length > 0
+        ? {
+            AND: whereFilters,
+          }
+        : undefined;
 
     const select = {
       id: true,
@@ -48,7 +112,7 @@ export async function GET(request: NextRequest) {
     };
 
     const [totalCount, catalogItems] = await prisma.$transaction([
-      prisma.catalogItem.count(),
+      prisma.catalogItem.count({ where }),
       prisma.catalogItem.findMany({
         select,
         orderBy: {
@@ -56,6 +120,7 @@ export async function GET(request: NextRequest) {
         },
         take: limit,
         skip: safeOffset,
+        where,
       }),
     ]);
 

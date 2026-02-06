@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 
 type CatalogPaginationProps = {
   totalItems: number;
   initialPageSize?: number;
   pageSizeOptions?: number[];
+  currentPage?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
 };
 
 const DEFAULT_PAGE_SIZES = [20, 50, 100];
@@ -60,6 +64,10 @@ export default function CatalogPagination({
   totalItems,
   initialPageSize = 20,
   pageSizeOptions = DEFAULT_PAGE_SIZES,
+  currentPage: controlledCurrentPage,
+  pageSize: controlledPageSize,
+  onPageChange,
+  onPageSizeChange,
 }: CatalogPaginationProps) {
   const resolvedPageSizes = useMemo(
     () => normalizePageSizes(initialPageSize, pageSizeOptions),
@@ -69,33 +77,56 @@ export default function CatalogPagination({
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const resolvedPageSize = controlledPageSize ?? pageSize;
+  const resolvedCurrentPage = controlledCurrentPage ?? currentPage;
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / resolvedPageSize));
+
+  const updatePage = useCallback(
+    (nextPage: number) => {
+      if (controlledCurrentPage === undefined) {
+        setCurrentPage(nextPage);
+      }
+      onPageChange?.(nextPage);
+    },
+    [controlledCurrentPage, onPageChange],
+  );
+
+  const updatePageSize = useCallback(
+    (nextSize: number) => {
+      if (controlledPageSize === undefined) {
+        setPageSize(nextSize);
+      }
+      onPageSizeChange?.(nextSize);
+    },
+    [controlledPageSize, onPageSizeChange],
+  );
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+    if (resolvedCurrentPage > totalPages) {
+      updatePage(totalPages);
     }
-  }, [currentPage, totalPages]);
+  }, [resolvedCurrentPage, totalPages, updatePage]);
 
   const pages = useMemo(
-    () => buildPagination(currentPage, totalPages),
-    [currentPage, totalPages],
+    () => buildPagination(resolvedCurrentPage, totalPages),
+    [resolvedCurrentPage, totalPages],
   );
 
   const handlePageSizeChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    setPageSize(Number(event.target.value));
-    setCurrentPage(1);
+    updatePageSize(Number(event.target.value));
+    updatePage(1);
   };
 
   return (
     <section className="pagination" aria-label="Catalog pagination">
       <div className="pagination__meta">
         <span className="pagination__status">
-          Page {currentPage} of {totalPages}
+          Page {resolvedCurrentPage} of {totalPages}
         </span>
         <label className="pagination__size">
           <span>Items per page</span>
-          <select value={pageSize} onChange={handlePageSizeChange}>
+          <select value={resolvedPageSize} onChange={handlePageSizeChange}>
             {resolvedPageSizes.map((size) => (
               <option key={size} value={size}>
                 {size}
@@ -109,8 +140,8 @@ export default function CatalogPagination({
         <button
           type="button"
           className="pagination__nav"
-          onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-          disabled={currentPage === 1}
+          onClick={() => updatePage(Math.max(1, resolvedCurrentPage - 1))}
+          disabled={resolvedCurrentPage === 1}
         >
           Previous
         </button>
@@ -135,8 +166,8 @@ export default function CatalogPagination({
                   name="catalog-page"
                   className="pagination__page-input"
                   value={page}
-                  checked={page === currentPage}
-                  onChange={() => setCurrentPage(page)}
+                  checked={page === resolvedCurrentPage}
+                  onChange={() => updatePage(page)}
                 />
                 <label
                   htmlFor={`catalog-page-${page}`}
@@ -153,9 +184,9 @@ export default function CatalogPagination({
           type="button"
           className="pagination__nav"
           onClick={() =>
-            setCurrentPage((page) => Math.min(totalPages, page + 1))
+            updatePage(Math.min(totalPages, resolvedCurrentPage + 1))
           }
-          disabled={currentPage === totalPages}
+          disabled={resolvedCurrentPage === totalPages}
         >
           Next
         </button>
