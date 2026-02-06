@@ -92,7 +92,6 @@ export async function GET(request: NextRequest) {
           }
         : undefined;
 
-
     const select = {
       id: true,
       sku: true,

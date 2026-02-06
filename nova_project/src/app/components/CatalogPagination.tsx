@@ -104,7 +104,7 @@ export default function CatalogPagination({
 
   useEffect(() => {
     if (resolvedCurrentPage > totalPages) {
-        updatePage(totalPages);
+      updatePage(totalPages);
     }
   }, [resolvedCurrentPage, totalPages, updatePage]);
 

@@ -4,9 +4,6 @@ import * as React from "react";
 
 type FilterPanelProps = {
   className?: string;
-  selectedCategories?: string[];
-  selectedPrices?: string[];
-  onChange?: (next: { categories: string[]; prices: string[] }) => void;
 };
 
 const CATEGORIES = [
@@ -23,56 +20,27 @@ const CATEGORIES = [
   "Preserved Invertebrates",
   "Preserved Vertebrates",
 ];
-const PRICE_BUCKETS = [
-  { label: "Under $50", value: "under-50" },
-  { label: "$50-$99", value: "50-99" },
-  { label: "$100-$249", value: "100-249" },
-  { label: "$250+", value: "250-plus" },
-];
-const PRICE_LABELS = Object.fromEntries(
-  PRICE_BUCKETS.map((bucket) => [bucket.value, bucket.label]),
-);
+const PRICE_BUCKETS = ["Under $50", "$50–$99", "$100–$249", "$250+"];
 
-export default function Filters({
-  className = "",
-  selectedCategories,
-  selectedPrices,
-  onChange,
-}: FilterPanelProps) {
-  const [internalCategories, setInternalCategories] = React.useState<string[]>(
+export default function Filters({ className = "" }: FilterPanelProps) {
+  const [selectedCategories, setSelectedCategories] = React.useState<string[]>(
     [],
   );
-  const [internalPrices, setInternalPrices] = React.useState<string[]>([]);
+  const [selectedPrice, setSelectedPrice] = React.useState<string | null>(null);
 
-  const categories = selectedCategories ?? internalCategories;
-  const prices = selectedPrices ?? internalPrices;
-
-  const updateState = (nextCategories: string[], nextPrices: string[]) => {
-    if (selectedCategories === undefined) {
-      setInternalCategories(nextCategories);
-    }
-    if (selectedPrices === undefined) {
-      setInternalPrices(nextPrices);
-    }
-    onChange?.({ categories: nextCategories, prices: nextPrices });
-  };
-
-  const toggleCategory = (value: string) => {
-    const nextCategories = categories.includes(value)
-      ? categories.filter((item) => item !== value)
-      : [...categories, value];
-    updateState(nextCategories, prices);
-  };
-
-  const togglePrice = (value: string) => {
-    const nextPrices = prices.includes(value)
-      ? prices.filter((item) => item !== value)
-      : [...prices, value];
-    updateState(categories, nextPrices);
+  const toggle = (
+    val: string,
+    list: string[],
+    setList: (v: string[]) => void,
+  ) => {
+    setList(
+      list.includes(val) ? list.filter((v) => v !== val) : [...list, val],
+    );
   };
 
   const clearAll = () => {
-    updateState([], []);
+    setSelectedCategories([]);
+    setSelectedPrice(null);
   };
 
   return (
@@ -83,7 +51,7 @@ export default function Filters({
         <ul className="filter-list">
           {CATEGORIES.map((cat) => {
             const id = `cat-${cat.toLowerCase().replace(/\s+/g, "-")}`;
-            const checked = categories.includes(cat);
+            const checked = selectedCategories.includes(cat);
             return (
               <li key={cat}>
                 <label htmlFor={id} className="filter-row">
@@ -91,7 +59,9 @@ export default function Filters({
                     id={id}
                     type="checkbox"
                     checked={checked}
-                    onChange={() => toggleCategory(cat)}
+                    onChange={() =>
+                      toggle(cat, selectedCategories, setSelectedCategories)
+                    }
                   />
                   <span className="filter-label">{cat}</span>
                 </label>
@@ -105,20 +75,20 @@ export default function Filters({
       <fieldset className="filter-group">
         <legend className="filter-group__legend">Price</legend>
         <ul className="filter-list">
-          {PRICE_BUCKETS.map((bucket) => {
-            const id = `price-${bucket.value}`;
-            const checked = prices.includes(bucket.value);
+          {PRICE_BUCKETS.map((p) => {
+            const id = `price-${p.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}`;
+            const checked = selectedPrice === p;
             return (
-              <li key={bucket.value}>
+              <li key={p}>
                 <label htmlFor={id} className="filter-row">
                   <input
                     id={id}
                     type="radio"
                     name="price"
                     checked={checked}
-                    onChange={() => togglePrice(bucket.value)}
+                    onChange={() => setSelectedPrice(p)}
                   />
-                  <span className="filter-label">{bucket.label}</span>
+                  <span className="filter-label">{p}</span>
                 </label>
               </li>
             );
@@ -129,15 +99,13 @@ export default function Filters({
       {/* Active Filters summary */}
       <div className="filters__summary" aria-live="polite" aria-atomic="true">
         <strong>Active Filters:</strong>{" "}
-        {categories.length === 0 && prices.length === 0
+        {selectedCategories.length === 0 && selectedPrice === null
           ? "None"
           : [
-              categories.length ? `Category [${categories.join(", ")}]` : null,
-              prices.length
-                ? `Price [${prices
-                    .map((price) => PRICE_LABELS[price] ?? price)
-                    .join(", ")}]`
-                : null
+              selectedCategories.length
+                ? `Category [${selectedCategories.join(", ")}]`
+                : null,
+              selectedPrice ? `Price [${selectedPrice}]` : null,
             ]
               .filter(Boolean)
               .join("; ")}
