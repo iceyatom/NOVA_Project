@@ -6,8 +6,21 @@ type FilterPanelProps = {
   className?: string;
 };
 
-const CATEGORIES = ["Equipment", "Chemicals", "Supplies", "Kits"];
-const PRICE_BUCKETS = ["Under $50", "$50-$99", "$100-$249", "$250+"];
+const CATEGORIES = [
+  "Laboratory Supplies",
+  "Live Algae Specimens",
+  "Live Bacteria & Fungi Specimens",
+  "Live Invertebrates",
+  "Live Plant Specimens",
+  "Live Protozoa Specimens",
+  "Live Vertebrates",
+  "Microbiological Supplies",
+  "Microscopes",
+  "Owl Pellets",
+  "Preserved Invertebrates",
+  "Preserved Vertebrates",
+];
+const PRICE_BUCKETS = ["Under $50", "$50–$99", "$100–$249", "$250+"];
 
 export default function Filters({ className = "" }: FilterPanelProps) {
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>(
