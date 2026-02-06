@@ -6,12 +6,14 @@ type Props = {
   title?: string;
   bgImage?: string;
   placeholder?: string;
+  onSearch?: (query: string) => void;
 };
 
 export default function SearchBar({
   title = "Your Trusted Source for Biological Supplies",
   bgImage = "/hero-lab.jpg",
   placeholder = "Search by Keyword",
+  onSearch,
 }: Props) {
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
@@ -25,6 +27,7 @@ export default function SearchBar({
     if (!trimmed) return;
 
     setSubmittedQuery(trimmed);
+     onSearch?.(trimmed);
     // eslint-disable-next-line no-console
     console.log(`[SearchBar] submitted query: "${trimmed}"`);
 
@@ -108,7 +111,7 @@ export default function SearchBar({
       {/* ECHO / ARIA-LIVE */}
       <p className="hero-echo" aria-live="polite" role="status">
         <span className="hero-echo-label">Last search:</span>{" "}
-        {submittedQuery ? `“${submittedQuery}”` : "—"}
+        {submittedQuery ? `"${submittedQuery}"` : '""'}
       </p>
     </>
   );
