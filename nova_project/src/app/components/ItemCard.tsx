@@ -1,5 +1,8 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { buildProductUrl } from "@/lib/catalogUrl";
 
 type Item = {
   id: number | null;
@@ -17,6 +20,8 @@ type Item = {
 };
 
 export default function ItemCard({ item }: { item: Item }) {
+  const searchParams = useSearchParams();
+
   // Destructure data
   const {
     id,
@@ -38,20 +43,17 @@ export default function ItemCard({ item }: { item: Item }) {
       ? imageUrl
       : "/FillerImage.webp";
 
-  // Function
-  const handleClick = (
-    event:
-      | React.KeyboardEvent<HTMLDivElement>
-      | React.MouseEvent<HTMLDivElement>,
-  ) => {
-    if (event.type === "keydown" && "key" in event && event.key !== "Enter")
-      return;
-    if (event.type === "click") event.preventDefault();
-
-    event.preventDefault();
-    // Send to the item page - for now, open image in new tab
-    window.open(safeSrc, "_self");
-  };
+  // Build product URL with preserved catalog state
+  const productUrl = id !== null
+    ? buildProductUrl(id, {
+        search: searchParams.get("search"),
+        category1: searchParams.get("category1"),
+        category2: searchParams.get("category2"),
+        category3: searchParams.get("category3"),
+        page: searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : undefined,
+        pageSize: searchParams.get("pageSize") ? parseInt(searchParams.get("pageSize")!, 10) : undefined,
+      })
+    : "/catalog";
 
   // Styles
   const itemCardStyle = {
@@ -133,46 +135,46 @@ export default function ItemCard({ item }: { item: Item }) {
 
   // HTML
   return (
-    <div
-      className="item-card"
-      style={itemCardStyle}
-      onClick={handleClick}
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && handleClick(e)}
-    >
-      <h2 className="item-card-title" style={titleStyle}>
-        {itemName === null ? "N/A" : itemName}
-      </h2>
-      <Image
-        className="item-card-image"
-        src={safeSrc}
-        alt={itemName === null ? "N/A" : itemName}
-        width={512}
-        height={512}
-        style={imageStyle}
-      />
-      <p className="item-card-description" style={descriptionStyle}>
-        Description: {description === null ? "N/A" : description}
-      </p>
-      <p className="item-card-category3" style={category3Style}>
-        Category 3: {category3 === null ? "N/A" : category3}
-      </p>
-      <p className="item-card-category2" style={category2Style}>
-        Category 2: {category2 === null ? "N/A" : category2}
-      </p>
-      <p className="item-card-category1" style={category1Style}>
-        Category 1: {category1 === null ? "N/A" : category1}
-      </p>
-      <p className="item-card-cost" style={costStyle}>
-        Cost: {price === null ? "N/A" : `$${price.toFixed(2)}`}
-      </p>
-      <p className="item-card-stock" style={stockStyle}>
-        {quantityInStock === null
-          ? "N/A"
-          : quantityInStock > 0
-            ? quantityInStock + " available"
-            : "Out of Stock"}
-      </p>
-    </div>
+    <Link href={productUrl}>
+      <div
+        className="item-card"
+        style={itemCardStyle}
+        tabIndex={0}
+      >
+        <h2 className="item-card-title" style={titleStyle}>
+          {itemName === null ? "N/A" : itemName}
+        </h2>
+        <Image
+          className="item-card-image"
+          src={safeSrc}
+          alt={itemName === null ? "N/A" : itemName}
+          width={512}
+          height={512}
+          style={imageStyle}
+        />
+        <p className="item-card-description" style={descriptionStyle}>
+          Description: {description === null ? "N/A" : description}
+        </p>
+        <p className="item-card-category3" style={category3Style}>
+          Category 3: {category3 === null ? "N/A" : category3}
+        </p>
+        <p className="item-card-category2" style={category2Style}>
+          Category 2: {category2 === null ? "N/A" : category2}
+        </p>
+        <p className="item-card-category1" style={category1Style}>
+          Category 1: {category1 === null ? "N/A" : category1}
+        </p>
+        <p className="item-card-cost" style={costStyle}>
+          Cost: {price === null ? "N/A" : `$${price.toFixed(2)}`}
+        </p>
+        <p className="item-card-stock" style={stockStyle}>
+          {quantityInStock === null
+            ? "N/A"
+            : quantityInStock > 0
+              ? quantityInStock + " available"
+              : "Out of Stock"}
+        </p>
+      </div>
+    </Link>
   );
 }

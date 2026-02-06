@@ -6209,7 +6209,20 @@ async function main() {
   ];
 
   for (const item of items) {
-    await prisma.catalogItem.create({ data: item });
+    const existing = await prisma.catalogItem.findUnique({
+      where: { sku: item.sku },
+    });
+
+    if (existing) {
+      await prisma.catalogItem.update({
+        where: { id: existing.id },
+        data: item,
+      });
+    } else {
+      await prisma.catalogItem.create({
+        data: item,
+      });
+    }
   }
 }
 

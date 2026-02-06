@@ -1,7 +1,8 @@
 // src/app/catalog/page.tsx
 
-// Page shows the catalog using placeholder items (for now)
-// and, at the bottom, includes a diagnostics panel sourced from the API.
+// Catalog Page with state preservation via URL parameters
+// Preserves: search terms, category filters, pagination
+// Supports navigation to individual product pages while maintaining browsing context
 
 import type React from "react";
 
@@ -13,6 +14,17 @@ import { prisma } from "@/lib/db"; // direct Prisma test
 import Filters from "../components/Filters";
 
 export const dynamic = "force-dynamic";
+
+type CatalogPageProps = {
+  searchParams: {
+    search?: string;
+    category1?: string;
+    category2?: string;
+    category3?: string;
+    page?: string;
+    pageSize?: string;
+  };
+};
 
 type Item = {
   id: number | null;
@@ -143,32 +155,30 @@ function getSafeErrorMessage(error: unknown, fallback: string) {
 }
 
 // made async so we can await Prisma queries below
-export default async function CatalogPage() {
+export default async function CatalogPage({ searchParams }: CatalogPageProps) {
+  // --- Extract state from URL search parameters (await the Promise) ---
+  const params = await searchParams;
+  const search = params.search?.trim() || null;
+  const category1 = params.category1?.trim() || null;
+  const category2 = params.category2?.trim() || null;
+  const category3 = params.category3?.trim() || null;
+  const page = params.page ? parseInt(params.page, 10) : 1;
+  const pageSize = params.pageSize ? parseInt(params.pageSize, 10) : 20;
+
+  // Calculate pagination
+  const skip = (page - 1) * pageSize;
+  const take = pageSize;
+
   // --- API route test block ---
   let apiStatus = "Loading catalog via API...";
   let apiItems: Item[] = [];
   let groupedApiEntries: [string, Item[]][] = [];
 
-  // Page filters
-  const page: number | null = null;
-  const itemsPerPage: number | null = null;
-  const skip =
-    page !== null && itemsPerPage !== null ? (page - 1) * itemsPerPage : null;
-  const take = itemsPerPage !== null ? itemsPerPage : null;
-
   // Where filters
-  const itemName: string | null = null;
-
+  const itemName = search;
   const minPrice: number | null = null;
   const maxPrice: number | null = null;
-
-  const category: string | null = null; // Used as a generic category
-  const category3: string | null = null;
-  const category2: string | null = null;
-  const category1: string | null = null;
-
   const description: string | null = null;
-
   const inStock: boolean | null = null;
 
   // Order by fields
@@ -201,19 +211,9 @@ export default async function CatalogPage() {
           itemName !== null ? { itemName: { contains: itemName } } : {},
           minPrice !== null ? { price: { gte: minPrice } } : {},
           maxPrice !== null ? { price: { lte: maxPrice } } : {},
-          category !== null
-            ? {
-                OR: [
-                  { category3: category },
-                  { category2: category },
-                  { category1: category },
-                ],
-              }
-            : {
-                category3: category3 ?? undefined,
-                category2: category2 ?? undefined,
-                category1: category1 ?? undefined,
-              },
+          category1 !== null ? { category1: category1 } : {},
+          category2 !== null ? { category2: category2 } : {},
+          category3 !== null ? { category3: category3 } : {},
           description !== null
             ? { description: { contains: description } }
             : {},
