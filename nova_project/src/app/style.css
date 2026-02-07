@@ -1422,23 +1422,11 @@ body {
     grid-area: center;
   }
 
-  .catalog-pane-right {
-    grid-area: right;
-    max-width: 240px;
-  }
-}
-
-@media (max-width: 1023px) {
-  .catalog-pane-right {
-    display: none !important;
+  .info-body h3 {
+    margin-bottom: 4px;
   }
 
-  /* Filters above catalog */
-  .catalog-pane-left {
-    order: 1;
-  }
-
-  .catalog-pane-center {
-    order: 2;
+  .info-body p {
+    margin-top: 4px;
   }
 }

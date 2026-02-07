@@ -8,26 +8,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HighlightContent } from "@/content/siteContent";
 import { homeContent } from "@/content/siteContent";
 
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/ & /g, " and ")
+    .replace(/[\s-]+/g, "-")
+    .replace(/[^\w-]+/g, "");
+
 const leftLinks = [
-  { label: "Owl pellets", href: "/catalog?c=owl-pellets" },
-  { label: "Live Algae Specimens", href: "/catalog?c=live-algae" },
-  { label: "Live Invertebrates", href: "/catalog?c=live-invertebrates" },
-  { label: "Live Vertebrates", href: "/catalog?c=live-vertebrates" },
-  {
-    label: "Live Bacteria & Fungi Specimens",
-    href: "/catalog?c=live-bacteria-fungi",
-  },
-  { label: "Live Plant Specimens", href: "/catalog?c=live-plants" },
-  { label: "Live Protozoa Specimens", href: "/catalog?c=live-protozoa" },
-  {
-    label: "Preserved Invertebrates",
-    href: "/catalog?c=preserved-invertebrates",
-  },
-  {
-    label: "Preserved Vertebrates",
-    href: "/catalog?c=preserved-vertebrates",
-  },
-];
+  { label: "Owl pellets", href: "" },
+  { label: "Live Algae Specimens", href: "" },
+  { label: "Live Invertebrates", href: "" },
+  { label: "Live Vertebrates", href: "" },
+  { label: "Live Bacteria & Fungi Specimens", href: "" },
+  { label: "Live Plant Specimens", href: "" },
+  { label: "Live Protozoa Specimens", href: "" },
+  { label: "Preserved Invertebrates", href: "" },
+  { label: "Preserved Vertebrates", href: "" },
+].map((link) => ({ ...link, href: `/info/${slugify(link.label)}` }));
 
 const rightLinks = [
   { label: "Classroom Kits", href: "/catalog?c=kits" },
