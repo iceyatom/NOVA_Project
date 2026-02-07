@@ -9,10 +9,24 @@ import type { HighlightContent } from "@/content/siteContent";
 import { homeContent } from "@/content/siteContent";
 
 const leftLinks = [
-  { label: "Microscope Slides", href: "/catalog?c=slides" },
-  { label: "Preserved Specimens", href: "/catalog?c=preserved" },
-  { label: "Live Cultures", href: "/catalog?c=cultures" },
-  { label: "Dissection Kits", href: "/catalog?c=dissection" },
+  { label: "Owl pellets", href: "/catalog?c=owl-pellets" },
+  { label: "Live Algae Specimens", href: "/catalog?c=live-algae" },
+  { label: "Live Invertebrates", href: "/catalog?c=live-invertebrates" },
+  { label: "Live Vertebrates", href: "/catalog?c=live-vertebrates" },
+  {
+    label: "Live Bacteria & Fungi Specimens",
+    href: "/catalog?c=live-bacteria-fungi",
+  },
+  { label: "Live Plant Specimens", href: "/catalog?c=live-plants" },
+  { label: "Live Protozoa Specimens", href: "/catalog?c=live-protozoa" },
+  {
+    label: "Preserved Invertebrates",
+    href: "/catalog?c=preserved-invertebrates",
+  },
+  {
+    label: "Preserved Vertebrates",
+    href: "/catalog?c=preserved-vertebrates",
+  },
 ];
 
 const rightLinks = [
