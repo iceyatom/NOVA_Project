@@ -167,7 +167,7 @@ export default function CatalogPageClient() {
   return (
     <main aria-label="Catalog Layout">
       {/* HERO search banner directly under the header */}
-      <SearchBar bgImage="/hero-lab.jpg"/>
+      <SearchBar bgImage="/hero-lab.jpg" />
 
       {errorMessage && (
         <APIError
@@ -185,7 +185,7 @@ export default function CatalogPageClient() {
           className="catalog-pane catalog-pane-left"
         >
           <h2 className="pane-title">Filters</h2>
-          <Filters/>
+          <Filters />
         </aside>
 
         {/* Center Pane */}
