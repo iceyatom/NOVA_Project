@@ -334,8 +334,6 @@ header {
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
-  overflow: visible;
-  min-width: 0;
 }
 
 /* pane tints (subtle color per section) */
@@ -608,21 +606,24 @@ header {
   }
 }
 
-/* Medium viewport: handle right panel clipping */
-@media (min-width: 1024px) and (max-width: 1280px) {
+/* Mid-desktop: keep right pane visible by letting it drop below when space tight */
+@media (min-width: 1024px) and (max-width: 1599px) {
   .container .three-pane {
-    grid-template-columns:
-      minmax(240px, 0.85fr)
-      minmax(0, 3fr)
-      minmax(220px, 0.85fr);
-    column-gap: 12px;
+    grid-template-columns: minmax(240px, 0.95fr) minmax(0, 2.8fr);
+    grid-template-areas:
+      "left center"
+      "right center";
+    column-gap: 16px;
+    row-gap: 18px;
+  }
+  .pane-left {
+    grid-area: left;
+  }
+  .pane-center {
+    grid-area: center;
   }
   .pane-right {
-    overflow: visible;
-  }
-  /* Ensure right panel content doesn't overflow */
-  .pane-right .pane-list {
-    overflow-wrap: break-word;
+    grid-area: right;
   }
 }
 
