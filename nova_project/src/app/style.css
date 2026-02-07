@@ -605,6 +605,28 @@ header {
     padding-inline: clamp(6px, 0.8vw, 12px);
   }
 }
+
+/* Mid-desktop: keep right pane visible by letting it drop below when space tight */
+@media (min-width: 1024px) and (max-width: 1599px) {
+  .container .three-pane {
+    grid-template-columns: minmax(240px, 0.95fr) minmax(0, 2.8fr);
+    grid-template-areas:
+      "left center"
+      "right center";
+    column-gap: 16px;
+    row-gap: 18px;
+  }
+  .pane-left {
+    grid-area: left;
+  }
+  .pane-center {
+    grid-area: center;
+  }
+  .pane-right {
+    grid-area: right;
+  }
+}
+
 @media (min-width: 1440px) {
   .container .three-pane {
     column-gap: 12px;
