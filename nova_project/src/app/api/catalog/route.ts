@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 20;
@@ -28,137 +29,50 @@ function parseCsv(value: string | null): string[] {
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const requestedLimit = parsePositiveInt(searchParams.get("limit"));
-    const limit =
-      requestedLimit && ALLOWED_LIMITS.has(requestedLimit)
-        ? requestedLimit
-        : DEFAULT_LIMIT;
-
-    const page = parsePositiveInt(searchParams.get("page"));
-    const offset =
-      parsePositiveInt(searchParams.get("offset")) ??
-      (page ? (page - 1) * limit : 0);
-    const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
-
-    const query = searchParams.get("q")?.trim() ?? "";
-    const categories = parseCsv(searchParams.get("categories"));
-    const priceBuckets = parseCsv(searchParams.get("priceBuckets"));
-
-    const whereFilters = [];
-
-    if (query) {
-      whereFilters.push({
-        OR: [
-          { itemName: { contains: query, mode: "insensitive" } },
-          { description: { contains: query, mode: "insensitive" } },
-          { sku: { contains: query, mode: "insensitive" } },
-        ],
-      });
-    }
-
-    if (categories.length > 0) {
-      whereFilters.push({
-        OR: [
-          { category1: { in: categories } },
-          { category2: { in: categories } },
-          { category3: { in: categories } },
-        ],
-      });
-    }
-
-    if (priceBuckets.length > 0) {
-      const ranges = priceBuckets
-        .map((bucket) => PRICE_BUCKETS.get(bucket))
-        .filter(Boolean) as Array<{ min?: number; max?: number }>;
-
-      if (ranges.length > 0) {
-        whereFilters.push({
-          OR: ranges.map((range) => ({
-            price: {
-              ...(range.min !== undefined ? { gte: range.min } : {}),
-              ...(range.max !== undefined ? { lte: range.max } : {}),
-            },
-          })),
-        });
-      }
-    }
-
-    const where =
-      whereFilters.length > 0
-        ? {
-            AND: whereFilters,
-          }
-        : undefined;
-
-    const select = {
-      id: true,
-      sku: true,
-      itemName: true,
-      price: true,
-      category1: true,
-      category2: true,
-      category3: true,
-      description: true,
-      quantityInStock: true,
-      unitOfMeasure: true,
-      storageLocation: true,
-      storageConditions: true,
-      expirationDate: true,
-      dateAcquired: true,
-      reorderLevel: true,
-      unitCost: true,
-    };
-
-    const [totalCount, catalogItems] = await prisma.$transaction([
-      prisma.catalogItem.count({ where }),
-      prisma.catalogItem.findMany({
-        select,
-        orderBy: {
-          id: "asc",
-        },
-        take: limit,
-        skip: safeOffset,
-        where,
-      }),
-    ]);
-
-    // Return the catalog items as JSON
-    const response = NextResponse.json(
-      {
-        success: true,
-        data: catalogItems,
-        count: catalogItems.length,
-        totalCount,
-        limit,
-        offset: safeOffset,
-      },
-      { status: 200 },
-    );
-
-    // Add anti-caching headers
-    response.headers.set(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate",
-    );
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-
-    return response;
-  } catch (error: unknown) {
-    // Handle database errors gracefully
-    console.error("Catalog API Error:", error);
-    const message =
-      error instanceof Error ? error.message : "Unknown error occurred";
-
+    const upstreamBase = process.env.NEXT_PUBLIC_API_URL;
+  if (!upstreamBase) {
     return NextResponse.json(
-      {
-        success: false,
-        error: "Unable to retrieve catalog items. Please try again later.",
-        details: process.env.NODE_ENV === "development" ? message : undefined,
-      },
+      { success: false, error: "NEXT_PUBLIC_API_URL is not set" },
       { status: 500 },
     );
   }
+
+  const url = new URL(request.url);
+
+  // Pass through the same query params your UI already uses
+  const limit = url.searchParams.get("limit") ?? "20";
+  const offset = url.searchParams.get("offset") ?? "0";
+  const q = url.searchParams.get("q") ?? "";
+  const categories = url.searchParams.get("categories") ?? "";
+  const priceBuckets = url.searchParams.get("priceBuckets") ?? "";
+
+  // Build the upstream URL: <base>/catalog?... (base already includes /prod)
+  const upstreamUrl = new URL(`${upstreamBase}/catalog`);
+  upstreamUrl.searchParams.set("limit", limit);
+  upstreamUrl.searchParams.set("offset", offset);
+  if (q) upstreamUrl.searchParams.set("q", q);
+  if (categories) upstreamUrl.searchParams.set("categories", categories);
+  if (priceBuckets) upstreamUrl.searchParams.set("priceBuckets", priceBuckets);
+
+  try {
+    const r = await fetch(upstreamUrl.toString(), { cache: "no-store" });
+    const body = await r.text();
+
+    // Return exactly what API Gateway returns
+    return new NextResponse(body, {
+      status: r.status,
+      headers: {
+        "Content-Type": r.headers.get("content-type") ?? "application/json",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      },
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json(
+      { success: false, error: "Upstream Lambda request failed", details: msg },
+      { status: 502 },
+    );
+  } 
 }
