@@ -8,7 +8,6 @@ import type React from "react";
 
 import ItemCard from "../components/ItemCard";
 import SearchBar from "../components/SearchBar";
-import ItemCardSkeleton from "../components/ItemCardSkeleton";
 import APIError from "./APIError";
 import { prisma } from "@/lib/db"; // direct Prisma test
 import Filters from "../components/Filters";
