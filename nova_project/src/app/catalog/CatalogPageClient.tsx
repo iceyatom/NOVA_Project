@@ -107,21 +107,50 @@ export default function CatalogPageClient() {
         if (!response.ok) {
           throw new Error(`Catalog request failed (${response.status})`);
         }
+        
 
-        const payload = (await response.json()) as CatalogResponse;
+        type ApiGatewayProxyLike = {
+          body: string;
+          statusCode?: number;
+          headers?: Record<string, string>;
+          isBase64Encoded?: boolean;
+        };
+
+        function hasStringBody(value: unknown): value is ApiGatewayProxyLike {
+          return (
+            typeof value === "object" &&
+            value !== null &&
+            "body" in value &&
+            typeof (value as Record<string, unknown>).body === "string"
+          );
+        }
+
+        
+        // 1) If API Gateway/Lambda proxy response, parse raw.body
+        const raw: unknown = await response.json();
+        const parsed = hasStringBody(raw) ? (JSON.parse(raw.body) as unknown) : raw;
+
+        // normalize it to CatalogResponse
+        const payload: CatalogResponse = Array.isArray(parsed)
+          ? {
+              success: true,
+              data: parsed,
+              count: parsed.length,
+              totalCount: parsed.length,
+              limit: pageSize,
+              offset: (currentPage - 1) * pageSize,
+            }
+          : (parsed as CatalogResponse);
+
 
         if (!payload.success) {
           throw new Error(payload.error ?? "Catalog request failed");
         }
 
-        const normalizedItems =
-          payload.data?.map((item) => ({
-            ...item,
-            price: item.price === null ? null : Number(item.price),
-          })) ?? [];
-
+        const normalizedItems = payload.data?.map((item) => ({...item,price: item.price === null ? null : Number(item.price),})) ?? [];
         setItems(normalizedItems);
         setTotalCount(payload.totalCount ?? 0);
+
       } catch (error) {
         if (controller.signal.aborted) return;
         const message =
