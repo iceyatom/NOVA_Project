@@ -107,16 +107,28 @@ export default function CatalogPageClient() {
         if (!response.ok) {
           throw new Error(`Catalog request failed (${response.status})`);
         }
+        
 
-        const raw = await response.json();
+        type ApiGatewayProxyLike = {
+          body: string;
+          statusCode?: number;
+          headers?: Record<string, string>;
+          isBase64Encoded?: boolean;
+        };
+
+        function hasStringBody(value: unknown): value is ApiGatewayProxyLike {
+          return (
+            typeof value === "object" &&
+            value !== null &&
+            "body" in value &&
+            typeof (value as Record<string, unknown>).body === "string"
+          );
+        }
+
+        
         // 1) If API Gateway/Lambda proxy response, parse raw.body
-        const parsed =
-          raw &&
-          typeof raw === "object" &&
-          "body" in raw &&
-          typeof (raw as any).body === "string"
-            ? JSON.parse((raw as any).body)
-            : raw;
+        const raw: unknown = await response.json();
+        const parsed = hasStringBody(raw) ? (JSON.parse(raw.body) as unknown) : raw;
 
         // normalize it to CatalogResponse
         const payload: CatalogResponse = Array.isArray(parsed)
