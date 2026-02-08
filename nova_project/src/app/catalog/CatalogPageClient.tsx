@@ -36,6 +36,54 @@ type CatalogResponse = {
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
+type ViewState = "loading" | "ready" | "dbError";
+
+// Fallback items to display when database connection fails
+const FALLBACK_ITEMS: Item[] = [
+  {
+    id: null,
+    sku: null,
+    itemName: "Dissecting Kit 1-9 - Each",
+    category1: "Specimens",
+    category2: "Dissecting Kits",
+    category3: "Basic",
+    description: "Basic dissecting kit for students in grades 1-9. Currently unavailable due to connection issues.",
+    price: null,
+    unitOfMeasure: null,
+    quantity: null,
+    imageUrl: "/FillerImage.webp",
+    quantityInStock: 0,
+  },
+  {
+    id: null,
+    sku: null,
+    itemName: "Dissecting Kit 10+ - Each",
+    category1: "Specimens",
+    category2: "Dissecting Kits",
+    category3: "Advanced",
+    description: "Advanced dissecting kit for students in grades 10 and above. Currently unavailable due to connection issues.",
+    price: null,
+    unitOfMeasure: null,
+    quantity: null,
+    imageUrl: "/FillerImage.webp",
+    quantityInStock: 0,
+  },
+  {
+    id: null,
+    sku: null,
+    itemName: "Intermediate Dissecting Kit 1-9 - Each",
+    category1: "Specimens",
+    category2: "Dissecting Kits",
+    category3: "Intermediate",
+    description: "Intermediate level dissecting kit for students in grades 1-9. Currently unavailable due to connection issues.",
+    price: null,
+    unitOfMeasure: null,
+    quantity: null,
+    imageUrl: "/FillerImage.webp",
+    quantityInStock: 0,
+  },
+];
+
 function buildCatalogParams(options: {
   page: number;
   pageSize: number;
