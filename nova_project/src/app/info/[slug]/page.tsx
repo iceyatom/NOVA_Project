@@ -1,22 +1,53 @@
 // src/app/info/[slug]/page.tsx
 import React from "react";
+import Link from "next/link";
 import InfoTemplate from "../../components/InfoTemplate";
-
-// Helper function to capitalize words
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+import { getTopicContent } from "@/content/infoTopics";
 
 const InfoTopicPage = ({ params }: { params: { slug: string } }) => {
-  // Create a title from the slug
-  const title = params.slug.split("-").map(capitalize).join(" ");
+  const content = getTopicContent(params.slug);
 
-  // Since content isn't ready, we display a placeholder using the InfoTemplate.
-  // This fulfills the requirement to defer to an empty-like page.
+  // Handle invalid/missing keys with user-friendly error state
+  if (!content) {
+    return (
+      <main className="info-demo-page">
+        <InfoTemplate
+          title="Content Not Found"
+          subtitle="We couldn't find what you're looking for"
+          body={
+            <div>
+              <p>
+                The information page for &quot;{params.slug}&quot; does not exist or may have
+                been moved.
+              </p>
+              <p className="mt-4">
+                <Link
+                  href="/"
+                  className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                >
+                  Return to Home
+                </Link>
+              </p>
+              <p className="mt-4">
+                Or explore our available topics from the Explore menu on the left side of the
+                home page.
+              </p>
+            </div>
+          }
+          error="Content not found"
+        />
+      </main>
+    );
+  }
+
+  // Render the topic content using InfoTemplate
   return (
     <main className="info-demo-page">
       <InfoTemplate
-        title={title}
-        subtitle="Content Coming Soon"
-        body={`More information about "${title}" will be available here shortly.`}
+        title={content.title}
+        subtitle={content.subtitle}
+        body={content.body}
+        images={content.images}
       />
     </main>
   );
