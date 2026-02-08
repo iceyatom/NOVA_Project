@@ -12,15 +12,15 @@ import ItemCardSkeleton from "../components/ItemCardSkeleton";
 import APIError from "./APIError";
 import { prisma } from "@/lib/db"; // direct Prisma test
 import Filters from "../components/Filters";
+import Pagination from "../components/Pagination";
 
 export const dynamic = "force-dynamic";
 
 type CatalogPageProps = {
   searchParams: {
     search?: string;
-    category1?: string;
-    category2?: string;
-    category3?: string;
+    categories?: string;
+    prices?: string;
     page?: string;
     pageSize?: string;
   };
@@ -159,11 +159,35 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   // --- Extract state from URL search parameters (await the Promise) ---
   const params = await searchParams;
   const search = params.search?.trim() || null;
-  const category1 = params.category1?.trim() || null;
-  const category2 = params.category2?.trim() || null;
-  const category3 = params.category3?.trim() || null;
+  const categoriesParam = params.categories?.trim() || null;
+  const pricesParam = params.prices?.trim() || null;
   const page = params.page ? parseInt(params.page, 10) : 1;
   const pageSize = params.pageSize ? parseInt(params.pageSize, 10) : 20;
+
+  // Parse categories from comma-separated string
+  const selectedCategories = categoriesParam
+    ? categoriesParam.split(",").filter((c) => c.trim())
+    : [];
+
+  // Parse prices from comma-separated string and convert to price ranges
+  const getPriceRange = (priceLabel: string): [number, number] | null => {
+    switch (priceLabel) {
+      case "Under $50":
+        return [0, 50];
+      case "$50–$99":
+        return [50, 100];
+      case "$100–$249":
+        return [100, 250];
+      case "$250+":
+        return [250, Number.MAX_SAFE_INTEGER];
+      default:
+        return null;
+    }
+  };
+
+  const selectedPrices = pricesParam
+    ? pricesParam.split(",").filter((p) => p.trim())
+    : [];
 
   // Calculate pagination
   const skip = (page - 1) * pageSize;
@@ -173,11 +197,10 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   let apiStatus = "Loading catalog via API...";
   let apiItems: Item[] = [];
   let groupedApiEntries: [string, Item[]][] = [];
+  let totalItems = 0;
 
   // Where filters
   const itemName = search;
-  const minPrice: number | null = null;
-  const maxPrice: number | null = null;
   const description: string | null = null;
   const inStock: boolean | null = null;
 
@@ -209,11 +232,21 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       where: {
         AND: [
           itemName !== null ? { itemName: { contains: itemName } } : {},
-          minPrice !== null ? { price: { gte: minPrice } } : {},
-          maxPrice !== null ? { price: { lte: maxPrice } } : {},
-          category1 !== null ? { category1: category1 } : {},
-          category2 !== null ? { category2: category2 } : {},
-          category3 !== null ? { category3: category3 } : {},
+          // Filter by categories (match category3 field)
+          selectedCategories.length > 0
+            ? { OR: selectedCategories.map((cat) => ({ category3: cat })) }
+            : {},
+          // Filter by price ranges
+          selectedPrices.length > 0
+            ? {
+                OR: selectedPrices
+                  .map((priceLabel) => getPriceRange(priceLabel))
+                  .filter((range): range is [number, number] => range !== null)
+                  .map(([min, max]) => ({
+                    AND: [{ price: { gte: min } }, { price: { lt: max } }],
+                  })),
+              }
+            : {},
           description !== null
             ? { description: { contains: description } }
             : {},
@@ -238,6 +271,39 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
       skip: skip ?? undefined,
       take: take ?? undefined,
     });
+
+    // Get total count for pagination
+    const totalCount = await prisma.catalogItem.count({
+      where: {
+        AND: [
+          itemName !== null ? { itemName: { contains: itemName } } : {},
+          // Filter by categories (match category3 field)
+          selectedCategories.length > 0
+            ? { OR: selectedCategories.map((cat) => ({ category3: cat })) }
+            : {},
+          // Filter by price ranges
+          selectedPrices.length > 0
+            ? {
+                OR: selectedPrices
+                  .map((priceLabel) => getPriceRange(priceLabel))
+                  .filter((range): range is [number, number] => range !== null)
+                  .map(([min, max]) => ({
+                    AND: [{ price: { gte: min } }, { price: { lt: max } }],
+                  })),
+              }
+            : {},
+          description !== null
+            ? { description: { contains: description } }
+            : {},
+          inStock === null
+            ? {}
+            : inStock
+              ? { quantityInStock: { gt: 0 } }
+              : { quantityInStock: { lt: 1 } },
+        ],
+      },
+    });
+    totalItems = totalCount;
 
     apiItems = result.map((item) => ({
       id: item.id,
@@ -322,6 +388,13 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
               <ItemCard key={item.id ?? `item-${index}`} item={item} />
             ))}
           </div>
+
+          {/* Pagination */}
+          <Pagination 
+            currentPage={page} 
+            pageSize={pageSize} 
+            totalItems={totalItems}
+          />
 
           <div style={{ marginTop: "1.5rem" }}>
             <DiagnosticsPanel

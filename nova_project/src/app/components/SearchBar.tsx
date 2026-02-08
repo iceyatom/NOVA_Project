@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, FormEvent, KeyboardEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Props = {
   title?: string;
@@ -16,6 +17,8 @@ export default function SearchBar({
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const canSubmit = query.trim().length > 0;
 
@@ -25,8 +28,22 @@ export default function SearchBar({
     if (!trimmed) return;
 
     setSubmittedQuery(trimmed);
-    // eslint-disable-next-line no-console
-    console.log(`[SearchBar] submitted query: "${trimmed}"`);
+
+    // Preserve existing filter parameters while updating search
+    const params = new URLSearchParams();
+    params.set("search", trimmed);
+    
+    // Preserve category filters if they exist
+    if (searchParams.get("category1")) params.set("category1", searchParams.get("category1")!);
+    if (searchParams.get("category2")) params.set("category2", searchParams.get("category2")!);
+    if (searchParams.get("category3")) params.set("category3", searchParams.get("category3")!);
+    
+    // Reset to page 1 on new search, but preserve pageSize
+    params.set("page", "1");
+    if (searchParams.get("pageSize")) params.set("pageSize", searchParams.get("pageSize")!);
+
+    // Navigate to catalog with updated search parameters (client-side navigation)
+    router.push(`/catalog?${params.toString()}`);
 
     const el = inputRef.current;
     if (el) {
