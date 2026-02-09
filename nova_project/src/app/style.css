@@ -1462,3 +1462,157 @@ body {
     margin-top: 4px;
   }
 }
+
+
+
+/* Item Product Page */
+.product-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.product-left {
+  display: grid;
+  gap: 16px;
+}
+
+.product-image {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f3f4f6;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+}
+
+.product-image-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-carousel {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.product-carousel-nav {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+}
+
+.product-carousel-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px;
+  scroll-snap-type: x mandatory;
+}
+
+.product-carousel-thumb {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 10px;
+  padding: 0;
+  width: 72px;
+  height: 56px;
+  overflow: hidden;
+  cursor: pointer;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.product-carousel-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-right {
+  display: grid;
+  gap: 14px;
+}
+
+.product-title-text {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.product-title-subtext {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.product-price {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.product-price-amount {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.product-price-note {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.product-category {
+  margin: 0;
+}
+
+.product-category1-text {
+  padding: 6px 12px;
+  background: #e0fee6;
+  color: #027e0f;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.product-category2-text {
+  padding: 6px 12px;
+  background: #abedb8;
+  color: #005d09;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.product-category3-text {
+  padding: 6px 12px;
+  background: #67d07c;
+  color: #003605;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.product-description-text {
+  margin: 0;
+  color: #374151;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .product-section {
+    grid-template-columns: 1fr;
+  }
+}
