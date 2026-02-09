@@ -1422,6 +1422,117 @@ body {
   background-color: #f3f4f6;
 }
 
+/* Custom Price Range Slider */
+.price-range-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.price-range-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.price-range-input-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.price-range-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.price-range-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.price-range-input {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e7eb;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.price-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #059669;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.price-range-input::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #059669;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.price-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.price-range-input::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.price-range-input:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.price-range-display {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: #374151;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.price-range-display strong {
+  color: #059669;
+}
+
+/* Responsive adjustments for slider */
+@media (max-width: 480px) {
+  .price-range-label {
+    font-size: 0.8rem;
+  }
+
+  .price-range-value {
+    font-size: 0.8rem;
+  }
+
+  .price-range-display {
+    font-size: 0.8rem;
+  }
+}
+
 .catalog-three-pane {
   display: grid;
   grid-template-columns: 1fr;
