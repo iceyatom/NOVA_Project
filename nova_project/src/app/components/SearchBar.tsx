@@ -1,23 +1,32 @@
 "use client";
 
-import { useState, useRef, FormEvent, KeyboardEvent } from "react";
+import { useEffect, useState, useRef, FormEvent, KeyboardEvent } from "react";
 
 type Props = {
   title?: string;
   bgImage?: string;
   placeholder?: string;
+  query?: string;
+  onSearch?: (query: string) => void;
 };
 
 export default function SearchBar({
   title = "Your Trusted Source for Biological Supplies",
   bgImage = "/hero-lab.jpg",
   placeholder = "Search by Keyword",
+  query: queryProp = "",
+  onSearch,
 }: Props) {
-  const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [query, setQuery] = useState(queryProp);
+  const [submittedQuery, setSubmittedQuery] = useState(queryProp);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const canSubmit = query.trim().length > 0;
+
+  useEffect(() => {
+    setQuery(queryProp);
+    setSubmittedQuery(queryProp);
+  }, [queryProp]);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -25,6 +34,7 @@ export default function SearchBar({
     if (!trimmed) return;
 
     setSubmittedQuery(trimmed);
+    onSearch?.(trimmed);
     // eslint-disable-next-line no-console
     console.log(`[SearchBar] submitted query: "${trimmed}"`);
 

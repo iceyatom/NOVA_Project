@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import ItemCard from "../components/ItemCard";
 import SearchBar from "../components/SearchBar";
@@ -47,7 +48,8 @@ const FALLBACK_ITEMS: Item[] = [
     category1: "Specimens",
     category2: "Dissecting Kits",
     category3: "Basic",
-    description: "Basic dissecting kit for students in grades 1-9. Currently unavailable due to connection issues.",
+    description:
+      "Basic dissecting kit for students in grades 1-9. Currently unavailable due to connection issues.",
     price: null,
     unitOfMeasure: null,
     quantity: null,
@@ -61,7 +63,8 @@ const FALLBACK_ITEMS: Item[] = [
     category1: "Specimens",
     category2: "Dissecting Kits",
     category3: "Advanced",
-    description: "Advanced dissecting kit for students in grades 10 and above. Currently unavailable due to connection issues.",
+    description:
+      "Advanced dissecting kit for students in grades 10 and above. Currently unavailable due to connection issues.",
     price: null,
     unitOfMeasure: null,
     quantity: null,
@@ -75,7 +78,8 @@ const FALLBACK_ITEMS: Item[] = [
     category1: "Specimens",
     category2: "Dissecting Kits",
     category3: "Intermediate",
-    description: "Intermediate level dissecting kit for students in grades 1-9. Currently unavailable due to connection issues.",
+    description:
+      "Intermediate level dissecting kit for students in grades 1-9. Currently unavailable due to connection issues.",
     price: null,
     unitOfMeasure: null,
     quantity: null,
@@ -110,14 +114,75 @@ function buildCatalogParams(options: {
   return params;
 }
 
+function buildCatalogSearchParams(options: {
+  page: number;
+  pageSize: number;
+  query: string;
+  categories: string[];
+  priceBuckets: string[];
+}) {
+  const params = new URLSearchParams();
+
+  if (options.query) {
+    params.set("q", options.query);
+  }
+
+  if (options.categories.length > 0) {
+    params.set("categories", options.categories.join(","));
+  }
+
+  if (options.priceBuckets.length > 0) {
+    params.set("priceBuckets", options.priceBuckets.join(","));
+  }
+
+  if (options.page > 1) {
+    params.set("page", String(options.page));
+  }
+
+  if (options.pageSize !== DEFAULT_PAGE_SIZE) {
+    params.set("pageSize", String(options.pageSize));
+  }
+
+  return params;
+}
+
+function parseListParam(value: string | null) {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function parseNumberParam(value: string | null, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.floor(parsed);
+}
+
 export default function CatalogPageClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const initialQuery = searchParams.get("q") ?? "";
+  const initialCategories = parseListParam(searchParams.get("categories"));
+  const initialPrices = parseListParam(searchParams.get("priceBuckets"));
+  const initialPage = parseNumberParam(searchParams.get("page"), 1);
+  const initialPageSize = parseNumberParam(
+    searchParams.get("pageSize"),
+    DEFAULT_PAGE_SIZE,
+  );
+
   const [items, setItems] = useState<Item[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [searchText, setSearchText] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedPrices, setSelectedPrices] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [searchText, setSearchText] = useState(initialQuery);
+  const [selectedCategories, setSelectedCategories] =
+    useState<string[]>(initialCategories);
+  const [selectedPrices, setSelectedPrices] = useState<string[]>(initialPrices);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -131,6 +196,51 @@ export default function CatalogPageClient() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    const nextQuery = searchParams.get("q") ?? "";
+    const nextCategories = parseListParam(searchParams.get("categories"));
+    const nextPrices = parseListParam(searchParams.get("priceBuckets"));
+    const nextPage = parseNumberParam(searchParams.get("page"), 1);
+    const nextPageSize = parseNumberParam(
+      searchParams.get("pageSize"),
+      DEFAULT_PAGE_SIZE,
+    );
+
+    setSearchText(nextQuery);
+    setSelectedCategories(nextCategories);
+    setSelectedPrices(nextPrices);
+    setCurrentPage(nextPage);
+    setPageSize(nextPageSize);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = buildCatalogSearchParams({
+      page: currentPage,
+      pageSize,
+      query: searchText,
+      categories: selectedCategories,
+      priceBuckets: selectedPrices,
+    });
+    const nextQueryString = nextParams.toString();
+    const currentQueryString = searchParams.toString();
+
+    if (nextQueryString !== currentQueryString) {
+      const href = nextQueryString
+        ? `${pathname}?${nextQueryString}`
+        : pathname;
+      router.replace(href, { scroll: false });
+    }
+  }, [
+    currentPage,
+    pageSize,
+    pathname,
+    router,
+    searchParams,
+    searchText,
+    selectedCategories,
+    selectedPrices,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -215,7 +325,11 @@ export default function CatalogPageClient() {
   return (
     <main aria-label="Catalog Layout">
       {/* HERO search banner directly under the header */}
-      <SearchBar bgImage="/hero-lab.jpg" />
+      <SearchBar
+        bgImage="/hero-lab.jpg"
+        query={searchText}
+        onSearch={handleSearch}
+      />
 
       {errorMessage && (
         <APIError
@@ -233,7 +347,11 @@ export default function CatalogPageClient() {
           className="catalog-pane catalog-pane-left"
         >
           <h2 className="pane-title">Filters</h2>
-          <Filters />
+          <Filters
+            selectedCategories={selectedCategories}
+            selectedPrices={selectedPrices}
+            onChange={handleFiltersChange}
+          />
         </aside>
 
         {/* Center Pane */}
