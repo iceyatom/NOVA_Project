@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Item = {
   id: number | null;
@@ -17,6 +18,8 @@ type Item = {
 };
 
 export default function ItemCard({ item }: { item: Item }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   // Destructure data
   const {
     id,
@@ -49,8 +52,10 @@ export default function ItemCard({ item }: { item: Item }) {
     if (event.type === "click") event.preventDefault();
 
     event.preventDefault();
-    // Send to the item page - for now, open image in new tab
-    window.open(safeSrc, "_self");
+    if (id === null) return;
+    const query = searchParams.toString();
+    const href = query ? `/catalog/${id}?${query}` : `/catalog/${id}`;
+    router.push(href);
   };
 
   // Styles
@@ -119,7 +124,7 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "4px",
   };
 
-  const stockStyle = quantityInStock
+  const stockStyle = quantityInStock && quantityInStock > 0
     ? {
         fontSize: "12px",
         color: "#008000",

@@ -4,6 +4,9 @@ import * as React from "react";
 
 type FilterPanelProps = {
   className?: string;
+  selectedCategories?: string[];
+  selectedPrices?: string[];
+  onChange?: (next: { categories: string[]; prices: string[] }) => void;
 };
 
 const CATEGORIES = [
@@ -22,25 +25,44 @@ const CATEGORIES = [
 ];
 const PRICE_BUCKETS = ["Under $50", "$50–$99", "$100–$249", "$250+"];
 
-export default function Filters({ className = "" }: FilterPanelProps) {
+export default function Filters({
+  className = "",
+  selectedCategories: selectedCategoriesProp = [],
+  selectedPrices: selectedPricesProp = [],
+  onChange,
+}: FilterPanelProps) {
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>(
-    [],
+    selectedCategoriesProp,
   );
-  const [selectedPrice, setSelectedPrice] = React.useState<string | null>(null);
+  const [selectedPrices, setSelectedPrices] =
+    React.useState<string[]>(selectedPricesProp);
 
-  const toggle = (
-    val: string,
-    list: string[],
-    setList: (v: string[]) => void,
-  ) => {
-    setList(
-      list.includes(val) ? list.filter((v) => v !== val) : [...list, val],
-    );
+  React.useEffect(() => {
+    setSelectedCategories(selectedCategoriesProp);
+  }, [selectedCategoriesProp]);
+
+  React.useEffect(() => {
+    setSelectedPrices(selectedPricesProp);
+  }, [selectedPricesProp]);
+
+  const toggleCategory = (val: string) => {
+    const next = selectedCategories.includes(val)
+      ? selectedCategories.filter((v) => v !== val)
+      : [...selectedCategories, val];
+    setSelectedCategories(next);
+    onChange?.({ categories: next, prices: selectedPrices });
+  };
+
+  const selectPrice = (val: string) => {
+    const next = [val];
+    setSelectedPrices(next);
+    onChange?.({ categories: selectedCategories, prices: next });
   };
 
   const clearAll = () => {
     setSelectedCategories([]);
-    setSelectedPrice(null);
+    setSelectedPrices([]);
+    onChange?.({ categories: [], prices: [] });
   };
 
   return (
@@ -50,7 +72,7 @@ export default function Filters({ className = "" }: FilterPanelProps) {
         <legend className="filter-group__legend">Categories</legend>
         <ul className="filter-list">
           {CATEGORIES.map((cat) => {
-            const id = `cat-${cat.toLowerCase().replace(/\s+/g, "-")}`;
+            const id = `cat-${cat.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}`;
             const checked = selectedCategories.includes(cat);
             return (
               <li key={cat}>
@@ -59,9 +81,7 @@ export default function Filters({ className = "" }: FilterPanelProps) {
                     id={id}
                     type="checkbox"
                     checked={checked}
-                    onChange={() =>
-                      toggle(cat, selectedCategories, setSelectedCategories)
-                    }
+                    onChange={() => toggleCategory(cat)}
                   />
                   <span className="filter-label">{cat}</span>
                 </label>
@@ -77,7 +97,7 @@ export default function Filters({ className = "" }: FilterPanelProps) {
         <ul className="filter-list">
           {PRICE_BUCKETS.map((p) => {
             const id = `price-${p.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}`;
-            const checked = selectedPrice === p;
+            const checked = selectedPrices[0] === p;
             return (
               <li key={p}>
                 <label htmlFor={id} className="filter-row">
@@ -86,7 +106,7 @@ export default function Filters({ className = "" }: FilterPanelProps) {
                     type="radio"
                     name="price"
                     checked={checked}
-                    onChange={() => setSelectedPrice(p)}
+                    onChange={() => selectPrice(p)}
                   />
                   <span className="filter-label">{p}</span>
                 </label>
@@ -99,13 +119,15 @@ export default function Filters({ className = "" }: FilterPanelProps) {
       {/* Active Filters summary */}
       <div className="filters__summary" aria-live="polite" aria-atomic="true">
         <strong>Active Filters:</strong>{" "}
-        {selectedCategories.length === 0 && selectedPrice === null
+        {selectedCategories.length === 0 && selectedPrices.length === 0
           ? "None"
           : [
               selectedCategories.length
                 ? `Category [${selectedCategories.join(", ")}]`
                 : null,
-              selectedPrice ? `Price [${selectedPrice}]` : null,
+              selectedPrices.length
+                ? `Price [${selectedPrices.join(", ")}]`
+                : null,
             ]
               .filter(Boolean)
               .join("; ")}
