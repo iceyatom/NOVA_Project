@@ -114,6 +114,34 @@ function buildCatalogParams(options: {
   return params;
 }
 
+function buildCatalogSearchParams(options: {
+  page: number;
+  pageSize: number;
+  query: string;
+  categories: string[];
+  priceBuckets: string[];
+}) {
+  const params = new URLSearchParams();
+
+  params.set("page", String(options.page));
+  params.set("pageSize", String(options.pageSize));
+
+  if (options.query) {
+    params.set("q", options.query);
+  }
+
+  if (options.categories.length > 0) {
+    params.set("categories", options.categories.join(","));
+  }
+
+  if (options.priceBuckets.length > 0) {
+    params.set("priceBuckets", options.priceBuckets.join(","));
+  }
+
+  return params;
+}
+
+
 type ApiGatewayProxyLike = {
   body: string;
   statusCode?: number;
@@ -129,6 +157,21 @@ function hasStringBody(value: unknown): value is ApiGatewayProxyLike {
     typeof (value as Record<string, unknown>).body === "string"
   );
 }
+
+function parseNumberParam(value: string | null, fallback: number): number {
+  if (!value) return fallback;
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function parseListParam(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 
 function normalizeCatalogPayload(
   parsed: unknown,
