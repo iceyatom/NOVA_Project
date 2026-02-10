@@ -62,6 +62,58 @@ function buildCatalogParams(options: {
   return params;
 }
 
+type ApiGatewayProxyLike = {
+  body: string;
+  statusCode?: number;
+  headers?: Record<string, string>;
+  isBase64Encoded?: boolean;
+};
+
+function hasStringBody(value: unknown): value is ApiGatewayProxyLike {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "body" in value &&
+    typeof (value as Record<string, unknown>).body === "string"
+  );
+}
+
+function normalizeCatalogPayload(
+  parsed: unknown,
+  pageSize: number,
+  offset: number,
+): CatalogResponse {
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "success" in parsed &&
+    "data" in parsed
+  ) {
+    return parsed as CatalogResponse;
+  }
+
+  if (Array.isArray(parsed)) {
+    return {
+      success: true,
+      data: parsed as Item[],
+      count: parsed.length,
+      totalCount: Math.max(offset + parsed.length, parsed.length),
+      limit: pageSize,
+      offset,
+    };
+  }
+
+  return {
+    success: false,
+    data: [],
+    count: 0,
+    totalCount: 0,
+    limit: pageSize,
+    offset,
+    error: "Catalog request returned an unexpected response format.",
+  };
+}
+
 export default function CatalogPageClient() {
   const [items, setItems] = useState<Item[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -107,54 +159,28 @@ export default function CatalogPageClient() {
         if (!response.ok) {
           throw new Error(`Catalog request failed (${response.status})`);
         }
-        
 
-        type ApiGatewayProxyLike = {
-          body: string;
-          statusCode?: number;
-          headers?: Record<string, string>;
-          isBase64Encoded?: boolean;
-        };
-
-        function hasStringBody(value: unknown): value is ApiGatewayProxyLike {
-          return (
-            typeof value === "object" &&
-            value !== null &&
-            "body" in value &&
-            typeof (value as Record<string, unknown>).body === "string"
-          );
-        }
-
-        
-        // 1) If API Gateway/Lambda proxy response, parse raw.body
         const raw: unknown = await response.json();
-        const parsed = hasStringBody(raw) ? (JSON.parse(raw.body) as unknown) : raw;
+        const parsed: unknown = hasStringBody(raw) ? JSON.parse(raw.body) : raw;
 
-        // normalize it to CatalogResponse
-        const payload: CatalogResponse = Array.isArray(parsed)
-          ? {
-              success: true,
-              data: parsed,
-              count: parsed.length,
-              totalCount: parsed.length,
-              limit: pageSize,
-              offset: (currentPage - 1) * pageSize,
-            }
-          : (parsed as CatalogResponse);
-
+        const expectedOffset = (currentPage - 1) * pageSize;
+        const payload = normalizeCatalogPayload(parsed, pageSize, expectedOffset);
 
         if (!payload.success) {
           throw new Error(payload.error ?? "Catalog request failed");
         }
 
-        const normalizedItems = payload.data?.map((item) => ({...item,price: item.price === null ? null : Number(item.price),})) ?? [];
+        const normalizedItems =
+          payload.data?.map((item) => ({
+            ...item,
+            price: item.price === null ? null : Number(item.price),
+          })) ?? [];
+
         setItems(normalizedItems);
         setTotalCount(payload.totalCount ?? 0);
-
       } catch (error) {
         if (controller.signal.aborted) return;
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
+        const message = error instanceof Error ? error.message : "Unknown error";
         setErrorMessage(message);
         setItems([]);
         setTotalCount(0);
@@ -175,10 +201,7 @@ export default function CatalogPageClient() {
     setCurrentPage(1);
   };
 
-  const handleFiltersChange = (next: {
-    categories: string[];
-    prices: string[];
-  }) => {
+  const handleFiltersChange = (next: { categories: string[]; prices: string[] }) => {
     setSelectedCategories(next.categories);
     setSelectedPrices(next.prices);
     setCurrentPage(1);
@@ -195,7 +218,6 @@ export default function CatalogPageClient() {
 
   return (
     <main aria-label="Catalog Layout">
-      {/* HERO search banner directly under the header */}
       <SearchBar bgImage="/hero-lab.jpg" />
 
       {errorMessage && (
@@ -207,7 +229,6 @@ export default function CatalogPageClient() {
       )}
 
       <div className="catalog-three-pane">
-        {/* Left Pane */}
         <aside
           id="filters"
           aria-label="Filter panel"
@@ -217,7 +238,6 @@ export default function CatalogPageClient() {
           <Filters />
         </aside>
 
-        {/* Center Pane */}
         <section
           id="catalog"
           aria-label="Catalog items"
@@ -226,11 +246,7 @@ export default function CatalogPageClient() {
           <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
 
           {isLoading && (
-            <p
-              role="status"
-              aria-live="polite"
-              style={{ margin: "0 0 1rem 0" }}
-            >
+            <p role="status" aria-live="polite" style={{ margin: "0 0 1rem 0" }}>
               Loading catalog items...
             </p>
           )}
@@ -258,7 +274,6 @@ export default function CatalogPageClient() {
           />
         </section>
 
-        {/* Right Pane */}
         <aside
           id="context"
           aria-label="Context panel"

@@ -28,8 +28,235 @@ function parseCsv(value: string | null): string[] {
     .filter(Boolean);
 }
 
-export async function GET(request: NextRequest) {
-    const upstreamBase = process.env.NEXT_PUBLIC_API_URL;
+type CatalogQuery = {
+  limit: number;
+  offset: number;
+  q: string;
+  categories: string[];
+  priceBuckets: string[];
+  categoriesCsv: string;
+  priceBucketsCsv: string;
+};
+
+type CatalogResponse = {
+  success: boolean;
+  data: any[];
+  count: number;
+  totalCount: number;
+  limit: number;
+  offset: number;
+  error?: string;
+  details?: string;
+};
+
+function withNoCache(resp: NextResponse) {
+  resp.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate",
+  );
+  resp.headers.set("Pragma", "no-cache");
+  resp.headers.set("Expires", "0");
+  return resp;
+}
+
+function parseCatalogQuery(request: NextRequest): CatalogQuery {
+  const url = new URL(request.url);
+  const sp = url.searchParams;
+
+  const requestedLimit = parsePositiveInt(sp.get("limit"));
+  const limit =
+    requestedLimit && ALLOWED_LIMITS.has(requestedLimit)
+      ? requestedLimit
+      : DEFAULT_LIMIT;
+
+  const page = parsePositiveInt(sp.get("page"));
+  const offset =
+    parsePositiveInt(sp.get("offset")) ?? (page ? (page - 1) * limit : 0);
+  const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
+
+  const q = sp.get("q")?.trim() ?? "";
+
+  const categoriesCsv = sp.get("categories") ?? "";
+  const priceBucketsCsv = sp.get("priceBuckets") ?? "";
+
+  const categories = parseCsv(categoriesCsv);
+  const priceBuckets = parseCsv(priceBucketsCsv);
+
+  return {
+    limit,
+    offset: safeOffset,
+    q,
+    categories,
+    priceBuckets,
+    categoriesCsv,
+    priceBucketsCsv,
+  };
+}
+
+
+function shapeResponse(args: {
+  data: any[];
+  totalCount: number;
+  limit: number;
+  offset: number;
+}): CatalogResponse {
+  return {
+    success: true,
+    data: args.data,
+    count: args.data.length,
+    totalCount: args.totalCount,
+    limit: args.limit,
+    offset: args.offset,
+  };
+}
+
+function normalizeLambdaPayload(
+  raw: any,
+  limit: number,
+  offset: number,
+): CatalogResponse {
+  if (raw && typeof raw === "object" && typeof raw.body === "string") {
+    try {
+      const inner = JSON.parse(raw.body);
+      return normalizeLambdaPayload(inner, limit, offset);
+    } catch {
+      return {
+        success: false,
+        data: [],
+        count: 0,
+        totalCount: 0,
+        limit,
+        offset,
+        error: "Lambda returned an invalid JSON body wrapper.",
+      };
+    }
+  }
+
+  const dataRaw =
+    (raw && Array.isArray(raw.data) && raw.data) ||
+    (raw && Array.isArray(raw.items) && raw.items) ||
+    (Array.isArray(raw) && raw) ||
+    [];
+
+  const pageStart = Math.max(0, offset);
+  const pageEnd = pageStart + limit;
+  const data = dataRaw.slice(pageStart, pageEnd);
+
+  const totalCount =
+    (typeof raw?.totalCount === "number" && raw.totalCount) ||
+    (typeof raw?.total === "number" && raw.total) ||
+    (typeof raw?.total_count === "number" && raw.total_count) ||
+    dataRaw.length;
+
+  const success = raw?.success === false ? false : true;
+
+  return success
+    ? shapeResponse({ data, totalCount, limit, offset })
+    : {
+        success: false,
+        data: [],
+        count: 0,
+        totalCount: 0,
+        limit,
+        offset,
+        error: raw?.error ?? "Lambda request failed",
+        details: raw?.details,
+      };
+}
+
+async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
+  const whereFilters: any[] = [];
+
+  if (q.q) {
+    whereFilters.push({
+      OR: [
+        { itemName: { contains: q.q, mode: "insensitive" } },
+        { description: { contains: q.q, mode: "insensitive" } },
+        { sku: { contains: q.q, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  if (q.categories.length > 0) {
+    whereFilters.push({
+      OR: [
+        { category1: { in: q.categories } },
+        { category2: { in: q.categories } },
+        { category3: { in: q.categories } },
+      ],
+    });
+  }
+
+  if (q.priceBuckets.length > 0) {
+    const ranges = q.priceBuckets
+      .map((bucket) => PRICE_BUCKETS.get(bucket))
+      .filter(Boolean) as Array<{ min?: number; max?: number }>;
+
+    if (ranges.length > 0) {
+      whereFilters.push({
+        OR: ranges.map((range) => ({
+          price: {
+            ...(range.min !== undefined ? { gte: range.min } : {}),
+            ...(range.max !== undefined ? { lte: range.max } : {}),
+          },
+        })),
+      });
+    }
+  }
+
+  const where =
+    whereFilters.length > 0
+      ? {
+          AND: whereFilters,
+        }
+      : undefined;
+
+  const select = {
+    id: true,
+    sku: true,
+    itemName: true,
+    price: true,
+    category1: true,
+    category2: true,
+    category3: true,
+    description: true,
+    quantityInStock: true,
+    unitOfMeasure: true,
+    storageLocation: true,
+    storageConditions: true,
+    expirationDate: true,
+    dateAcquired: true,
+    reorderLevel: true,
+    unitCost: true,
+  };
+
+  const [totalCount, catalogItems] = await prisma.$transaction([
+    prisma.catalogItem.count({ where }),
+    prisma.catalogItem.findMany({
+      select,
+      orderBy: { id: "asc" },
+      take: q.limit,
+      skip: q.offset,
+      where,
+    }),
+  ]);
+
+  const response = NextResponse.json(
+    shapeResponse({
+      data: catalogItems,
+      totalCount,
+      limit: q.limit,
+      offset: q.offset,
+    }),
+    { status: 200 },
+  );
+
+  return withNoCache(response);
+}
+
+async function fallbackToLambda(q: CatalogQuery): Promise<NextResponse> {
+  const upstreamBase = process.env.NEXT_PUBLIC_API_URL;
+
   if (!upstreamBase) {
     return NextResponse.json(
       { success: false, error: "NEXT_PUBLIC_API_URL is not set" },
@@ -37,42 +264,49 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const url = new URL(request.url);
-
-  // Pass through the same query params your UI already uses
-  const limit = url.searchParams.get("limit") ?? "20";
-  const offset = url.searchParams.get("offset") ?? "0";
-  const q = url.searchParams.get("q") ?? "";
-  const categories = url.searchParams.get("categories") ?? "";
-  const priceBuckets = url.searchParams.get("priceBuckets") ?? "";
-
-  // Build the upstream URL: <base>/catalog?... (base already includes /prod)
   const upstreamUrl = new URL(`${upstreamBase}/catalog`);
-  upstreamUrl.searchParams.set("limit", limit);
-  upstreamUrl.searchParams.set("offset", offset);
-  if (q) upstreamUrl.searchParams.set("q", q);
-  if (categories) upstreamUrl.searchParams.set("categories", categories);
-  if (priceBuckets) upstreamUrl.searchParams.set("priceBuckets", priceBuckets);
+  upstreamUrl.searchParams.set("limit", String(q.limit));
+  upstreamUrl.searchParams.set("offset", String(q.offset));
+  if (q.q) upstreamUrl.searchParams.set("q", q.q);
+  if (q.categoriesCsv) upstreamUrl.searchParams.set("categories", q.categoriesCsv);
+  if (q.priceBucketsCsv) upstreamUrl.searchParams.set("priceBuckets", q.priceBucketsCsv);
 
   try {
     const r = await fetch(upstreamUrl.toString(), { cache: "no-store" });
-    const body = await r.text();
+    const text = await r.text();
 
-    // Return exactly what API Gateway returns
-    return new NextResponse(body, {
-      status: r.status,
-      headers: {
-        "Content-Type": r.headers.get("content-type") ?? "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
-      },
-    });
+    let parsed: any = null;
+    try {
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      const passthrough = new NextResponse(text, {
+        status: r.status,
+        headers: {
+          "Content-Type": r.headers.get("content-type") ?? "text/plain",
+        },
+      });
+      return withNoCache(passthrough);
+    }
+
+    const normalized = normalizeLambdaPayload(parsed, q.limit, q.offset);
+    const response = NextResponse.json(normalized, { status: r.status });
+    return withNoCache(response);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json(
       { success: false, error: "Upstream Lambda request failed", details: msg },
       { status: 502 },
     );
-  } 
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const q = parseCatalogQuery(request);
+
+  try {
+    return await tryRdsFirst(q);
+  } catch (error: unknown) {
+    console.error("Catalog API RDS failed, falling back to Lambda:", error);
+    return await fallbackToLambda(q);
+  }
 }
