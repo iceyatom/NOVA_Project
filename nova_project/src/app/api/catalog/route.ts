@@ -40,7 +40,7 @@ type CatalogQuery = {
 
 type CatalogResponse = {
   success: boolean;
-  data: any[];
+  data: unknown[];
   count: number;
   totalCount: number;
   limit: number;
@@ -48,6 +48,30 @@ type CatalogResponse = {
   error?: string;
   details?: string;
 };
+
+type JsonRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function getString(value: unknown, key: string): string | null {
+  if (!isRecord(value)) return null;
+  const v = value[key];
+  return typeof v === "string" ? v : null;
+}
+
+function getNumber(value: unknown, key: string): number | null {
+  if (!isRecord(value)) return null;
+  const v = value[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function getArray(value: unknown, key: string): unknown[] | null {
+  if (!isRecord(value)) return null;
+  const v = value[key];
+  return Array.isArray(v) ? (v as unknown[]) : null;
+}
 
 function withNoCache(resp: NextResponse) {
   resp.headers.set(
@@ -93,9 +117,8 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
   };
 }
 
-
 function shapeResponse(args: {
-  data: any[];
+  data: unknown[];
   totalCount: number;
   limit: number;
   offset: number;
@@ -111,13 +134,15 @@ function shapeResponse(args: {
 }
 
 function normalizeLambdaPayload(
-  raw: any,
+  raw: unknown,
   limit: number,
   offset: number,
 ): CatalogResponse {
-  if (raw && typeof raw === "object" && typeof raw.body === "string") {
+  // unwrap API Gateway proxy wrapper: { body: "..." }
+  const body = getString(raw, "body");
+  if (body !== null) {
     try {
-      const inner = JSON.parse(raw.body);
+      const inner: unknown = JSON.parse(body);
       return normalizeLambdaPayload(inner, limit, offset);
     } catch {
       return {
@@ -133,39 +158,51 @@ function normalizeLambdaPayload(
   }
 
   const dataRaw =
-    (raw && Array.isArray(raw.data) && raw.data) ||
-    (raw && Array.isArray(raw.items) && raw.items) ||
-    (Array.isArray(raw) && raw) ||
-    [];
+    getArray(raw, "data") ??
+    getArray(raw, "items") ??
+    (Array.isArray(raw) ? (raw as unknown[]) : []);
 
+  // page slice based on offset/limit
   const pageStart = Math.max(0, offset);
   const pageEnd = pageStart + limit;
   const data = dataRaw.slice(pageStart, pageEnd);
 
   const totalCount =
-    (typeof raw?.totalCount === "number" && raw.totalCount) ||
-    (typeof raw?.total === "number" && raw.total) ||
-    (typeof raw?.total_count === "number" && raw.total_count) ||
+    getNumber(raw, "totalCount") ??
+    getNumber(raw, "total") ??
+    getNumber(raw, "total_count") ??
     dataRaw.length;
 
-  const success = raw?.success === false ? false : true;
+  const success = isRecord(raw) && raw["success"] === false ? false : true;
 
-  return success
-    ? shapeResponse({ data, totalCount, limit, offset })
-    : {
-        success: false,
-        data: [],
-        count: 0,
-        totalCount: 0,
-        limit,
-        offset,
-        error: raw?.error ?? "Lambda request failed",
-        details: raw?.details,
-      };
+  if (!success) {
+    const error =
+      isRecord(raw) && typeof raw["error"] === "string"
+        ? (raw["error"] as string)
+        : "Lambda request failed";
+
+    const details =
+      isRecord(raw) && typeof raw["details"] === "string"
+        ? (raw["details"] as string)
+        : undefined;
+
+    return {
+      success: false,
+      data: [],
+      count: 0,
+      totalCount: 0,
+      limit,
+      offset,
+      error,
+      details,
+    };
+  }
+
+  return shapeResponse({ data, totalCount, limit, offset });
 }
 
 async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
-  const whereFilters: any[] = [];
+  const whereFilters: Record<string, unknown>[] = [];
 
   if (q.q) {
     whereFilters.push({
@@ -243,7 +280,7 @@ async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
 
   const response = NextResponse.json(
     shapeResponse({
-      data: catalogItems,
+      data: catalogItems as unknown[],
       totalCount,
       limit: q.limit,
       offset: q.offset,
@@ -275,9 +312,9 @@ async function fallbackToLambda(q: CatalogQuery): Promise<NextResponse> {
     const r = await fetch(upstreamUrl.toString(), { cache: "no-store" });
     const text = await r.text();
 
-    let parsed: any = null;
+    let parsed: unknown = null;
     try {
-      parsed = text ? JSON.parse(text) : null;
+      parsed = text ? (JSON.parse(text) as unknown) : null;
     } catch {
       const passthrough = new NextResponse(text, {
         status: r.status,
