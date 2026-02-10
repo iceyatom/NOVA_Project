@@ -123,6 +123,9 @@ function buildCatalogSearchParams(options: {
 }) {
   const params = new URLSearchParams();
 
+  params.set("page", String(options.page));
+  params.set("pageSize", String(options.pageSize));
+
   if (options.query) {
     params.set("q", options.query);
   }
@@ -135,30 +138,75 @@ function buildCatalogSearchParams(options: {
     params.set("priceBuckets", options.priceBuckets.join(","));
   }
 
-  if (options.page > 1) {
-    params.set("page", String(options.page));
-  }
-
-  if (options.pageSize !== DEFAULT_PAGE_SIZE) {
-    params.set("pageSize", String(options.pageSize));
-  }
-
   return params;
 }
 
-function parseListParam(value: string | null) {
+
+type ApiGatewayProxyLike = {
+  body: string;
+  statusCode?: number;
+  headers?: Record<string, string>;
+  isBase64Encoded?: boolean;
+};
+
+function hasStringBody(value: unknown): value is ApiGatewayProxyLike {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "body" in value &&
+    typeof (value as Record<string, unknown>).body === "string"
+  );
+}
+
+function parseNumberParam(value: string | null, fallback: number): number {
+  if (!value) return fallback;
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function parseListParam(value: string | null): string[] {
   if (!value) return [];
   return value
     .split(",")
-    .map((entry) => entry.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 }
 
-function parseNumberParam(value: string | null, fallback: number) {
-  if (!value) return fallback;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return Math.floor(parsed);
+
+function normalizeCatalogPayload(
+  parsed: unknown,
+  pageSize: number,
+  offset: number,
+): CatalogResponse {
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "success" in parsed &&
+    "data" in parsed
+  ) {
+    return parsed as CatalogResponse;
+  }
+
+  if (Array.isArray(parsed)) {
+    return {
+      success: true,
+      data: parsed as Item[],
+      count: parsed.length,
+      totalCount: Math.max(offset + parsed.length, parsed.length),
+      limit: pageSize,
+      offset,
+    };
+  }
+
+  return {
+    success: false,
+    data: [],
+    count: 0,
+    totalCount: 0,
+    limit: pageSize,
+    offset,
+    error: "Catalog request returned an unexpected response format.",
+  };
 }
 
 export default function CatalogPageClient() {
@@ -266,7 +314,11 @@ export default function CatalogPageClient() {
           throw new Error(`Catalog request failed (${response.status})`);
         }
 
-        const payload = (await response.json()) as CatalogResponse;
+        const raw: unknown = await response.json();
+        const parsed: unknown = hasStringBody(raw) ? JSON.parse(raw.body) : raw;
+
+        const expectedOffset = (currentPage - 1) * pageSize;
+        const payload = normalizeCatalogPayload(parsed, pageSize, expectedOffset);
 
         if (!payload.success) {
           throw new Error(payload.error ?? "Catalog request failed");
@@ -282,8 +334,7 @@ export default function CatalogPageClient() {
         setTotalCount(payload.totalCount ?? 0);
       } catch (error) {
         if (controller.signal.aborted) return;
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
+        const message = error instanceof Error ? error.message : "Unknown error";
         setErrorMessage(message);
         setItems([]);
         setTotalCount(0);
@@ -304,10 +355,7 @@ export default function CatalogPageClient() {
     setCurrentPage(1);
   };
 
-  const handleFiltersChange = (next: {
-    categories: string[];
-    prices: string[];
-  }) => {
+  const handleFiltersChange = (next: { categories: string[]; prices: string[] }) => {
     setSelectedCategories(next.categories);
     setSelectedPrices(next.prices);
     setCurrentPage(1);
@@ -340,7 +388,6 @@ export default function CatalogPageClient() {
       )}
 
       <div className="catalog-three-pane">
-        {/* Left Pane */}
         <aside
           id="filters"
           aria-label="Filter panel"
@@ -354,7 +401,6 @@ export default function CatalogPageClient() {
           />
         </aside>
 
-        {/* Center Pane */}
         <section
           id="catalog"
           aria-label="Catalog items"
@@ -363,11 +409,7 @@ export default function CatalogPageClient() {
           <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
 
           {isLoading && (
-            <p
-              role="status"
-              aria-live="polite"
-              style={{ margin: "0 0 1rem 0" }}
-            >
+            <p role="status" aria-live="polite" style={{ margin: "0 0 1rem 0" }}>
               Loading catalog items...
             </p>
           )}
@@ -395,7 +437,6 @@ export default function CatalogPageClient() {
           />
         </section>
 
-        {/* Right Pane */}
         <aside
           id="context"
           aria-label="Context panel"
