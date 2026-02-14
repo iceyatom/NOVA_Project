@@ -305,8 +305,10 @@ async function fallbackToLambda(q: CatalogQuery): Promise<NextResponse> {
   upstreamUrl.searchParams.set("limit", String(q.limit));
   upstreamUrl.searchParams.set("offset", String(q.offset));
   if (q.q) upstreamUrl.searchParams.set("q", q.q);
-  if (q.categoriesCsv) upstreamUrl.searchParams.set("categories", q.categoriesCsv);
-  if (q.priceBucketsCsv) upstreamUrl.searchParams.set("priceBuckets", q.priceBucketsCsv);
+  if (q.categoriesCsv)
+    upstreamUrl.searchParams.set("categories", q.categoriesCsv);
+  if (q.priceBucketsCsv)
+    upstreamUrl.searchParams.set("priceBuckets", q.priceBucketsCsv);
 
   try {
     const r = await fetch(upstreamUrl.toString(), { cache: "no-store" });
