@@ -23,7 +23,8 @@ const InfoTopicPage = ({ params }: { params: { slug: string } }) => {
           body={
             <div>
               <p>
-                The topic you&apos;re looking for doesn&apos;t exist or hasn&apos;t been added yet.
+                The topic you&apos;re looking for doesn&apos;t exist or
+                hasn&apos;t been added yet.
               </p>
               <p>
                 <Link

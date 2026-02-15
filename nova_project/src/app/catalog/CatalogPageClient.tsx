@@ -141,7 +141,6 @@ function buildCatalogSearchParams(options: {
   return params;
 }
 
-
 type ApiGatewayProxyLike = {
   body: string;
   statusCode?: number;
@@ -171,7 +170,6 @@ function parseListParam(value: string | null): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
 }
-
 
 function normalizeCatalogPayload(
   parsed: unknown,
@@ -318,7 +316,11 @@ export default function CatalogPageClient() {
         const parsed: unknown = hasStringBody(raw) ? JSON.parse(raw.body) : raw;
 
         const expectedOffset = (currentPage - 1) * pageSize;
-        const payload = normalizeCatalogPayload(parsed, pageSize, expectedOffset);
+        const payload = normalizeCatalogPayload(
+          parsed,
+          pageSize,
+          expectedOffset,
+        );
 
         if (!payload.success) {
           throw new Error(payload.error ?? "Catalog request failed");
@@ -334,7 +336,8 @@ export default function CatalogPageClient() {
         setTotalCount(payload.totalCount ?? 0);
       } catch (error) {
         if (controller.signal.aborted) return;
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         setErrorMessage(message);
         setItems([]);
         setTotalCount(0);
@@ -355,7 +358,10 @@ export default function CatalogPageClient() {
     setCurrentPage(1);
   };
 
-  const handleFiltersChange = (next: { categories: string[]; prices: string[] }) => {
+  const handleFiltersChange = (next: {
+    categories: string[];
+    prices: string[];
+  }) => {
     setSelectedCategories(next.categories);
     setSelectedPrices(next.prices);
     setCurrentPage(1);
@@ -409,7 +415,11 @@ export default function CatalogPageClient() {
           <h1 style={{ margin: "0 0 1rem 0" }}>Catalog</h1>
 
           {isLoading && (
-            <p role="status" aria-live="polite" style={{ margin: "0 0 1rem 0" }}>
+            <p
+              role="status"
+              aria-live="polite"
+              style={{ margin: "0 0 1rem 0" }}
+            >
               Loading catalog items...
             </p>
           )}
