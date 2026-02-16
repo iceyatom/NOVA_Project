@@ -18,7 +18,7 @@ model CatalogItem {
   category3         String?
   category2         String?
   category1         String?
-  description       String?
+  description       String?   @db.Text
   quantityInStock   Int       @default(0)
   unitOfMeasure     String?
   storageLocation   String?
