@@ -6211,6 +6211,17 @@ async function main() {
   for (const item of items) {
     await prisma.catalogItem.create({ data: item });
   }
+
+  // Add admin account
+  await prisma.account.upsert({
+    where: { email: "admin@nilesbio.com" },
+    update: {},
+    create: {
+      email: "admin@nilesbio.com",
+      passwordHash: "password123", // Ideally, this should be hashed
+      role: "ADMIN",
+    },
+  });
 }
 
 main()

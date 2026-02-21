@@ -1463,8 +1463,6 @@ body {
   }
 }
 
-
-
 /* Item Product Page */
 .product-section {
   display: grid;
@@ -1675,3 +1673,97 @@ body {
   margin-bottom: 8px;
 }
 
+/* Login page */
+
+body:has(.loginPage) main {
+  margin-top: 0;
+}
+
+.container:has(.loginPage) {
+  padding: 0;
+}
+
+.loginPage {
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100vh - 0px);
+  width: 100%;
+  display: grid;
+  place-items: center;
+
+  background: radial-gradient(
+    circle at 0% 100%,
+    rgba(0, 54, 35, 0.817),
+    transparent 80%
+  );
+
+  background-color: var(--brand-teal-dark);
+}
+
+.loginCard {
+  width: min(800px, 100% - 2rem);
+  max-width: 800px;
+  border: 1px solid #e5e7eb;
+  border-radius: 32px;
+  padding: clamp(20px, 4vw, 48px);
+  background: #fff;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.45);
+  z-index: 1;
+  position: relative;
+}
+
+.loginTitle {
+  margin: 0 0 16px;
+  font-size: 32px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.loginForm {
+  display: grid;
+  gap: 14px;
+}
+
+.loginLabel {
+  display: grid;
+  gap: 6px;
+  font-size: 18px;
+}
+
+.loginInput {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 18px;
+}
+
+.loginInput:focus {
+  outline: none;
+  border-color: var(--brand-focus);
+}
+
+.loginButton {
+  height: 42px;
+  border: 0;
+  border-radius: 10px;
+  font-weight: 600;
+  background-color: var(--brand-teal);
+  color: #fff;
+  cursor: pointer;
+}
+
+.loginButton:active {
+  background-color: var(--brand-teal-dark);
+}
+
+.inputError {
+  border: 1px solid #e23b3b;
+  background-color: #fef2f2;
+}
+
+.errorText {
+  color: #e23b3b;
+  font-size: 16px;
+  margin-top: 4px;
+}
