@@ -1615,6 +1615,64 @@ body {
   }
 }
 
+.hero-cta-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  margin-top: 0;
+}
+
+.hero-cta-left {
+  justify-self: start;
+}
+
+.hero-cta-center {
+  justify-self: center;
+}
+
+.staff-dev-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;             
+  flex-wrap: wrap;      
+  margin-top: 24px;
+}
+
+.staff-dev-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 999px;  
+  background: #1e7f5a;  
+  color: white;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.staff-dev-pill:hover {
+  background: #176446;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.staff-dev-back-wrapper {
+  margin-top: 20px;
+}
+
+.staff-dev-back-wrapper .staff-dev-pill {
+  background: #1e7f5a;
+}
+
+.staff-dev-title {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
 /* Login page */
 
 body:has(.loginPage) main {
