@@ -37,6 +37,20 @@ type CatalogResponse = {
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
+// Mapping between UI price labels and API keys
+const PRICE_LABEL_TO_KEY: Record<string, string> = {
+  "Under $50": "under-50",
+  "$50–$99": "50-99",
+  "$100–$249": "100-249",
+  "$250+": "250-plus",
+};
+const PRICE_KEY_TO_LABEL: Record<string, string> = {
+  "under-50": "Under $50",
+  "50-99": "$50–$99",
+  "100-249": "$100–$249",
+  "250-plus": "$250+",
+};
+
 type ViewState = "loading" | "ready" | "dbError";
 
 // Fallback items to display when database connection fails
@@ -214,7 +228,11 @@ export default function CatalogPageClient() {
 
   const initialQuery = searchParams.get("q") ?? "";
   const initialCategories = parseListParam(searchParams.get("categories"));
-  const initialPrices = parseListParam(searchParams.get("priceBuckets"));
+  // Parse price bucket keys from URL, convert to UI labels
+  const initialPriceKeys = parseListParam(searchParams.get("priceBuckets"));
+  const initialPrices = initialPriceKeys
+    .map((key) => PRICE_KEY_TO_LABEL[key])
+    .filter(Boolean);
   const initialPage = parseNumberParam(searchParams.get("page"), 1);
   const initialPageSize = parseNumberParam(
     searchParams.get("pageSize"),
@@ -246,7 +264,8 @@ export default function CatalogPageClient() {
   useEffect(() => {
     const nextQuery = searchParams.get("q") ?? "";
     const nextCategories = parseListParam(searchParams.get("categories"));
-    const nextPrices = parseListParam(searchParams.get("priceBuckets"));
+    const nextPriceKeys = parseListParam(searchParams.get("priceBuckets"));
+    const nextPrices = nextPriceKeys.map((key) => PRICE_KEY_TO_LABEL[key]).filter(Boolean);
     const nextPage = parseNumberParam(searchParams.get("page"), 1);
     const nextPageSize = parseNumberParam(
       searchParams.get("pageSize"),
@@ -261,12 +280,14 @@ export default function CatalogPageClient() {
   }, [searchParams]);
 
   useEffect(() => {
+    // Convert selectedPrices (UI labels) to API keys for URL
+    const priceBucketKeys = selectedPrices.map((label) => PRICE_LABEL_TO_KEY[label]).filter(Boolean);
     const nextParams = buildCatalogSearchParams({
       page: currentPage,
       pageSize,
       query: searchText,
       categories: selectedCategories,
-      priceBuckets: selectedPrices,
+      priceBuckets: priceBucketKeys,
     });
     const nextQueryString = nextParams.toString();
     const currentQueryString = searchParams.toString();
@@ -296,12 +317,14 @@ export default function CatalogPageClient() {
       setErrorMessage(null);
 
       try {
+        // Convert selectedPrices (UI labels) to API keys for API call
+        const priceBucketKeys = selectedPrices.map((label) => PRICE_LABEL_TO_KEY[label]).filter(Boolean);
         const params = buildCatalogParams({
           page: currentPage,
           pageSize,
           query: searchText,
           categories: selectedCategories,
-          priceBuckets: selectedPrices,
+          priceBuckets: priceBucketKeys,
         });
 
         const response = await fetch(`/api/catalog?${params.toString()}`, {
