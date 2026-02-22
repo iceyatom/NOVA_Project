@@ -198,19 +198,23 @@ export default function HomePage() {
         </div>
         <div className="hero-grid">
           <div className="hero-copy">
-          <div className="hero-cta-row">
-            <div className="hero-cta-left">
-              <Link className="button-secondary" href={missionCta.href}>
-                {missionCta.label}
-              </Link>
-            </div>
+            <div className="hero-cta-row">
+              <div className="hero-cta-left">
+                <Link className="button-secondary" href={missionCta.href}>
+                  {missionCta.label}
+                </Link>
+              </div>
 
-            <div className="hero-cta-center">
-              <Link className="button-secondary" href="/staff" aria-label="Open Staff Dev Hub">
-                Staff Dev
-              </Link>
+              <div className="hero-cta-center">
+                <Link
+                  className="button-secondary"
+                  href="/staff"
+                  aria-label="Open Staff Dev Hub"
+                >
+                  Staff Dev
+                </Link>
+              </div>
             </div>
-          </div>
             {missionDetailParagraphs.map((detail, index) => (
               <p className="hero-detail" key={`mission-detail-${index}`}>
                 {detail}
@@ -221,7 +225,7 @@ export default function HomePage() {
                 <li key={`${point}-${index}`}>{point}</li>
               ))}
             </ul>
-          </div>          
+          </div>
           <div className="hero-media">
             <Image
               src={missionImage}
@@ -233,7 +237,6 @@ export default function HomePage() {
             />
           </div>
         </div>
-        
 
         <div className="home-highlights" aria-label="Featured highlights">
           {highlightData.map((highlight) => {
