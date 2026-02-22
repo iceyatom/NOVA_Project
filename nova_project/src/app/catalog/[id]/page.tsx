@@ -31,7 +31,7 @@ export default function CatalogItemPage({
     ? `/catalog?${backParams.toString()}`
     : "/catalog";
 
-  // Placeholder for fetching item data by ID 
+  // Placeholder for fetching item data by ID
   const getItemById = (id: string) => {
     // Simulated API call
     return {
@@ -44,11 +44,11 @@ export default function CatalogItemPage({
       description: `Description of item ${id}`,
       price: "$0.00",
       priceNote: "NOT AVAILABLE",
-      images: ["/FillerImage.png", "/FillerImage.png", "/FillerImage.png"]
+      images: ["/FillerImage.png", "/FillerImage.png", "/FillerImage.png"],
     };
   };
 
-  // Add more attributes as needed for the item's product page 
+  // Add more attributes as needed for the item's product page
   const item = getItemById(params.id) || null;
   const title = item?.title || null;
   const subtitle = item?.subtitle || null;
@@ -77,17 +77,26 @@ export default function CatalogItemPage({
           </div>
 
           <div className="product-carousel">
-            <button className="product-carousel-nav" type="button" aria-label="Previous images">
+            <button
+              className="product-carousel-nav"
+              type="button"
+              aria-label="Previous images"
+            >
               &lt;
             </button>
 
             <div className="product-carousel-track">
-              {Array.from({ length: images?.length}).map((_, i) => (
-                <button key={i} className="product-carousel-thumb" type="button" aria-label={`View image ${i+1}`}>
+              {Array.from({ length: images?.length }).map((_, i) => (
+                <button
+                  key={i}
+                  className="product-carousel-thumb"
+                  type="button"
+                  aria-label={`View image ${i + 1}`}
+                >
                   <Image
                     className="product-carousel-thumb-img"
                     src={images?.[i] || "/FillerImage.png"}
-                    alt={`Image ${i+1} of ${item.title}`}
+                    alt={`Image ${i + 1} of ${item.title}`}
                     width={160}
                     height={120}
                   />
@@ -95,38 +104,34 @@ export default function CatalogItemPage({
               ))}
             </div>
 
-            <button className="product-carousel-nav" type="button" aria-label="Next images">
+            <button
+              className="product-carousel-nav"
+              type="button"
+              aria-label="Next images"
+            >
               &gt;
             </button>
           </div>
         </div>
         <div className="product-right">
           <h1 className="product-title">
-            <p className="product-title-text">{ title }</p>
-            <p className="product-title-subtext">{ subtitle }</p>
+            <p className="product-title-text">{title}</p>
+            <p className="product-title-subtext">{subtitle}</p>
           </h1>
 
           <div className="product-price" aria-label="Price">
-            <span className="product-price-amount">{ price }</span>
-            <span className="product-price-note">{ priceNote }</span>
+            <span className="product-price-amount">{price}</span>
+            <span className="product-price-note">{priceNote}</span>
           </div>
 
           <section className="product-category">
-            <p className="product-category1-text">
-              { category1 }
-            </p>
-            <p className="product-category2-text">
-              { category2 }
-            </p>
-            <p className="product-category3-text">
-              { category3 }
-            </p>
+            <p className="product-category1-text">{category1}</p>
+            <p className="product-category2-text">{category2}</p>
+            <p className="product-category3-text">{category3}</p>
           </section>
 
           <section className="product-description">
-            <p className="product-description-text">
-              { description }
-            </p>
+            <p className="product-description-text">{description}</p>
           </section>
         </div>
       </div>
