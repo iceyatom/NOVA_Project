@@ -13,7 +13,7 @@ export default function AboutPage() {
             Inspiring Generations Through Science Education
           </h1>
           <p className="about-hero-subtitle">
-            For over 30 years, we've been more than just a supplier—we're partners 
+            For over 30 years, we have been more than just a supplier—we are partners 
             in creating unforgettable learning experiences that spark curiosity and 
             foster scientific discovery.
           </p>
@@ -36,7 +36,7 @@ export default function AboutPage() {
                 specimens that bring textbook concepts to life.
               </p>
               <p className="about-text">
-                That's where we come in. Our mission is simple: provide reliable, 
+                That is where we come in. Our mission is simple: provide reliable, 
                 high-quality biological materials that make teaching easier and learning 
                 more engaging.
               </p>
@@ -52,7 +52,7 @@ export default function AboutPage() {
                 customer service that needed addressing.
               </p>
               <p className="about-text">
-                Through countless conversations with teachers over the years, we've 
+                Through countless conversations with teachers over the years, we have 
                 refined our approach to deliver exactly what you need: friendly, 
                 knowledgeable service backed by reliable products. We went through 
                 hundreds of supplier partnerships and quality protocols to create what 
@@ -78,7 +78,7 @@ export default function AboutPage() {
             <section className="about-section">
               <h2 className="about-section-title">Our Approach Today</h2>
               <p className="about-text">
-                We've evolved from a small local supplier to one of the world's largest 
+                We have evolved from a small local supplier to one of the world&apos;s largest 
                 providers of owl pellets and a comprehensive source for live specimens, 
                 preserved materials, and classroom kits. But our core values remain unchanged:
               </p>
@@ -88,7 +88,7 @@ export default function AboutPage() {
                   shipping. We understand your schedule and plan accordingly.
                 </li>
                 <li>
-                  <strong>Quality Assurance:</strong> If it's supposed to be alive, it will be. 
+                  <strong>Quality Assurance:</strong> If it is supposed to be alive, it will be. 
                   100% live delivery guarantee with reship or credit for any issues.
                 </li>
                 <li>
@@ -106,15 +106,15 @@ export default function AboutPage() {
             <section className="about-section">
               <h2 className="about-section-title">Looking Ahead</h2>
               <p className="about-text">
-                We're committed to continuous innovation in biological education. As classrooms 
+                We are committed to continuous innovation in biological education. As classrooms 
                 evolve, so do we—expanding our product lines, improving our digital resources, 
                 and finding new ways to support teachers in their mission to inspire the next 
                 generation of scientists.
               </p>
               <p className="about-text">
-                We're listening to what educators need and adapting our offerings accordingly. 
-                Whether it's sourcing specimens from new habitats to study ecosystem changes 
-                or developing more comprehensive educational materials, we're dedicated to 
+                We are listening to what educators need and adapting our offerings accordingly. 
+                Whether it is sourcing specimens from new habitats to study ecosystem changes 
+                or developing more comprehensive educational materials, we are dedicated to 
                 being your trusted partner in science education.
               </p>
             </section>
@@ -124,8 +124,8 @@ export default function AboutPage() {
               <div className="about-cta-box">
                 <h2 className="about-cta-title">Join Our Community</h2>
                 <p className="about-cta-text">
-                  Whether you're a first-time customer or a loyal partner who's been with us 
-                  for years—thank you. We're here because of educators like you who trust us 
+                  Whether you are a first-time customer or a loyal partner who has been with us 
+                  for years—thank you. We are here because of educators like you who trust us 
                   to deliver excellence.
                 </p>
                 <div className="about-cta-buttons">
