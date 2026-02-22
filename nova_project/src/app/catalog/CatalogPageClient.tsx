@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import ItemCard from "../components/ItemCard";
@@ -128,33 +128,6 @@ function buildCatalogParams(options: {
   return params;
 }
 
-function buildCatalogSearchParams(options: {
-  page: number;
-  pageSize: number;
-  query: string;
-  categories: string[];
-  priceBuckets: string[];
-}) {
-  const params = new URLSearchParams();
-
-  params.set("page", String(options.page));
-  params.set("pageSize", String(options.pageSize));
-
-  if (options.query) {
-    params.set("q", options.query);
-  }
-
-  if (options.categories.length > 0) {
-    params.set("categories", options.categories.join(","));
-  }
-
-  if (options.priceBuckets.length > 0) {
-    params.set("priceBuckets", options.priceBuckets.join(","));
-  }
-
-  return params;
-}
-
 type ApiGatewayProxyLike = {
   body: string;
   statusCode?: number;
@@ -172,17 +145,29 @@ function hasStringBody(value: unknown): value is ApiGatewayProxyLike {
 }
 
 function parseNumberParam(value: string | null, fallback: number): number {
-  if (!value) return fallback;
+  if (!value) {
+    return fallback;
+  }
   const n = Number.parseInt(value, 10);
   return Number.isFinite(n) ? n : fallback;
 }
 
 function parseListParam(value: string | null): string[] {
-  if (!value) return [];
+  if (!value) {
+    return [];
+  }
   return value
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+function normalizeForCompare(values: string[]) {
+  const normalized = values
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(normalized)).sort().join("|");
 }
 
 function normalizeCatalogPayload(
@@ -226,87 +211,94 @@ export default function CatalogPageClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const initialQuery = searchParams.get("q") ?? "";
-  const initialCategories = parseListParam(searchParams.get("categories"));
-  // Parse price bucket keys from URL, convert to UI labels
-  const initialPriceKeys = parseListParam(searchParams.get("priceBuckets"));
-  const initialPrices = initialPriceKeys
-    .map((key) => PRICE_KEY_TO_LABEL[key])
-    .filter(Boolean);
-  const initialPage = parseNumberParam(searchParams.get("page"), 1);
-  const initialPageSize = parseNumberParam(
-    searchParams.get("pageSize"),
-    DEFAULT_PAGE_SIZE,
+  // URL is the "single source of truth" 
+  const catalogState = useMemo(() => {
+    const query = (searchParams.get("q") ?? "").trim();
+    const categories = parseListParam(searchParams.get("categories"));
+
+    const priceKeys = parseListParam(searchParams.get("priceBuckets"));
+    const prices = priceKeys
+      .map((key) => PRICE_KEY_TO_LABEL[key])
+      .filter((value): value is string => Boolean(value));
+
+    const page = Math.max(1, parseNumberParam(searchParams.get("page"), 1));
+    const pageSize = Math.max(1, parseNumberParam(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE));
+
+    return { query, categories, prices, page, pageSize };
+  }, [searchParams]);
+
+  const searchText = catalogState.query;
+  const selectedCategories = catalogState.categories;
+  const selectedPrices = catalogState.prices;
+  const currentPage = catalogState.page;
+  const pageSize = catalogState.pageSize;
+
+  const navigateWithSearchParams = useCallback(
+    (
+      updater: (params: URLSearchParams) => void,
+      options?: { replace?: boolean },
+    ) => {
+      const next = new URLSearchParams(searchParams.toString());
+      updater(next);
+
+      // Keep URLs tidy by omitting defaults 
+      if (next.get("page") === "1") {
+        next.delete("page");
+      }
+      if (next.get("pageSize") === String(DEFAULT_PAGE_SIZE)) {
+        next.delete("pageSize");
+      }
+
+      const queryString = next.toString();
+      const href = queryString ? `${pathname}?${queryString}` : pathname;
+
+      if (options?.replace) {
+        router.replace(href, { scroll: false });
+      } else {
+        router.push(href, { scroll: false });
+      }
+    },
+    [pathname, router, searchParams],
   );
 
   const [items, setItems] = useState<Item[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(initialPage);
-  const [pageSize, setPageSize] = useState(initialPageSize);
-  const [searchText, setSearchText] = useState(initialQuery);
-  const [selectedCategories, setSelectedCategories] =
-    useState<string[]>(initialCategories);
-  const [selectedPrices, setSelectedPrices] = useState<string[]>(initialPrices);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
-    [totalCount, pageSize],
+    [pageSize, totalCount],
   );
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+    if (!hasLoadedOnce) {
+      return;
     }
-  }, [currentPage, totalPages]);
+    if (isLoading) {
+      return;
+    }
+    if (errorMessage) {
+      return;
+    }
+    if (currentPage <= totalPages) {
+      return;
+    }
 
-  useEffect(() => {
-    const nextQuery = searchParams.get("q") ?? "";
-    const nextCategories = parseListParam(searchParams.get("categories"));
-    const nextPriceKeys = parseListParam(searchParams.get("priceBuckets"));
-    const nextPrices = nextPriceKeys.map((key) => PRICE_KEY_TO_LABEL[key]).filter(Boolean);
-    const nextPage = parseNumberParam(searchParams.get("page"), 1);
-    const nextPageSize = parseNumberParam(
-      searchParams.get("pageSize"),
-      DEFAULT_PAGE_SIZE,
+    navigateWithSearchParams(
+      (params) => {
+        params.set("page", String(totalPages));
+      },
+      { replace: true },
     );
-
-    setSearchText(nextQuery);
-    setSelectedCategories(nextCategories);
-    setSelectedPrices(nextPrices);
-    setCurrentPage(nextPage);
-    setPageSize(nextPageSize);
-  }, [searchParams]);
-
-  useEffect(() => {
-    // Convert selectedPrices (UI labels) to API keys for URL
-    const priceBucketKeys = selectedPrices.map((label) => PRICE_LABEL_TO_KEY[label]).filter(Boolean);
-    const nextParams = buildCatalogSearchParams({
-      page: currentPage,
-      pageSize,
-      query: searchText,
-      categories: selectedCategories,
-      priceBuckets: priceBucketKeys,
-    });
-    const nextQueryString = nextParams.toString();
-    const currentQueryString = searchParams.toString();
-
-    if (nextQueryString !== currentQueryString) {
-      const href = nextQueryString
-        ? `${pathname}?${nextQueryString}`
-        : pathname;
-      router.replace(href, { scroll: false });
-    }
   }, [
     currentPage,
-    pageSize,
-    pathname,
-    router,
-    searchParams,
-    searchText,
-    selectedCategories,
-    selectedPrices,
+    errorMessage,
+    hasLoadedOnce,
+    isLoading,
+    navigateWithSearchParams,
+    totalPages,
   ]);
 
   useEffect(() => {
@@ -318,7 +310,9 @@ export default function CatalogPageClient() {
 
       try {
         // Convert selectedPrices (UI labels) to API keys for API call
-        const priceBucketKeys = selectedPrices.map((label) => PRICE_LABEL_TO_KEY[label]).filter(Boolean);
+        const priceBucketKeys = selectedPrices
+          .map((label) => PRICE_LABEL_TO_KEY[label])
+          .filter((value): value is string => Boolean(value));
         const params = buildCatalogParams({
           page: currentPage,
           pageSize,
@@ -358,7 +352,9 @@ export default function CatalogPageClient() {
         setItems(normalizedItems);
         setTotalCount(payload.totalCount ?? 0);
       } catch (error) {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted) {
+          return;
+        }
         const message =
           error instanceof Error ? error.message : "Unknown error";
         setErrorMessage(message);
@@ -367,6 +363,7 @@ export default function CatalogPageClient() {
       } finally {
         if (!controller.signal.aborted) {
           setIsLoading(false);
+          setHasLoadedOnce(true);
         }
       }
     };
@@ -377,26 +374,75 @@ export default function CatalogPageClient() {
   }, [currentPage, pageSize, searchText, selectedCategories, selectedPrices]);
 
   const handleSearch = (query: string) => {
-    setSearchText(query);
-    setCurrentPage(1);
+    const nextQuery = query.trim();
+
+    if (nextQuery === searchText) {
+      return;
+    }
+
+    navigateWithSearchParams((params) => {
+      if (nextQuery) {
+        params.set("q", nextQuery);
+      } else {
+        params.delete("q");
+      }
+      params.set("page", "1");
+    });
   };
 
   const handleFiltersChange = (next: {
     categories: string[];
     prices: string[];
   }) => {
-    setSelectedCategories(next.categories);
-    setSelectedPrices(next.prices);
-    setCurrentPage(1);
+    const sameCategories =
+      normalizeForCompare(next.categories) ===
+      normalizeForCompare(selectedCategories);
+    const samePrices =
+      normalizeForCompare(next.prices) ===
+      normalizeForCompare(selectedPrices);
+    if (sameCategories && samePrices) {
+      return;
+    }
+
+    navigateWithSearchParams((params) => {
+      if (next.categories.length > 0) {
+        params.set("categories", next.categories.join(","));
+      } else {
+        params.delete("categories");
+      }
+
+      const priceBucketKeys = next.prices
+        .map((label) => PRICE_LABEL_TO_KEY[label])
+        .filter((value): value is string => Boolean(value));
+
+      if (priceBucketKeys.length > 0) {
+        params.set("priceBuckets", priceBucketKeys.join(","));
+      } else {
+        params.delete("priceBuckets");
+      }
+
+      params.set("page", "1");
+    });
   };
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+    const nextPage = Math.max(1, page);
+    if (nextPage === currentPage) {
+      return;
+    }
+    navigateWithSearchParams((params) => {
+      params.set("page", String(nextPage));
+    });
   };
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
+    if (size === pageSize) {
+      return;
+    }
+    navigateWithSearchParams((params) => {
+      params.set("pageSize", String(size));
+      params.set("page", String(1));
+    });
   };
 
   return (
