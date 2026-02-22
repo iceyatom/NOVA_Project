@@ -1290,6 +1290,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 240px; /* Prevent container from shrinking too much */
+  width: 100%;
 }
 
 /* Catalog Filter - Group */
@@ -1326,6 +1328,15 @@ body {
   transition:
     background-color 0.15s,
     box-shadow 0.15s;
+  width: 100%;
+}
+
+.filter-row .filter-label {
+  flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  line-height: 1.4;
 }
 
 .filter-row input[type="checkbox"] {
@@ -1436,10 +1447,29 @@ body {
   padding: var(--space-lg);
 }
 
+/* Ensure filter panel maintains readability on mobile */
+@media (max-width: 1023px) {
+  .filters {
+    min-width: 0; /* Allow natural sizing on mobile */
+    max-width: 100%;
+  }
+  
+  .catalog-pane-left {
+    width: 100%;
+  }
+}
+
+/* Medium screens: optimize filter width */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .filters {
+    min-width: 280px;
+  }
+}
+
 @media (min-width: 1024px) {
   .catalog-three-pane {
     grid-template-columns:
-      minmax(180px, 0.8fr)
+      minmax(260px, 0.8fr)
       minmax(0, 3fr)
       minmax(180px, 0.8fr);
     grid-template-areas: "left center right";
@@ -1448,6 +1478,7 @@ body {
 
   .catalog-pane-left {
     grid-area: left;
+    min-width: 260px; /* Ensure filter panel maintains adequate width */
   }
 
   .catalog-pane-center {
