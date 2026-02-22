@@ -2,22 +2,101 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { Decimal } from "@prisma/client/runtime/library";
 
 type CatalogItemPageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
-  searchParams?: Record<string, string | string[] | undefined>;
+  }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default function CatalogItemPage({
+function formatPrice(price: number | string | Decimal | null): string {
+  if (price === null || price === undefined) return "$0.00";
+  
+  // Handle Prisma Decimal type
+  if (price instanceof Decimal) {
+    return `$${price.toFixed(2)}`;
+  }
+  
+  const numPrice = typeof price === "string" ? parseFloat(price) : price;
+  if (!Number.isFinite(numPrice)) return "$0.00";
+  return `$${numPrice.toFixed(2)}`;
+}
+
+function formatDate(date: Date | null): string {
+  if (!date) return "N/A";
+  try {
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return "N/A";
+  }
+}
+
+function getStockStatus(quantity: number, reorderLevel: number): string {
+  if (quantity === 0) return "OUT OF STOCK";
+  if (quantity <= reorderLevel) return "LOW STOCK";
+  return "IN STOCK";
+}
+
+export default async function CatalogItemPage({
   params,
   searchParams,
 }: CatalogItemPageProps) {
-  const backParams = new URLSearchParams();
+  const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  
+  // Parse and validate ID
+  const itemId = parseInt(resolvedParams.id, 10);
+  
+  if (!Number.isFinite(itemId) || itemId <= 0) {
+    notFound();
+  }
 
-  if (searchParams) {
-    Object.entries(searchParams).forEach(([key, value]) => {
+  // Fetch item directly from database
+  let item;
+  try {
+    item = await prisma.catalogItem.findUnique({
+      where: { id: itemId },
+      select: {
+        id: true,
+        sku: true,
+        itemName: true,
+        price: true,
+        category1: true,
+        category2: true,
+        category3: true,
+        description: true,
+        quantityInStock: true,
+        unitOfMeasure: true,
+        storageLocation: true,
+        storageConditions: true,
+        expirationDate: true,
+        dateAcquired: true,
+        reorderLevel: true,
+        unitCost: true,
+      },
+    });
+  } catch (error) {
+    console.error("Database error fetching catalog item:", error);
+    notFound();
+  }
+
+  // If item not found, show 404
+  if (!item) {
+    notFound();
+  }
+
+  // Build back navigation with preserved search params
+  const backParams = new URLSearchParams();
+  if (resolvedSearchParams) {
+    Object.entries(resolvedSearchParams).forEach(([key, value]) => {
       if (value === undefined) return;
       if (Array.isArray(value)) {
         value.forEach((entry) => backParams.append(key, entry));
@@ -31,34 +110,18 @@ export default function CatalogItemPage({
     ? `/catalog?${backParams.toString()}`
     : "/catalog";
 
-  // Placeholder for fetching item data by ID 
-  const getItemById = (id: string) => {
-    // Simulated API call
-    return {
-      id,
-      title: `Item Title Number ${id}`,
-      subtitle: `It's some item that is number ${id} in the database.`,
-      category1: "Category 1",
-      category2: "Category 2",
-      category3: "Category 3",
-      description: `Description of item ${id}`,
-      price: "$0.00",
-      priceNote: "NOT AVAILABLE",
-      images: ["/FillerImage.png", "/FillerImage.png", "/FillerImage.png"]
-    };
-  };
-
-  // Add more attributes as needed for the item's product page 
-  const item = getItemById(params.id) || null;
-  const title = item?.title || null;
-  const subtitle = item?.subtitle || null;
-  const category1 = item?.category1 || null;
-  const category2 = item?.category2 || null;
-  const category3 = item?.category3 || null;
-  const description = item?.description || null;
-  const price = item?.price || null;
-  const priceNote = item?.priceNote || null;
-  const images = item?.images || [];
+  // Extract and format data
+  const title = item.itemName;
+  const subtitle = item.sku ? `SKU: ${item.sku}` : `Item ID: ${item.id}`;
+  const category1 = item.category1;
+  const category2 = item.category2;
+  const category3 = item.category3;
+  const description = item.description;
+  const price = formatPrice(item.price);
+  const stockStatus = getStockStatus(item.quantityInStock, item.reorderLevel);
+  
+  // Use placeholder images for now
+  const images = ["/FillerImage.webp", "/FillerImage.webp", "/FillerImage.webp"];
 
   return (
     <main style={{ padding: "2rem" }}>
@@ -67,8 +130,8 @@ export default function CatalogItemPage({
           <div className="product-image">
             <Image
               className="product-image-img"
-              src={images?.[0] || "/FillerImage.png"}
-              alt={`Image of ${item.title}`}
+              src={images[0]}
+              alt={`Image of ${title}`}
               width={640}
               height={428}
               sizes="(max-width: 900px) 100vw, 320px"
@@ -82,12 +145,12 @@ export default function CatalogItemPage({
             </button>
 
             <div className="product-carousel-track">
-              {Array.from({ length: images?.length}).map((_, i) => (
+              {images.map((img, i) => (
                 <button key={i} className="product-carousel-thumb" type="button" aria-label={`View image ${i+1}`}>
                   <Image
                     className="product-carousel-thumb-img"
-                    src={images?.[i] || "/FillerImage.png"}
-                    alt={`Image ${i+1} of ${item.title}`}
+                    src={img}
+                    alt={`Image ${i+1} of ${title}`}
                     width={160}
                     height={120}
                   />
@@ -102,31 +165,74 @@ export default function CatalogItemPage({
         </div>
         <div className="product-right">
           <h1 className="product-title">
-            <p className="product-title-text">{ title }</p>
-            <p className="product-title-subtext">{ subtitle }</p>
+            <p className="product-title-text">{title}</p>
+            <p className="product-title-subtext">{subtitle}</p>
           </h1>
 
           <div className="product-price" aria-label="Price">
-            <span className="product-price-amount">{ price }</span>
-            <span className="product-price-note">{ priceNote }</span>
+            <span className="product-price-amount">{price}</span>
+            <span className="product-price-note">{stockStatus}</span>
           </div>
 
           <section className="product-category">
-            <p className="product-category1-text">
-              { category1 }
-            </p>
-            <p className="product-category2-text">
-              { category2 }
-            </p>
-            <p className="product-category3-text">
-              { category3 }
-            </p>
+            {category1 && (
+              <p className="product-category1-text">{category1}</p>
+            )}
+            {category2 && (
+              <p className="product-category2-text">{category2}</p>
+            )}
+            {category3 && (
+              <p className="product-category3-text">{category3}</p>
+            )}
           </section>
 
           <section className="product-description">
             <p className="product-description-text">
-              { description }
+              {description || "No description available."}
             </p>
+          </section>
+
+          {/* Additional product details */}
+          <section className="product-details" style={{ marginTop: "1.5rem" }}>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: "600", marginBottom: "0.75rem" }}>
+              Product Details
+            </h2>
+            <div style={{ display: "grid", gap: "0.5rem" }}>
+              <div>
+                <strong>Quantity in Stock:</strong> {item.quantityInStock}
+                {item.unitOfMeasure && ` ${item.unitOfMeasure}`}
+              </div>
+              {item.unitCost && (
+                <div>
+                  <strong>Unit Cost:</strong> {formatPrice(item.unitCost)}
+                </div>
+              )}
+              {item.reorderLevel > 0 && (
+                <div>
+                  <strong>Reorder Level:</strong> {item.reorderLevel}
+                </div>
+              )}
+              {item.storageLocation && (
+                <div>
+                  <strong>Storage Location:</strong> {item.storageLocation}
+                </div>
+              )}
+              {item.storageConditions && (
+                <div>
+                  <strong>Storage Conditions:</strong> {item.storageConditions}
+                </div>
+              )}
+              {item.expirationDate && (
+                <div>
+                  <strong>Expiration Date:</strong> {formatDate(item.expirationDate)}
+                </div>
+              )}
+              {item.dateAcquired && (
+                <div>
+                  <strong>Date Acquired:</strong> {formatDate(item.dateAcquired)}
+                </div>
+              )}
+            </div>
           </section>
         </div>
       </div>
