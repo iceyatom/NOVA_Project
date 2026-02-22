@@ -12,15 +12,13 @@ export default function StaffDevHubPage() {
   return (
     <div className="staff-dev-page">
       <div className="staff-dev-card">
-      <div className="staff-dev-header">
-        <h1 className="staff-dev-title centered">
-          Staff Dev Hub
-        </h1>
+        <div className="staff-dev-header">
+          <h1 className="staff-dev-title centered">Staff Dev Hub</h1>
 
-        <p className="staff-dev-subtitle centered">
-          Temporary internal entry point for staff tooling placeholders.
-        </p>
-      </div>
+          <p className="staff-dev-subtitle centered">
+            Temporary internal entry point for staff tooling placeholders.
+          </p>
+        </div>
 
         <div className="staff-dev-row">
           {tools.map((t) => (

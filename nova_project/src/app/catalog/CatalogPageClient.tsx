@@ -163,9 +163,7 @@ function parseListParam(value: string | null): string[] {
 }
 
 function normalizeForCompare(values: string[]) {
-  const normalized = values
-    .map((v) => v.trim())
-    .filter(Boolean);
+  const normalized = values.map((v) => v.trim()).filter(Boolean);
 
   return Array.from(new Set(normalized)).sort().join("|");
 }
@@ -211,7 +209,7 @@ export default function CatalogPageClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // URL is the "single source of truth" 
+  // URL is the "single source of truth"
   const catalogState = useMemo(() => {
     const query = (searchParams.get("q") ?? "").trim();
     const categories = parseListParam(searchParams.get("categories"));
@@ -222,7 +220,10 @@ export default function CatalogPageClient() {
       .filter((value): value is string => Boolean(value));
 
     const page = Math.max(1, parseNumberParam(searchParams.get("page"), 1));
-    const pageSize = Math.max(1, parseNumberParam(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE));
+    const pageSize = Math.max(
+      1,
+      parseNumberParam(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
+    );
 
     return { query, categories, prices, page, pageSize };
   }, [searchParams]);
@@ -241,7 +242,7 @@ export default function CatalogPageClient() {
       const next = new URLSearchParams(searchParams.toString());
       updater(next);
 
-      // Keep URLs tidy by omitting defaults 
+      // Keep URLs tidy by omitting defaults
       if (next.get("page") === "1") {
         next.delete("page");
       }
@@ -398,8 +399,7 @@ export default function CatalogPageClient() {
       normalizeForCompare(next.categories) ===
       normalizeForCompare(selectedCategories);
     const samePrices =
-      normalizeForCompare(next.prices) ===
-      normalizeForCompare(selectedPrices);
+      normalizeForCompare(next.prices) === normalizeForCompare(selectedPrices);
     if (sameCategories && samePrices) {
       return;
     }
