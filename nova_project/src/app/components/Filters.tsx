@@ -156,8 +156,8 @@ export default function Filters({
               onChange={(e) => handleMinChange(Number(e.target.value))}
               className="price-range-input"
               aria-label="Minimum price"
-              aria-valuemin="0"
-              aria-valuemax="500"
+              aria-valuemin={0}
+              aria-valuemax={500}
               aria-valuenow={customMin}
               aria-valuetext={`$${customMin}`}
             />
@@ -179,8 +179,8 @@ export default function Filters({
               onChange={(e) => handleMaxChange(Number(e.target.value))}
               className="price-range-input"
               aria-label="Maximum price"
-              aria-valuemin="0"
-              aria-valuemax="500"
+              aria-valuemin={0}
+              aria-valuemax={500}
               aria-valuenow={customMax}
               aria-valuetext={`$${customMax}`}
             />
