@@ -124,17 +124,18 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "4px",
   };
 
-  const stockStyle = quantityInStock && quantityInStock > 0
-    ? {
-        fontSize: "12px",
-        color: "#008000",
-        marginTop: "4px",
-      }
-    : {
-        fontSize: "12px",
-        color: "#FF0000",
-        marginTop: "4px",
-      };
+  const stockStyle =
+    quantityInStock && quantityInStock > 0
+      ? {
+          fontSize: "12px",
+          color: "#008000",
+          marginTop: "4px",
+        }
+      : {
+          fontSize: "12px",
+          color: "#FF0000",
+          marginTop: "4px",
+        };
 
   // HTML
   return (

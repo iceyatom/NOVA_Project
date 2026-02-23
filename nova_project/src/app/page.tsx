@@ -196,14 +196,25 @@ export default function HomePage() {
             <p className="hero-subtitle">{missionSummary}</p>
           </div>
         </div>
-
         <div className="hero-grid">
           <div className="hero-copy">
-            <p className="hero-cta">
-              <Link className="button-secondary" href={missionCta.href}>
-                {missionCta.label}
-              </Link>
-            </p>
+            <div className="hero-cta-row">
+              <div className="hero-cta-left">
+                <Link className="button-secondary" href={missionCta.href}>
+                  {missionCta.label}
+                </Link>
+              </div>
+
+              <div className="hero-cta-center">
+                <Link
+                  className="button-secondary"
+                  href="/staff"
+                  aria-label="Open Staff Dev Hub"
+                >
+                  Staff Dev
+                </Link>
+              </div>
+            </div>
             {missionDetailParagraphs.map((detail, index) => (
               <p className="hero-detail" key={`mission-detail-${index}`}>
                 {detail}

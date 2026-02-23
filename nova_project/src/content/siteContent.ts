@@ -96,7 +96,7 @@ export const homeContent: HomeContent = {
   fallbacks: {
     title: "Update in progress",
     description: "We're curating more field notes and featured specimens.",
-    image: "/FillerImage.png",
+    image: "/FillerImage.webp",
     imageAlt: "Placeholder image for forthcoming Niles Biological content.",
   },
 };
@@ -182,6 +182,6 @@ export const aboutContent: AboutContent = {
   },
   placeholders: {
     text: homeContent.fallbacks.description || "N/A",
-    image: homeContent.fallbacks.image || "/FillerImage.png",
+    image: homeContent.fallbacks.image || "/FillerImage.webp",
   },
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 
 type CatalogPaginationProps = {
@@ -102,20 +102,23 @@ export default function CatalogPagination({
     [controlledPageSize, onPageSizeChange],
   );
 
-  useEffect(() => {
-    if (resolvedCurrentPage > totalPages) {
-      updatePage(totalPages);
-    }
-  }, [resolvedCurrentPage, totalPages, updatePage]);
-
   const pages = useMemo(
     () => buildPagination(resolvedCurrentPage, totalPages),
     [resolvedCurrentPage, totalPages],
   );
 
   const handlePageSizeChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    updatePageSize(Number(event.target.value));
-    updatePage(1);
+    const nextSize = Number(event.target.value);
+    updatePageSize(nextSize);
+
+    if (controlledCurrentPage !== undefined) {
+      return;
+    }
+
+    const nextTotalPages = Math.max(1, Math.ceil(totalItems / nextSize));
+    if (resolvedCurrentPage > nextTotalPages) {
+      updatePage(nextTotalPages);
+    }
   };
 
   return (
