@@ -140,7 +140,11 @@ export default async function CatalogItemPage({
           </div>
 
           <div className="product-carousel">
-            <button className="product-carousel-nav" type="button" aria-label="Previous images">
+            <button
+              className="product-carousel-nav"
+              type="button"
+              aria-label="Previous images"
+            >
               &lt;
             </button>
 
@@ -158,7 +162,11 @@ export default async function CatalogItemPage({
               ))}
             </div>
 
-            <button className="product-carousel-nav" type="button" aria-label="Next images">
+            <button
+              className="product-carousel-nav"
+              type="button"
+              aria-label="Next images"
+            >
               &gt;
             </button>
           </div>
