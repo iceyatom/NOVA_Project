@@ -34,7 +34,7 @@ export default function CatalogItemNotFound() {
           marginBottom: "2rem",
           color: "#6b7280"
         }}>
-          The catalog item you're looking for doesn't exist or has been removed from our inventory.
+          The catalog item you&apos;re looking for doesn&apos;t exist or has been removed from our inventory.
         </p>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
           <Link 
