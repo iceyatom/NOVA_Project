@@ -37,6 +37,10 @@ export default function Filters({
   const [selectedPrices, setSelectedPrices] =
     React.useState<string[]>(selectedPricesProp);
 
+  // Custom price range slider state (UI-only for now)
+  const [customMin, setCustomMin] = React.useState<number>(0);
+  const [customMax, setCustomMax] = React.useState<number>(500);
+
   React.useEffect(() => {
     setSelectedCategories(selectedCategoriesProp);
   }, [selectedCategoriesProp]);
@@ -63,6 +67,21 @@ export default function Filters({
     setSelectedCategories([]);
     setSelectedPrices([]);
     onChange?.({ categories: [], prices: [] });
+  };
+
+  // Custom price range slider handlers (UI-only, no backend calls)
+  const handleMinChange = (value: number) => {
+    // Snap to nearest $5 increment
+    const snappedValue = Math.round(value / 5) * 5;
+    // Ensure min doesn't exceed max
+    setCustomMin(Math.min(snappedValue, customMax - 5));
+  };
+
+  const handleMaxChange = (value: number) => {
+    // Snap to nearest $5 increment
+    const snappedValue = Math.round(value / 5) * 5;
+    // Ensure max doesn't go below min
+    setCustomMax(Math.max(snappedValue, customMin + 5));
   };
 
   return (
@@ -114,6 +133,62 @@ export default function Filters({
             );
           })}
         </ul>
+      </fieldset>
+
+      {/* Custom Price Range Slider (UI-only) */}
+      <fieldset className="filter-group">
+        <legend className="filter-group__legend">Custom Price Range</legend>
+        <div className="price-range-slider">
+          <div className="price-range-inputs">
+            <div className="price-range-input-group">
+              <label htmlFor="price-min" className="price-range-label">
+                Minimum price
+              </label>
+              <div className="price-range-value">${customMin}</div>
+            </div>
+            <input
+              id="price-min"
+              type="range"
+              min="0"
+              max="500"
+              step="5"
+              value={customMin}
+              onChange={(e) => handleMinChange(Number(e.target.value))}
+              className="price-range-input"
+              aria-label="Minimum price"
+              aria-valuemin={0}
+              aria-valuemax={500}
+              aria-valuenow={customMin}
+              aria-valuetext={`$${customMin}`}
+            />
+          </div>
+          <div className="price-range-inputs">
+            <div className="price-range-input-group">
+              <label htmlFor="price-max" className="price-range-label">
+                Maximum price
+              </label>
+              <div className="price-range-value">${customMax}</div>
+            </div>
+            <input
+              id="price-max"
+              type="range"
+              min="0"
+              max="500"
+              step="5"
+              value={customMax}
+              onChange={(e) => handleMaxChange(Number(e.target.value))}
+              className="price-range-input"
+              aria-label="Maximum price"
+              aria-valuemin={0}
+              aria-valuemax={500}
+              aria-valuenow={customMax}
+              aria-valuetext={`$${customMax}`}
+            />
+          </div>
+          <div className="price-range-display" aria-live="polite">
+            Selected range: <strong>${customMin} - ${customMax}</strong>
+          </div>
+        </div>
       </fieldset>
 
       {/* Active Filters summary */}
