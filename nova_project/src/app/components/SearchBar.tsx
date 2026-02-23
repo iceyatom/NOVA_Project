@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, FormEvent, KeyboardEvent } from "react";
+import { useEffect, useRef, useState, FormEvent, KeyboardEvent } from "react";
 
 type Props = {
   title?: string;
@@ -8,6 +8,8 @@ type Props = {
   placeholder?: string;
   query?: string;
   onSearch?: (query: string) => void;
+  /** Debounce delay (ms) for live search while typing */
+  debounceMs?: number;
 };
 
 export default function SearchBar({
@@ -16,6 +18,7 @@ export default function SearchBar({
   placeholder = "Search by Keyword",
   query: queryProp = "",
   onSearch,
+  debounceMs = 250,
 }: Props) {
   const [query, setQuery] = useState(queryProp);
   const [submittedQuery, setSubmittedQuery] = useState(queryProp);
@@ -23,21 +26,39 @@ export default function SearchBar({
 
   const canSubmit = query.trim().length > 0;
 
+  // Keep local state in sync if parent updates query (e.g., via URL changes)
   useEffect(() => {
     setQuery(queryProp);
     setSubmittedQuery(queryProp);
   }, [queryProp]);
 
+  // Live search while typing (debounced). Clearing input restores full catalog.
+  useEffect(() => {
+    // Immediate reset when cleared
+    if (query.length === 0) {
+      setSubmittedQuery("");
+      onSearch?.("");
+      return;
+    }
+
+    const trimmed = query.trim();
+
+    const t = window.setTimeout(() => {
+      setSubmittedQuery(trimmed);
+      onSearch?.(trimmed);
+    }, debounceMs);
+
+    return () => window.clearTimeout(t);
+  }, [query, onSearch, debounceMs]);
+
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const trimmed = query.trim();
-    if (!trimmed) return;
 
+    const trimmed = query.trim();
     setSubmittedQuery(trimmed);
     onSearch?.(trimmed);
-    // eslint-disable-next-line no-console
-    console.log(`[SearchBar] submitted query: "${trimmed}"`);
 
+    // Keep focus and caret at end for good UX
     const el = inputRef.current;
     if (el) {
       el.focus();
@@ -49,6 +70,7 @@ export default function SearchBar({
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    // If empty, prevent Enter from submitting a no-op
     if (e.key === "Enter" && !canSubmit) e.preventDefault();
   }
 

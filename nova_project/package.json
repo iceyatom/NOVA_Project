@@ -19,14 +19,13 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.932.0",
-    "@prisma/client": "^6.19.0",
     "next": "15.5.9",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^6.19.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.25",
     "@types/react": "^19",
