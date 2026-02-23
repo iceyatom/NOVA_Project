@@ -1616,3 +1616,211 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Staff -- Inventory Item Detail Page */
+
+/* --- page centering --- */
+.inventory-page {
+  min-height: 100vh;
+  padding: 24px;
+  display: flex;
+  justify-content: center; /* horizontal center */
+  background: #f6f7f9; /* optional */
+}
+
+.inventory-container {
+  width: 100%;
+  max-width: 1100px;
+}
+
+/* --- header --- */
+.inventory-header {
+  margin-bottom: 16px;
+}
+
+.inventory-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0;
+  color: #111827;
+}
+
+/* --- card --- */
+.inventory-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+/* --- sections --- */
+.form-section {
+  margin-top: 18px;
+}
+
+.section-header {
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.section-rule {
+  height: 1px;
+  background: #eef0f3;
+}
+
+/* --- grids --- */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 720px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .form-grid-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* --- fields --- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.field-required {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.field-input,
+.field-textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  color: #111827;
+}
+
+.field-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.field-input:focus,
+.field-textarea:focus {
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.25);
+}
+
+.field-input-error {
+  border-color: #fca5a5;
+}
+
+.field-error {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.field-hint {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.field-spacer {
+  height: 14px;
+}
+
+/* --- buttons --- */
+.form-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.btn-primary {
+  background: #111827;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0b1220;
+}
+
+.skeleton-line {
+  width: 240px;
+  height: 14px;
+  background: #e5e7eb;
+  border-radius: 8px;
+}
+
+.skeleton-grid {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .skeleton-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.skeleton-input {
+  height: 42px;
+  background: #f1f5f9;
+  border-radius: 10px;
+}
