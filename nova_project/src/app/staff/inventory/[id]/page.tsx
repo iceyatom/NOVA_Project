@@ -62,17 +62,9 @@ function toDateOrNull(v: string): string | null {
 }
 
 function cloneItem<T>(obj: T): T {
-  // safe for this shape (plain data)
   return JSON.parse(JSON.stringify(obj));
 }
 
-/**
- * Normalized snapshot used for dirty comparison.
- * - trims strings
- * - normalizes null/undefined/"" to ""
- * - rounds money to 2 decimals
- * - ints to integer strings
- */
 function normalizeForCompare(item: InventoryItem | null) {
   if (!item) return null;
 
@@ -92,7 +84,6 @@ function normalizeForCompare(item: InventoryItem | null) {
 
   const text = (v: unknown) => toText(v).trim();
 
-  // Fields the form edits
   return {
     id: item.id ?? "",
     sku: text(item.sku),
@@ -130,12 +121,9 @@ export default function StaffInventoryItemPage() {
 
   const [loading, setLoading] = React.useState(true);
 
-  // "committed" = last saved snapshot
   const [committed, setCommitted] = React.useState<InventoryItem | null>(null);
-  // "form" = draft edits
   const [form, setForm] = React.useState<InventoryItem | null>(null);
 
-  // purely placeholder: initial mock data only
   React.useEffect(() => {
     const numericId = Number(idParam);
     const mockItem: InventoryItem = {
@@ -187,7 +175,6 @@ export default function StaffInventoryItemPage() {
     e?.preventDefault?.();
     if (!form) return;
 
-    // Pure placeholder: clicking Save commits current form -> locks save
     setCommitted(cloneItem(form));
   }
 
