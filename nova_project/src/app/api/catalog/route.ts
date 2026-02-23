@@ -138,7 +138,6 @@ function normalizeLambdaPayload(
   limit: number,
   offset: number,
 ): CatalogResponse {
-  // unwrap API Gateway proxy wrapper: { body: "..." }
   const body = getString(raw, "body");
   if (body !== null) {
     try {
@@ -162,7 +161,6 @@ function normalizeLambdaPayload(
     getArray(raw, "items") ??
     (Array.isArray(raw) ? (raw as unknown[]) : []);
 
-  // page slice based on offset/limit
   const pageStart = Math.max(0, offset);
   const pageEnd = pageStart + limit;
   const data = dataRaw.slice(pageStart, pageEnd);
@@ -204,13 +202,10 @@ function normalizeLambdaPayload(
 async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
   const whereFilters: Record<string, unknown>[] = [];
 
+  // ✅ Search ONLY by itemName (case-insensitive, partial match)
   if (q.q) {
     whereFilters.push({
-      OR: [
-        { itemName: { contains: q.q, mode: "insensitive" } },
-        { description: { contains: q.q, mode: "insensitive" } },
-        { sku: { contains: q.q, mode: "insensitive" } },
-      ],
+      itemName: { contains: q.q},
     });
   }
 
@@ -248,6 +243,7 @@ async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
         }
       : undefined;
 
+  // ✅ Matches your prisma schema.prisma exactly
   const select = {
     id: true,
     sku: true,
@@ -265,6 +261,8 @@ async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
     dateAcquired: true,
     reorderLevel: true,
     unitCost: true,
+    createdAt: true,
+    updatedAt: true,
   };
 
   const [totalCount, catalogItems] = await prisma.$transaction([
@@ -304,7 +302,10 @@ async function fallbackToLambda(q: CatalogQuery): Promise<NextResponse> {
   const upstreamUrl = new URL(`${upstreamBase}/catalog`);
   upstreamUrl.searchParams.set("limit", String(q.limit));
   upstreamUrl.searchParams.set("offset", String(q.offset));
+
+  // Keep query param name consistent with your app ("q")
   if (q.q) upstreamUrl.searchParams.set("q", q.q);
+
   if (q.categoriesCsv)
     upstreamUrl.searchParams.set("categories", q.categoriesCsv);
   if (q.priceBucketsCsv)
