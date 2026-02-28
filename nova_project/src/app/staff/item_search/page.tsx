@@ -4,13 +4,31 @@ import Link from "next/link";
 import { CatalogItem } from "@prisma/client";
 import { useRouter, useSearchParams } from "next/navigation";
 
+const CATEGORY_OPTIONS = [
+  "Laboratory Supplies",
+  "Live Algae Specimens",
+  "Live Bacteria & Fungi Specimens",
+  "Live Invertebrates",
+  "Live Plant Specimens",
+  "Live Protozoa Specimens",
+  "Live Vertebrates",
+  "Microbiological Supplies",
+  "Microscopes",
+  "Owl Pellets",
+  "Preserved Invertebrates",
+  "Preserved Vertebrates",
+];
+
 const StaffItemSearchPage = () => {
 
   const router = useRouter();
 
   const searchParams = useSearchParams();
 
-  const pageSize = Number(searchParams.get("pageSize")) || 20;
+  const pageSizeParam = searchParams.get("pageSize") || "20";
+  const categoryParam = searchParams.get("category") || "all";
+  const subcategoryParam = searchParams.get("subcategory") || "all";
+  const typeParam = searchParams.get("type") || "all";
 
   const offset = Number(searchParams.get("offset")) || 0;
 
@@ -18,35 +36,195 @@ const StaffItemSearchPage = () => {
 
   const [catalogItems, setCatalogItems] = React.useState<CatalogItem[]>([]);
   const [totalItems, setTotalItems] = React.useState(0);
+  const [subcategories, setSubcategories] = React.useState<string[]>([]);
+  const [types, setTypes] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     const fetchItems = async () => {
-      const response = await fetch(
-        `/api/catalog/staff?pageSize=${pageSize}&offset=${offset}`
-      );
+      const effectivePageSize =
+        pageSizeParam === "all" ? Math.max(totalItems, 1) : Number(pageSizeParam) || 20;
+      const params = new URLSearchParams({
+        pageSize: String(effectivePageSize),
+        offset: String(offset),
+      });
+
+      if (categoryParam !== "all") {
+        params.set("category", categoryParam);
+      }
+
+      if (subcategoryParam !== "all") {
+        params.set("subcategory", subcategoryParam);
+      }
+
+      if (typeParam !== "all") {
+        params.set("type", typeParam);
+      }
+
+      const response = await fetch(`/api/catalog/staff?${params.toString()}`);
       const items = await response.json();
       setCatalogItems(items);
     };
     fetchItems();
-  }, [pageSize, offset]);
+  }, [pageSizeParam, offset, totalItems, categoryParam, subcategoryParam, typeParam]);
 
   React.useEffect(() => {
     const fetchTotalItems = async () => {
-      const response = await fetch("/api/catalog/staff/count");
+      const params = new URLSearchParams();
+
+      if (categoryParam !== "all") {
+        params.set("category", categoryParam);
+      }
+
+      if (subcategoryParam !== "all") {
+        params.set("subcategory", subcategoryParam);
+      }
+
+      if (typeParam !== "all") {
+        params.set("type", typeParam);
+      }
+
+      const response = await fetch(`/api/catalog/staff/count?${params.toString()}`);
       const { count } = await response.json();
       setTotalItems(count);
     };
     fetchTotalItems();
-  }, []);
+  }, [categoryParam, subcategoryParam, typeParam]);
+
+  React.useEffect(() => {
+    const fetchSubcategories = async () => {
+      if (categoryParam === "all") {
+        setSubcategories([]);
+        return;
+      }
+
+      const response = await fetch(
+        `/api/catalog/staff/subcategories?category=${encodeURIComponent(categoryParam)}`
+      );
+      const { subcategories: nextSubcategories } = await response.json();
+      setSubcategories(nextSubcategories);
+    };
+
+    fetchSubcategories();
+  }, [categoryParam]);
+
+  React.useEffect(() => {
+    const fetchTypes = async () => {
+      if (categoryParam === "all" || subcategoryParam === "all") {
+        setTypes([]);
+        return;
+      }
+
+      const params = new URLSearchParams({
+        category: categoryParam,
+        subcategory: subcategoryParam,
+      });
+
+      const response = await fetch(`/api/catalog/staff/types?${params.toString()}`);
+      const { types: nextTypes } = await response.json();
+      setTypes(nextTypes);
+    };
+
+    fetchTypes();
+  }, [categoryParam, subcategoryParam]);
 
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newPageSize = Number(e.target.value);
-    router.push(`/staff/item_search?pageSize=${newPageSize}&offset=0`);
+    const newPageSize = e.target.value;
+    const params = new URLSearchParams({
+      pageSize: newPageSize,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategory = e.target.value;
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (newCategory !== "all") {
+      params.set("category", newCategory);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleSubcategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSubcategory = e.target.value;
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (newSubcategory !== "all") {
+      params.set("subcategory", newSubcategory);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value;
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (newType !== "all") {
+      params.set("type", newType);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
   };
 
   const handlePageChange = (newOffset: number) => {
-    router.push(`/staff/item_search?pageSize=${pageSize}&offset=${newOffset}`);
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: String(newOffset),
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
   };
+
+  const pageSize = pageSizeParam === "all" ? Math.max(totalItems, 1) : Number(pageSizeParam) || 20;
 
   const totalPages = Math.ceil(totalItems / pageSize);
   const currentPage = Math.floor(offset / pageSize) + 1;
@@ -55,6 +233,16 @@ const StaffItemSearchPage = () => {
   const handleJumpByPages = (pageDelta: number) => {
     const newOffset = offset + pageDelta * pageSize;
     handlePageChange(Math.min(Math.max(newOffset, 0), maxOffset));
+  };
+
+  const formatItemName = (name: string) => {
+    const maxLength = 36;
+
+    if (name.length <= maxLength) {
+      return name;
+    }
+
+    return `${name.slice(0, maxLength)}...`;
   };
 
 
@@ -103,43 +291,58 @@ const StaffItemSearchPage = () => {
             </div>
 
             <div className="item-search-page__filter-row">
-              <select className="item-search-page__select">
+              <select
+                className="item-search-page__select"
+                onChange={handleCategoryChange}
+                value={categoryParam}
+              >
 
-                <option>Category: All</option>
+                <option value="all">Category: All</option>
 
-                <option>Laboratory Supplies</option>
-
-                <option>Live Algae Specimens</option>
-
-                <option>Live Bacteria &amp; Fungi Specimens</option>
-
-                <option>Live Invertebrates</option>
-
-                <option>Live Plant Specimens</option>
-
-                <option>Live Protozoa Specimens</option>
-
-                <option>Live Vertebrates</option>
-
-                <option>Microbiological Supplies</option>
-
-                <option>Microscopes</option>
-
-                <option>Owl Pellets</option>
-
-                <option>Preserved Invertebrates</option>
-
-                <option>Preserved Vertebrates</option>
+                {CATEGORY_OPTIONS.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
 
               </select>
+              {categoryParam !== "all" && (
+                <select
+                  className="item-search-page__select"
+                  onChange={handleSubcategoryChange}
+                  value={subcategoryParam}
+                >
+                  <option value="all">Subcategory: All</option>
+                  {subcategories.map((subcategory) => (
+                    <option key={subcategory} value={subcategory}>
+                      {subcategory}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {subcategoryParam !== "all" && (
+                <select
+                  className="item-search-page__select"
+                  onChange={handleTypeChange}
+                  value={typeParam}
+                >
+                  <option value="all">Type: All</option>
+                  {types.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              )}
               <select
                 className="item-search-page__select"
                 onChange={handlePageSizeChange}
-                value={pageSize}
+                value={pageSizeParam}
               >
                 <option value="20">20 per page</option>
                 <option value="50">50 per page</option>
                 <option value="100">100 per page</option>
+                <option value="all">All</option>
               </select>
 
             </div>
@@ -230,7 +433,7 @@ const StaffItemSearchPage = () => {
 
                   <td className="item-search-page__td">{item.sku}</td>
 
-                  <td className="item-search-page__td">{item.itemName}</td>
+                  <td className="item-search-page__td">{formatItemName(item.itemName)}</td>
 
                   <td className="item-search-page__td">{item.category1}</td>
 
