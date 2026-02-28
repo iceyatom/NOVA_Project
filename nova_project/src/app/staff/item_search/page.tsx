@@ -6,52 +6,11 @@
 
 import React from "react";
 import Link from "next/link";
+import { prisma } from "@/lib/db";
+import { CatalogItem } from "@prisma/client";
 
-// Mock data for catalog items
-const mockItems = [
-  {
-    id: "NILE-001",
-    name: "Preserved Frog",
-    category: "Vertebrates",
-    stock: 50,
-    price: 5.99,
-    updatedAt: "2026-02-18",
-  },
-  {
-    id: "NILE-002",
-    name: "Live Amoeba Culture",
-    category: "Protozoa",
-    stock: 120,
-    price: 12.5,
-    updatedAt: "2026-02-20",
-  },
-  {
-    id: "NILE-003",
-    name: "Owl Pellet",
-    category: "Owl Pellets",
-    stock: 200,
-    price: 2.75,
-    updatedAt: "2026-02-16",
-  },
-  {
-    id: "NILE-004",
-    name: "E. Coli Bacteria Slope",
-    category: "Bacteria & Fungi",
-    stock: 75,
-    price: 9.0,
-    updatedAt: "2026-02-21",
-  },
-  {
-    id: "NILE-005",
-    name: "Earthworm",
-    category: "Invertebrates",
-    stock: 150,
-    price: 1.5,
-    updatedAt: "2026-02-19",
-  },
-];
-
-const StaffItemSearchPage = () => {
+const StaffItemSearchPage = async () => {
+  const catalogItems: CatalogItem[] = await prisma.catalogItem.findMany();
   return (
     <div className="item-search-page">
       <div className="item-search-page__inner">
@@ -122,17 +81,19 @@ const StaffItemSearchPage = () => {
               </tr>
             </thead>
             <tbody className="item-search-page__tbody">
-              {mockItems.map((item) => (
+              {catalogItems.map((item) => (
                 <tr key={item.id} className="item-search-page__tr">
                   <td className="item-search-page__td">
                     <input type="checkbox" />
                   </td>
-                  <td className="item-search-page__td">{item.id}</td>
-                  <td className="item-search-page__td">{item.name}</td>
-                  <td className="item-search-page__td">{item.category}</td>
-                  <td className="item-search-page__td">{item.stock}</td>
+                  <td className="item-search-page__td">{item.sku}</td>
+                  <td className="item-search-page__td">{item.itemName}</td>
+                  <td className="item-search-page__td">{item.category1}</td>
                   <td className="item-search-page__td">
-                    ${item.price.toFixed(2)}
+                    {item.quantityInStock}
+                  </td>
+                  <td className="item-search-page__td">
+                    ${Number(item.price).toFixed(2)}
                   </td>
                   <td className="item-search-page__td">
                     {new Date(item.updatedAt).toLocaleDateString("en-US", {
