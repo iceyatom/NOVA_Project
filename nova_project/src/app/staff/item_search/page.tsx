@@ -50,6 +50,12 @@ const StaffItemSearchPage = () => {
 
   const totalPages = Math.ceil(totalItems / pageSize);
   const currentPage = Math.floor(offset / pageSize) + 1;
+  const maxOffset = Math.max(0, (totalPages - 1) * pageSize);
+
+  const handleJumpByPages = (pageDelta: number) => {
+    const newOffset = offset + pageDelta * pageSize;
+    handlePageChange(Math.min(Math.max(newOffset, 0), maxOffset));
+  };
 
 
 
@@ -97,22 +103,33 @@ const StaffItemSearchPage = () => {
             </div>
 
             <div className="item-search-page__filter-row">
-
-              <button className="item-search-page__filter-button">
-
-                Filters
-
-              </button>
-
               <select className="item-search-page__select">
 
                 <option>Category: All</option>
 
-                <option>Vertebrates</option>
+                <option>Laboratory Supplies</option>
 
-                <option>Invertebrates</option>
+                <option>Live Algae Specimens</option>
 
-                <option>Protozoa</option>
+                <option>Live Bacteria &amp; Fungi Specimens</option>
+
+                <option>Live Invertebrates</option>
+
+                <option>Live Plant Specimens</option>
+
+                <option>Live Protozoa Specimens</option>
+
+                <option>Live Vertebrates</option>
+
+                <option>Microbiological Supplies</option>
+
+                <option>Microscopes</option>
+
+                <option>Owl Pellets</option>
+
+                <option>Preserved Invertebrates</option>
+
+                <option>Preserved Vertebrates</option>
 
               </select>
               <select
@@ -267,41 +284,57 @@ const StaffItemSearchPage = () => {
 
           </table>
 
-          <div className="item-search-page__pagination-controls">
-
-            <button
-
-              className="item-search-page__pagination-button"
-
-              onClick={() => handlePageChange(offset - pageSize)}
-
-              disabled={offset === 0}
-
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <div
+              className="item-search-page__pagination-controls"
+              style={{ display: "flex", alignItems: "center", gap: "1rem" }}
             >
-
-              Previous
-
-            </button>
-
-            <span className="item-search-page__page-info">
-
-              Page {currentPage} of {totalPages}
-
-            </span>
-
-            <button
-
-              className="item-search-page__pagination-button"
-
-              onClick={() => handlePageChange(offset + pageSize)}
-              disabled={currentPage === totalPages}
-
-            >
-
-              Next
-
-            </button>
-
+              <button
+                className="pagination__nav"
+                onClick={() => handlePageChange(0)}
+                disabled={offset === 0}
+              >
+                &lt;&lt;&lt;
+              </button>
+              <button
+                className="pagination__nav"
+                onClick={() => handleJumpByPages(-5)}
+                disabled={offset === 0}
+              >
+                &lt;&lt;
+              </button>
+              <button
+                className="pagination__nav"
+                onClick={() => handlePageChange(offset - pageSize)}
+                disabled={offset === 0}
+              >
+                &lt;
+              </button>
+              <span className="item-search-page__page-info">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                className="pagination__nav"
+                onClick={() => handlePageChange(offset + pageSize)}
+                disabled={currentPage === totalPages}
+              >
+                &gt;
+              </button>
+              <button
+                className="pagination__nav"
+                onClick={() => handleJumpByPages(5)}
+                disabled={currentPage === totalPages}
+              >
+                &gt;&gt;
+              </button>
+              <button
+                className="pagination__nav"
+                onClick={() => handlePageChange(maxOffset)}
+                disabled={currentPage === totalPages}
+              >
+                &gt;&gt;&gt;
+              </button>
+            </div>
           </div>
 
         </div>

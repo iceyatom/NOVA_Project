@@ -2288,6 +2288,7 @@ body:has(.loginPage) main {
   display: flex;
   align-items: center;
   margin-top: 1rem;
+  gap: 1rem;
 }
 
 .item-search-page__filter-button {
@@ -2303,7 +2304,6 @@ body:has(.loginPage) main {
   padding: 0.5rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
-  margin-left: 1rem;
 }
 
 .item-search-page__table-wrap {
