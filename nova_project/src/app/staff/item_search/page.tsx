@@ -27,7 +27,7 @@ type SortColumn =
   | "stock"
   | "lastModified";
 
-const StaffItemSearchPage = () => {
+const StaffItemSearchPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -344,21 +344,9 @@ const StaffItemSearchPage = () => {
 
   const handleClearSort = () => {
     const params = new URLSearchParams({
-      pageSize: pageSizeParam,
+      pageSize: "20",
       offset: "0",
     });
-
-    if (categoryParam !== "all") {
-      params.set("category", categoryParam);
-    }
-
-    if (subcategoryParam !== "all") {
-      params.set("subcategory", subcategoryParam);
-    }
-
-    if (typeParam !== "all") {
-      params.set("type", typeParam);
-    }
 
     if (searchQueryParam) {
       params.set("query", searchQueryParam);
@@ -590,7 +578,13 @@ const StaffItemSearchPage = () => {
                 type="button"
                 className="item-search-page__filter-button"
                 onClick={handleClearSort}
-                disabled={!sortByParam}
+                disabled={
+                  !sortByParam &&
+                  categoryParam === "all" &&
+                  pageSizeParam === "20" &&
+                  subcategoryParam === "all" &&
+                  typeParam === "all"
+                }
               >
                 Clear Filters
               </button>
@@ -799,6 +793,14 @@ const StaffItemSearchPage = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const StaffItemSearchPage = () => {
+  return (
+    <React.Suspense fallback={null}>
+      <StaffItemSearchPageContent />
+    </React.Suspense>
   );
 };
 

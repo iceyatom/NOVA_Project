@@ -1,6 +1,7 @@
 // src/app/api/catalog/staff/route.ts
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -11,9 +12,10 @@ export async function GET(req: Request) {
   const type = searchParams.get("type");
   const query = searchParams.get("query");
   const sortBy = searchParams.get("sortBy");
-  const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
+  const sortOrder: Prisma.SortOrder =
+    searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
 
-  const orderBy =
+  const orderBy: Prisma.CatalogItemOrderByWithRelationInput | undefined =
     sortBy === "sku"
       ? { sku: sortOrder }
       : sortBy === "name"
