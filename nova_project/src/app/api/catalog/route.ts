@@ -205,7 +205,7 @@ async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
   // ✅ Search ONLY by itemName (case-insensitive, partial match)
   if (q.q) {
     whereFilters.push({
-      itemName: { contains: q.q},
+      itemName: { contains: q.q },
     });
   }
 
