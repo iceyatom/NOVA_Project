@@ -15,12 +15,12 @@ type CatalogItemPageProps = {
 
 function formatPrice(price: number | string | Decimal | null): string {
   if (price === null || price === undefined) return "$0.00";
-  
+
   // Handle Prisma Decimal type
   if (price instanceof Decimal) {
     return `$${price.toFixed(2)}`;
   }
-  
+
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
   if (!Number.isFinite(numPrice)) return "$0.00";
   return `$${numPrice.toFixed(2)}`;
@@ -51,10 +51,10 @@ export default async function CatalogItemPage({
 }: CatalogItemPageProps) {
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  
+
   // Parse and validate ID
   const itemId = parseInt(resolvedParams.id, 10);
-  
+
   if (!Number.isFinite(itemId) || itemId <= 0) {
     notFound();
   }
@@ -119,9 +119,13 @@ export default async function CatalogItemPage({
   const description = item.description;
   const price = formatPrice(item.price);
   const stockStatus = getStockStatus(item.quantityInStock, item.reorderLevel);
-  
+
   // Use placeholder images for now
-  const images = ["/FillerImage.webp", "/FillerImage.webp", "/FillerImage.webp"];
+  const images = [
+    "/FillerImage.webp",
+    "/FillerImage.webp",
+    "/FillerImage.webp",
+  ];
 
   return (
     <main style={{ padding: "2rem" }}>
@@ -150,11 +154,16 @@ export default async function CatalogItemPage({
 
             <div className="product-carousel-track">
               {images.map((img, i) => (
-                <button key={i} className="product-carousel-thumb" type="button" aria-label={`View image ${i+1}`}>
+                <button
+                  key={i}
+                  className="product-carousel-thumb"
+                  type="button"
+                  aria-label={`View image ${i + 1}`}
+                >
                   <Image
                     className="product-carousel-thumb-img"
                     src={img}
-                    alt={`Image ${i+1} of ${title}`}
+                    alt={`Image ${i + 1} of ${title}`}
                     width={160}
                     height={120}
                   />
@@ -183,15 +192,9 @@ export default async function CatalogItemPage({
           </div>
 
           <section className="product-category">
-            {category1 && (
-              <p className="product-category1-text">{category1}</p>
-            )}
-            {category2 && (
-              <p className="product-category2-text">{category2}</p>
-            )}
-            {category3 && (
-              <p className="product-category3-text">{category3}</p>
-            )}
+            {category1 && <p className="product-category1-text">{category1}</p>}
+            {category2 && <p className="product-category2-text">{category2}</p>}
+            {category3 && <p className="product-category3-text">{category3}</p>}
           </section>
 
           <section className="product-description">
@@ -202,7 +205,13 @@ export default async function CatalogItemPage({
 
           {/* Additional product details */}
           <section className="product-details" style={{ marginTop: "1.5rem" }}>
-            <h2 style={{ fontSize: "1.25rem", fontWeight: "600", marginBottom: "0.75rem" }}>
+            <h2
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: "600",
+                marginBottom: "0.75rem",
+              }}
+            >
               Product Details
             </h2>
             <div style={{ display: "grid", gap: "0.5rem" }}>
@@ -232,12 +241,14 @@ export default async function CatalogItemPage({
               )}
               {item.expirationDate && (
                 <div>
-                  <strong>Expiration Date:</strong> {formatDate(item.expirationDate)}
+                  <strong>Expiration Date:</strong>{" "}
+                  {formatDate(item.expirationDate)}
                 </div>
               )}
               {item.dateAcquired && (
                 <div>
-                  <strong>Date Acquired:</strong> {formatDate(item.dateAcquired)}
+                  <strong>Date Acquired:</strong>{" "}
+                  {formatDate(item.dateAcquired)}
                 </div>
               )}
             </div>

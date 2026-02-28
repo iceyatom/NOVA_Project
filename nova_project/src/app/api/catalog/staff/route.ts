@@ -9,6 +9,23 @@ export async function GET(req: Request) {
   const category = searchParams.get("category");
   const subcategory = searchParams.get("subcategory");
   const type = searchParams.get("type");
+  const sortBy = searchParams.get("sortBy");
+  const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
+
+  const orderBy =
+    sortBy === "sku"
+      ? { sku: sortOrder }
+      : sortBy === "name"
+        ? { itemName: sortOrder }
+        : sortBy === "category"
+          ? { category1: sortOrder }
+          : sortBy === "price"
+            ? { price: sortOrder }
+            : sortBy === "stock"
+              ? { quantityInStock: sortOrder }
+              : sortBy === "lastModified"
+                ? { updatedAt: sortOrder }
+                : undefined;
 
   const catalogItems = await prisma.catalogItem.findMany({
     where: {
@@ -16,6 +33,7 @@ export async function GET(req: Request) {
       ...(subcategory ? { category2: subcategory } : {}),
       ...(type ? { category1: type } : {}),
     },
+    orderBy,
     take: pageSize,
     skip: offset,
   });
