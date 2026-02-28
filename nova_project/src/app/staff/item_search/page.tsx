@@ -35,6 +35,7 @@ const StaffItemSearchPage = () => {
   const categoryParam = searchParams.get("category") || "all";
   const subcategoryParam = searchParams.get("subcategory") || "all";
   const typeParam = searchParams.get("type") || "all";
+  const searchQueryParam = searchParams.get("query") || "";
   const sortByParam = searchParams.get("sortBy") || "";
   const sortOrderParam = searchParams.get("sortOrder") || "asc";
   const offset = Number(searchParams.get("offset")) || 0;
@@ -43,6 +44,11 @@ const StaffItemSearchPage = () => {
   const [totalItems, setTotalItems] = React.useState(0);
   const [subcategories, setSubcategories] = React.useState<string[]>([]);
   const [types, setTypes] = React.useState<string[]>([]);
+  const [searchInput, setSearchInput] = React.useState(searchQueryParam);
+
+  React.useEffect(() => {
+    setSearchInput(searchQueryParam);
+  }, [searchQueryParam]);
 
   React.useEffect(() => {
     const fetchItems = async () => {
@@ -67,6 +73,10 @@ const StaffItemSearchPage = () => {
         params.set("type", typeParam);
       }
 
+      if (searchQueryParam) {
+        params.set("query", searchQueryParam);
+      }
+
       if (sortByParam) {
         params.set("sortBy", sortByParam);
         params.set("sortOrder", sortOrderParam);
@@ -85,6 +95,7 @@ const StaffItemSearchPage = () => {
     categoryParam,
     subcategoryParam,
     typeParam,
+    searchQueryParam,
     sortByParam,
     sortOrderParam,
   ]);
@@ -105,6 +116,10 @@ const StaffItemSearchPage = () => {
         params.set("type", typeParam);
       }
 
+      if (searchQueryParam) {
+        params.set("query", searchQueryParam);
+      }
+
       const response = await fetch(
         `/api/catalog/staff/count?${params.toString()}`,
       );
@@ -113,7 +128,7 @@ const StaffItemSearchPage = () => {
     };
 
     fetchTotalItems();
-  }, [categoryParam, subcategoryParam, typeParam]);
+  }, [categoryParam, subcategoryParam, typeParam, searchQueryParam]);
 
   React.useEffect(() => {
     const fetchSubcategories = async () => {
@@ -173,6 +188,10 @@ const StaffItemSearchPage = () => {
       params.set("type", typeParam);
     }
 
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
     if (sortByParam) {
       params.set("sortBy", sortByParam);
       params.set("sortOrder", sortOrderParam);
@@ -190,6 +209,10 @@ const StaffItemSearchPage = () => {
 
     if (newCategory !== "all") {
       params.set("category", newCategory);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
     }
 
     if (sortByParam) {
@@ -213,6 +236,10 @@ const StaffItemSearchPage = () => {
 
     if (newSubcategory !== "all") {
       params.set("subcategory", newSubcategory);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
     }
 
     if (sortByParam) {
@@ -242,6 +269,10 @@ const StaffItemSearchPage = () => {
       params.set("type", newType);
     }
 
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
     if (sortByParam) {
       params.set("sortBy", sortByParam);
       params.set("sortOrder", sortOrderParam);
@@ -266,6 +297,10 @@ const StaffItemSearchPage = () => {
 
     if (typeParam !== "all") {
       params.set("type", typeParam);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
     }
 
     const nextSortOrder =
@@ -295,6 +330,10 @@ const StaffItemSearchPage = () => {
       params.set("type", typeParam);
     }
 
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
     if (sortByParam) {
       params.set("sortBy", sortByParam);
       params.set("sortOrder", sortOrderParam);
@@ -319,6 +358,72 @@ const StaffItemSearchPage = () => {
 
     if (typeParam !== "all") {
       params.set("type", typeParam);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    const trimmedSearchInput = searchInput.trim();
+
+    if (trimmedSearchInput) {
+      params.set("query", trimmedSearchInput);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
     }
 
     router.push(`/staff/item_search?${params.toString()}`);
@@ -384,13 +489,47 @@ const StaffItemSearchPage = () => {
 
         <div className="item-search-page__controls">
           <div className="item-search-page__search">
-            <div>
-              <input
-                type="text"
-                placeholder="Search by keyword, SKU, or name..."
-                className="item-search-page__search-input"
-              />
-            </div>
+            <form onSubmit={handleSearchSubmit}>
+              <div className="item-search-page__search-bar">
+                <div className="item-search-page__search-input-wrap">
+                  <input
+                    type="text"
+                    placeholder="Search by SKU or Name"
+                    className="item-search-page__search-input"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                  />
+                  {(searchInput || searchQueryParam) && (
+                    <button
+                      type="button"
+                      className="item-search-page__search-clear"
+                      onClick={handleClearSearch}
+                      aria-label="Clear search"
+                    >
+                      x
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  className="item-search-page__search-submit"
+                  aria-label="Search"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </button>
+              </div>
+            </form>
 
             <div className="item-search-page__filter-row">
               <select

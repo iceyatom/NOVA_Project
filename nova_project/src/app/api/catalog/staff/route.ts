@@ -9,6 +9,7 @@ export async function GET(req: Request) {
   const category = searchParams.get("category");
   const subcategory = searchParams.get("subcategory");
   const type = searchParams.get("type");
+  const query = searchParams.get("query");
   const sortBy = searchParams.get("sortBy");
   const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
 
@@ -32,6 +33,14 @@ export async function GET(req: Request) {
       ...(category ? { category3: category } : {}),
       ...(subcategory ? { category2: subcategory } : {}),
       ...(type ? { category1: type } : {}),
+      ...(query
+        ? {
+            OR: [
+              { sku: { contains: query } },
+              { itemName: { contains: query } },
+            ],
+          }
+        : {}),
     },
     orderBy,
     take: pageSize,
