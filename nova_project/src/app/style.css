@@ -2365,3 +2365,24 @@ body:has(.loginPage) main {
   text-align: left;
   width: 100%;
 }
+
+/* Profile/account icon styles */
+.profile-icon-container {
+  margin-left: 1rem;
+}
+
+.profile-popup {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  min-width: 180px;
+  background: #fff;
+  color: #222;
+  border: 1px solid #eee;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  border-radius: 8px;
+  padding: 1rem;
+  z-index: 100;
+  font-size: 0.95rem;
+  transition: opacity 0.2s;
+}
