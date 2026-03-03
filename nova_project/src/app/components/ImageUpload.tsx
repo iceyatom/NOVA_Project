@@ -139,6 +139,7 @@ export default function ImageUpload({
         // Selected state - preview and file info
         <div className="image-upload-selected">
           <div className="image-upload-preview-wrapper">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewUrl}
               alt="Preview of selected image"
