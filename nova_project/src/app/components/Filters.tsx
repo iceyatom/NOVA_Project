@@ -1,12 +1,19 @@
-// src/app/components/Filters.tsx
 "use client";
 import * as React from "react";
+
+type PriceRange = {
+  min: number;
+  max: number;
+};
 
 type FilterPanelProps = {
   className?: string;
   selectedCategories?: string[];
-  selectedPrices?: string[];
-  onChange?: (next: { categories: string[]; prices: string[] }) => void;
+  selectedPriceRange?: PriceRange;
+  onChange?: (next: {
+    categories: string[];
+    priceRange: PriceRange;
+  }) => void;
 };
 
 const CATEGORIES = [
@@ -23,70 +30,91 @@ const CATEGORIES = [
   "Preserved Invertebrates",
   "Preserved Vertebrates",
 ];
-const PRICE_BUCKETS = ["Under $50", "$50–$99", "$100–$249", "$250+"];
+
+const MIN_PRICE = 0;
+const MAX_PRICE = 500;
+const PRICE_STEP = 5;
 
 export default function Filters({
   className = "",
   selectedCategories: selectedCategoriesProp = [],
-  selectedPrices: selectedPricesProp = [],
+  selectedPriceRange: selectedPriceRangeProp = {
+    min: MIN_PRICE,
+    max: MAX_PRICE,
+  },
   onChange,
 }: FilterPanelProps) {
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>(
     selectedCategoriesProp,
   );
-  const [selectedPrices, setSelectedPrices] =
-    React.useState<string[]>(selectedPricesProp);
-
-  // Custom price range slider state (UI-only for now)
-  const [customMin, setCustomMin] = React.useState<number>(0);
-  const [customMax, setCustomMax] = React.useState<number>(500);
+  const [customMin, setCustomMin] = React.useState<number>(
+    selectedPriceRangeProp.min,
+  );
+  const [customMax, setCustomMax] = React.useState<number>(
+    selectedPriceRangeProp.max,
+  );
 
   React.useEffect(() => {
     setSelectedCategories(selectedCategoriesProp);
   }, [selectedCategoriesProp]);
 
   React.useEffect(() => {
-    setSelectedPrices(selectedPricesProp);
-  }, [selectedPricesProp]);
+    setCustomMin(selectedPriceRangeProp.min);
+    setCustomMax(selectedPriceRangeProp.max);
+  }, [selectedPriceRangeProp]);
+
+  const emitChange = React.useCallback(
+    (next: { categories: string[]; priceRange: PriceRange }) => {
+      onChange?.(next);
+    },
+    [onChange],
+  );
 
   const toggleCategory = (val: string) => {
     const next = selectedCategories.includes(val)
       ? selectedCategories.filter((v) => v !== val)
       : [...selectedCategories, val];
     setSelectedCategories(next);
-    onChange?.({ categories: next, prices: selectedPrices });
-  };
-
-  const selectPrice = (val: string) => {
-    const next = [val];
-    setSelectedPrices(next);
-    onChange?.({ categories: selectedCategories, prices: next });
+    emitChange({
+      categories: next,
+      priceRange: { min: customMin, max: customMax },
+    });
   };
 
   const clearAll = () => {
     setSelectedCategories([]);
-    setSelectedPrices([]);
-    onChange?.({ categories: [], prices: [] });
+    setCustomMin(MIN_PRICE);
+    setCustomMax(MAX_PRICE);
+    emitChange({
+      categories: [],
+      priceRange: { min: MIN_PRICE, max: MAX_PRICE },
+    });
   };
 
-  // Custom price range slider handlers (UI-only, no backend calls)
   const handleMinChange = (value: number) => {
-    // Snap to nearest $5 increment
-    const snappedValue = Math.round(value / 5) * 5;
-    // Ensure min doesn't exceed max
-    setCustomMin(Math.min(snappedValue, customMax - 5));
+    const snappedValue = Math.round(value / PRICE_STEP) * PRICE_STEP;
+    const nextMin = Math.min(snappedValue, customMax - PRICE_STEP);
+    setCustomMin(nextMin);
+    emitChange({
+      categories: selectedCategories,
+      priceRange: { min: nextMin, max: customMax },
+    });
   };
 
   const handleMaxChange = (value: number) => {
-    // Snap to nearest $5 increment
-    const snappedValue = Math.round(value / 5) * 5;
-    // Ensure max doesn't go below min
-    setCustomMax(Math.max(snappedValue, customMin + 5));
+    const snappedValue = Math.round(value / PRICE_STEP) * PRICE_STEP;
+    const nextMax = Math.max(snappedValue, customMin + PRICE_STEP);
+    setCustomMax(nextMax);
+    emitChange({
+      categories: selectedCategories,
+      priceRange: { min: customMin, max: nextMax },
+    });
   };
+
+  const isPriceFilterActive = customMin > MIN_PRICE || customMax < MAX_PRICE;
 
   return (
     <section className={`filters ${className}`} aria-label="Catalog filters">
-      {/* Categories */}
       <fieldset className="filter-group">
         <legend className="filter-group__legend">Categories</legend>
         <ul className="filter-list">
@@ -110,34 +138,8 @@ export default function Filters({
         </ul>
       </fieldset>
 
-      {/* Price */}
       <fieldset className="filter-group">
-        <legend className="filter-group__legend">Price</legend>
-        <ul className="filter-list">
-          {PRICE_BUCKETS.map((p) => {
-            const id = `price-${p.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}`;
-            const checked = selectedPrices[0] === p;
-            return (
-              <li key={p}>
-                <label htmlFor={id} className="filter-row">
-                  <input
-                    id={id}
-                    type="radio"
-                    name="price"
-                    checked={checked}
-                    onChange={() => selectPrice(p)}
-                  />
-                  <span className="filter-label">{p}</span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      </fieldset>
-
-      {/* Custom Price Range Slider (UI-only) */}
-      <fieldset className="filter-group">
-        <legend className="filter-group__legend">Custom Price Range</legend>
+        <legend className="filter-group__legend">Price Range</legend>
         <div className="price-range-slider">
           <div className="price-range-inputs">
             <div className="price-range-input-group">
@@ -149,15 +151,15 @@ export default function Filters({
             <input
               id="price-min"
               type="range"
-              min="0"
-              max="500"
-              step="5"
+              min={MIN_PRICE}
+              max={MAX_PRICE}
+              step={PRICE_STEP}
               value={customMin}
               onChange={(e) => handleMinChange(Number(e.target.value))}
               className="price-range-input"
               aria-label="Minimum price"
-              aria-valuemin={0}
-              aria-valuemax={500}
+              aria-valuemin={MIN_PRICE}
+              aria-valuemax={MAX_PRICE}
               aria-valuenow={customMin}
               aria-valuetext={`$${customMin}`}
             />
@@ -172,15 +174,15 @@ export default function Filters({
             <input
               id="price-max"
               type="range"
-              min="0"
-              max="500"
-              step="5"
+              min={MIN_PRICE}
+              max={MAX_PRICE}
+              step={PRICE_STEP}
               value={customMax}
               onChange={(e) => handleMaxChange(Number(e.target.value))}
               className="price-range-input"
               aria-label="Maximum price"
-              aria-valuemin={0}
-              aria-valuemax={500}
+              aria-valuemin={MIN_PRICE}
+              aria-valuemax={MAX_PRICE}
               aria-valuenow={customMax}
               aria-valuetext={`$${customMax}`}
             />
@@ -194,17 +196,16 @@ export default function Filters({
         </div>
       </fieldset>
 
-      {/* Active Filters summary */}
       <div className="filters__summary" aria-live="polite" aria-atomic="true">
         <strong>Active Filters:</strong>{" "}
-        {selectedCategories.length === 0 && selectedPrices.length === 0
+        {selectedCategories.length === 0 && !isPriceFilterActive
           ? "None"
           : [
               selectedCategories.length
                 ? `Category [${selectedCategories.join(", ")}]`
                 : null,
-              selectedPrices.length
-                ? `Price [${selectedPrices.join(", ")}]`
+              isPriceFilterActive
+                ? `Price [$${customMin} - $${customMax}]`
                 : null,
             ]
               .filter(Boolean)
