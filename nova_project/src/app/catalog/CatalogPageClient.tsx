@@ -254,7 +254,12 @@ export default function CatalogPageClient() {
   );
 
   useEffect(() => {
-    if (!hasLoadedOnce || isLoading || errorMessage || currentPage <= totalPages) {
+    if (
+      !hasLoadedOnce ||
+      isLoading ||
+      errorMessage ||
+      currentPage <= totalPages
+    ) {
       return;
     }
 
@@ -339,7 +344,13 @@ export default function CatalogPageClient() {
     void loadCatalog();
 
     return () => controller.abort();
-  }, [currentPage, pageSize, searchText, selectedCategories, selectedPriceRange]);
+  }, [
+    currentPage,
+    pageSize,
+    searchText,
+    selectedCategories,
+    selectedPriceRange,
+  ]);
 
   const handleSearch = (query: string) => {
     const nextQuery = query.trim();

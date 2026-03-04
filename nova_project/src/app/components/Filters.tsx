@@ -10,10 +10,7 @@ type FilterPanelProps = {
   className?: string;
   selectedCategories?: string[];
   selectedPriceRange?: PriceRange;
-  onChange?: (next: {
-    categories: string[];
-    priceRange: PriceRange;
-  }) => void;
+  onChange?: (next: { categories: string[]; priceRange: PriceRange }) => void;
 };
 
 const CATEGORIES = [
