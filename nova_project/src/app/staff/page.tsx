@@ -6,6 +6,7 @@ const tools = [
   { label: "Item search and browse", href: "/staff/item_search" },
   { label: "Item specific edit page UI", href: "/staff/item_edit" },
   { label: "Create item UI", href: "/staff/item_create" },
+  { label: "Image upload demo", href: "/staff/image-upload-demo" },
 ];
 
 export default function StaffDevHubPage() {
