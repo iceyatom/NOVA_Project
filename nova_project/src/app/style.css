@@ -1486,7 +1486,9 @@ body {
   cursor: pointer;
   border: 2px solid #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .price-range-input::-moz-range-thumb {
@@ -1497,7 +1499,9 @@ body {
   cursor: pointer;
   border: 2px solid #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .price-range-input::-webkit-slider-thumb:hover {
@@ -1766,7 +1770,11 @@ body {
 
 /* Hero Section */
 .about-hero {
-  background: linear-gradient(135deg, var(--brand-teal) 0%, var(--brand-teal-dark) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--brand-teal) 0%,
+    var(--brand-teal-dark) 100%
+  );
   color: var(--brand-teal-contrast);
   padding: 4rem 2rem;
   text-align: center;
@@ -1903,7 +1911,11 @@ body {
 }
 
 .about-cta-box {
-  background: linear-gradient(135deg, var(--brand-teal) 0%, var(--brand-teal-dark) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--brand-teal) 0%,
+    var(--brand-teal-dark) 100%
+  );
   color: white;
   padding: 3rem 2rem;
   border-radius: var(--radius-lg);
@@ -1985,7 +1997,9 @@ body {
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .about-image-card:hover {
@@ -2380,7 +2394,9 @@ body:has(.loginPage) main {
   border: 2px dashed var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-2);
-  transition: border-color 150ms ease, background-color 150ms ease;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
 }
 
 .image-upload-default:hover {
@@ -2400,7 +2416,9 @@ body:has(.loginPage) main {
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
-  transition: background-color 150ms ease, transform 120ms ease;
+  transition:
+    background-color 150ms ease,
+    transform 120ms ease;
   box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
 }
 
