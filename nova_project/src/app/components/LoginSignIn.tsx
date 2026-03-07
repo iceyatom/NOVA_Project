@@ -1,19 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "./AuthProvider";
 
 export default function LoginSignIn() {
+  const router = useRouter();
+  const { setUser } = useAuth();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {},
-  );
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    form?: string;
+  }>({});
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: {
+      email?: string;
+      password?: string;
+      form?: string;
+    } = {};
 
+    // Client-side validation
     if (!username) {
       newErrors.email = "Email address is required.";
     } else if (!username.includes("@")) {
@@ -30,8 +44,39 @@ export default function LoginSignIn() {
     }
 
     setErrors({});
+    setIsLoading(true);
 
-    console.log({ username, password });
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: username,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        setErrors({
+          form: data.message || "Invalid email or password.",
+        });
+        return;
+      }
+
+      // Successful login
+      setUser(data.user);
+
+      // Navigate without full page reload
+      router.push("/");
+    } catch (error) {
+      setErrors({
+        form: "Network error. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -39,15 +84,23 @@ export default function LoginSignIn() {
       <h1 className="loginTitle">Sign in</h1>
 
       <form className="loginForm" onSubmit={handleSubmit} noValidate>
+        {/* Form-level error */}
+        {errors.form && <p className="errorText">{errors.form}</p>}
+
         <label className="loginLabel">
           Email Address
           <input
             className={`loginInput ${errors.email ? "inputError" : ""}`}
             type="email"
             value={username}
+            disabled={isLoading}
             onChange={(e) => {
               setUsername(e.target.value);
-              setErrors((prev) => ({ ...prev, email: undefined }));
+              setErrors((prev) => ({
+                ...prev,
+                email: undefined,
+                form: undefined,
+              }));
             }}
           />
           {errors.email && <p className="errorText">{errors.email}</p>}
@@ -59,16 +112,25 @@ export default function LoginSignIn() {
             className={`loginInput ${errors.password ? "inputError" : ""}`}
             type="password"
             value={password}
+            disabled={isLoading}
             onChange={(e) => {
               setPassword(e.target.value);
-              setErrors((prev) => ({ ...prev, password: undefined }));
+              setErrors((prev) => ({
+                ...prev,
+                password: undefined,
+                form: undefined,
+              }));
             }}
           />
           {errors.password && <p className="errorText">{errors.password}</p>}
         </label>
 
-        <button className="loginButton" type="submit">
-          Log in
+        <button
+          className="loginButton"
+          type="submit"
+          disabled={isLoading}
+        >
+          {isLoading ? "Logging in..." : "Log in"}
         </button>
       </form>
     </section>
