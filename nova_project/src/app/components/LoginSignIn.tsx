@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 export default function LoginSignIn() {
   const [username, setUsername] = useState("");
@@ -31,6 +32,7 @@ export default function LoginSignIn() {
 
     setErrors({});
 
+    // No backend logic in this subtask:
     console.log({ username, password });
   };
 
@@ -71,6 +73,13 @@ export default function LoginSignIn() {
           Log in
         </button>
       </form>
+
+      <div className="authLinks" aria-label="Account actions">
+        <span className="authLinksText">New here?</span>
+        <Link className="authLink" href="/create_account">
+          Create Account
+        </Link>
+      </div>
     </section>
   );
 }
