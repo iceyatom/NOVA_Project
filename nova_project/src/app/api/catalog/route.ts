@@ -59,6 +59,7 @@ function parseCsv(value: string | null): string[] {
 }
 
 type CatalogQuery = {
+  id: number | null;
   limit: number;
   offset: number;
   q: string;
@@ -70,7 +71,7 @@ type CatalogQuery = {
 
 type CatalogResponse = {
   success: boolean;
-  data: unknown[];
+  data: unknown[] | unknown | null;
   count: number;
   totalCount: number;
   limit: number;
@@ -117,6 +118,8 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
   const url = new URL(request.url);
   const sp = url.searchParams;
 
+  const id = parsePositiveInt(sp.get("id"));
+
   const requestedLimit = parsePositiveInt(sp.get("limit"));
   const limit =
     requestedLimit && ALLOWED_LIMITS.has(requestedLimit)
@@ -137,6 +140,7 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
   const priceBuckets = parseCsv(priceBucketsCsv);
 
   return {
+    id,
     limit,
     offset: safeOffset,
     q,
@@ -148,15 +152,17 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
 }
 
 function shapeResponse(args: {
-  data: unknown[];
+  data: unknown[] | unknown | null;
   totalCount: number;
   limit: number;
   offset: number;
 }): CatalogResponse {
+  const count = Array.isArray(args.data) ? args.data.length : args.data ? 1 : 0;
+
   return {
     success: true,
     data: args.data,
-    count: args.data.length,
+    count,
     totalCount: args.totalCount,
     limit: args.limit,
     offset: args.offset,
@@ -187,20 +193,6 @@ function normalizeLambdaPayload(
     }
   }
 
-  const dataRaw =
-    getArray(raw, "data") ??
-    getArray(raw, "items") ??
-    (Array.isArray(raw) ? (raw as unknown[]) : []);
-
-  // Lambda already paginates
-  const data = dataRaw;
-
-  const totalCount =
-    getNumber(raw, "totalCount") ??
-    getNumber(raw, "total") ??
-    getNumber(raw, "total_count") ??
-    dataRaw.length;
-
   const success = isRecord(raw) && raw["success"] === false ? false : true;
 
   if (!success) {
@@ -226,11 +218,41 @@ function normalizeLambdaPayload(
     };
   }
 
-  return shapeResponse({ data, totalCount, limit, offset });
+  const dataField = isRecord(raw) ? raw["data"] : raw;
+
+  if (Array.isArray(dataField)) {
+    const totalCount =
+      getNumber(raw, "totalCount") ??
+      getNumber(raw, "total") ??
+      getNumber(raw, "total_count") ??
+      dataField.length;
+
+    return shapeResponse({ data: dataField, totalCount, limit, offset });
+  }
+
+  if (dataField && typeof dataField === "object") {
+    return shapeResponse({
+      data: dataField,
+      totalCount: 1,
+      limit,
+      offset,
+    });
+  }
+
+  return shapeResponse({
+    data: null,
+    totalCount: 0,
+    limit,
+    offset,
+  });
 }
 
 function buildPrismaWhere(q: CatalogQuery) {
   const whereFilters: Record<string, unknown>[] = [];
+
+  if (q.id) {
+    whereFilters.push({ id: q.id });
+  }
 
   if (q.q) {
     whereFilters.push({
@@ -294,6 +316,25 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     updatedAt: true,
   };
 
+  if (q.id) {
+    const item = await prisma.catalogItem.findUnique({
+      where: { id: q.id },
+      select,
+    });
+
+    const response = NextResponse.json(
+      shapeResponse({
+        data: item,
+        totalCount: item ? 1 : 0,
+        limit: q.limit,
+        offset: q.offset,
+      }),
+      { status: item ? 200 : 404 },
+    );
+
+    return withNoCache(response);
+  }
+
   const [totalCount, catalogItems] = await prisma.$transaction([
     prisma.catalogItem.count({ where }),
     prisma.catalogItem.findMany({
@@ -328,9 +369,18 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
     );
   }
 
-  const upstreamUrl = new URL(`${upstreamBase}/catalog`);
-  upstreamUrl.searchParams.set("limit", String(q.limit));
-  upstreamUrl.searchParams.set("offset", String(q.offset));
+  const normalizedBase = upstreamBase.endsWith("/catalog")
+    ? upstreamBase
+    : `${upstreamBase.replace(/\/$/, "")}/catalog`;
+
+  const upstreamUrl = new URL(normalizedBase);
+
+  if (q.id) {
+    upstreamUrl.searchParams.set("id", String(q.id));
+  } else {
+    upstreamUrl.searchParams.set("limit", String(q.limit));
+    upstreamUrl.searchParams.set("offset", String(q.offset));
+  }
 
   if (q.q) upstreamUrl.searchParams.set("q", q.q);
   if (q.categoriesCsv) {
@@ -362,7 +412,13 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
   return withNoCache(response);
 }
 
-function errorResponse(message: string, details?: string, status = 500) {
+function errorResponse(
+  message: string,
+  details?: string,
+  status = 500,
+  limit = DEFAULT_LIMIT,
+  offset = 0,
+) {
   return withNoCache(
     NextResponse.json(
       {
@@ -370,8 +426,8 @@ function errorResponse(message: string, details?: string, status = 500) {
         data: [],
         count: 0,
         totalCount: 0,
-        limit: DEFAULT_LIMIT,
-        offset: 0,
+        limit,
+        offset,
         error: message,
         ...(details ? { details } : {}),
       },
@@ -388,6 +444,10 @@ export async function GET(request: NextRequest) {
     if (!hasPrismaConfig()) {
       return errorResponse(
         "CATALOG_DATA_SOURCE=prisma but DATABASE_URL is not set.",
+        undefined,
+        500,
+        q.limit,
+        q.offset,
       );
     }
 
@@ -396,7 +456,13 @@ export async function GET(request: NextRequest) {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unknown Prisma error";
       console.error("Catalog API Prisma failed:", error);
-      return errorResponse("Prisma catalog query failed.", msg, 500);
+      return errorResponse(
+        "Prisma catalog query failed.",
+        msg,
+        500,
+        q.limit,
+        q.offset,
+      );
     }
   }
 
@@ -404,6 +470,10 @@ export async function GET(request: NextRequest) {
     if (!hasLambdaConfig()) {
       return errorResponse(
         "CATALOG_DATA_SOURCE=lambda but no Lambda base URL is set.",
+        undefined,
+        500,
+        q.limit,
+        q.offset,
       );
     }
 
@@ -412,11 +482,16 @@ export async function GET(request: NextRequest) {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unknown Lambda error";
       console.error("Catalog API Lambda failed:", error);
-      return errorResponse("Lambda catalog request failed.", msg, 502);
+      return errorResponse(
+        "Lambda catalog request failed.",
+        msg,
+        502,
+        q.limit,
+        q.offset,
+      );
     }
   }
 
-  // auto mode
   if (hasPrismaConfig()) {
     try {
       return await tryPrisma(q);
@@ -440,12 +515,20 @@ export async function GET(request: NextRequest) {
             "Both Prisma and Lambda catalog requests failed.",
             `Prisma: ${prismaMsg} | Lambda: ${lambdaMsg}`,
             502,
+            q.limit,
+            q.offset,
           );
         }
       }
 
       const msg = error instanceof Error ? error.message : "Unknown Prisma error";
-      return errorResponse("Prisma catalog query failed.", msg, 500);
+      return errorResponse(
+        "Prisma catalog query failed.",
+        msg,
+        500,
+        q.limit,
+        q.offset,
+      );
     }
   }
 
@@ -455,7 +538,13 @@ export async function GET(request: NextRequest) {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unknown Lambda error";
       console.error("Catalog API Lambda failed in auto mode:", error);
-      return errorResponse("Lambda catalog request failed.", msg, 502);
+      return errorResponse(
+        "Lambda catalog request failed.",
+        msg,
+        502,
+        q.limit,
+        q.offset,
+      );
     }
   }
 
@@ -463,6 +552,7 @@ export async function GET(request: NextRequest) {
     "No catalog data source is configured.",
     "Set CATALOG_DATA_SOURCE and the matching env vars.",
     500,
+    q.limit,
+    q.offset,
   );
 }
-
