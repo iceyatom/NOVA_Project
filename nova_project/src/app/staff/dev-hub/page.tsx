@@ -22,7 +22,7 @@ export default function StaffDevHubPage() {
         {/* Tool cards */}
         <div className="grid gap-4 sm:grid-cols-2">
           <Link
-            href="/staff/dev-hub/password-hash-test"
+            href="/staff/password-hash-test"
             className="group block rounded-xl border border-gray-700 bg-gray-900 p-6 transition hover:border-blue-500 hover:bg-gray-800"
           >
             <h2 className="text-lg font-semibold group-hover:text-blue-400">
