@@ -40,8 +40,8 @@ export default function PasswordHashTestPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Password Hash Test</h1>
           <Link href="/staff" className="staff-dev-pill">
-              &larr; Back to Staff Hub
-            </Link>
+            &larr; Back to Staff Hub
+          </Link>
         </div>
 
         {/* Hash section */}
