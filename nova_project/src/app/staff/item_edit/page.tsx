@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import React, { useMemo, useRef, useState, useMemo as useMemoReact } from "react";
+import React, {
+  useMemo,
+  useRef,
+  useState,
+  useMemo as useMemoReact,
+} from "react";
 
 type Item = {
   id: number | null;
@@ -180,29 +185,34 @@ function validateForm(f: ItemForm): string | null {
   if (!f.itemName.trim()) return "Item Name cannot be empty.";
   if (!f.sku.trim()) return "SKU cannot be empty.";
 
-  if (hasCurrency(f.price)) return "Price must be a number (no currency signs).";
+  if (hasCurrency(f.price))
+    return "Price must be a number (no currency signs).";
   if (f.price.trim() === "" || Number.isNaN(Number(f.price)))
     return "Price must be a valid number.";
   if (Number(f.price) < 0) return "Price cannot be negative.";
-  if (((f.price.split(".")[1] ?? "").length) > 2)
+  if ((f.price.split(".")[1] ?? "").length > 2)
     return "Price must have at most 2 decimal places.";
 
   if (!f.category1.trim()) return "Category 1 cannot be empty.";
   if (!f.category2.trim()) return "Category 2 cannot be empty.";
   if (!f.category3.trim()) return "Category 3 cannot be empty.";
 
-  if (f.quantityInStock.trim() === "" || Number.isNaN(Number(f.quantityInStock)))
+  if (
+    f.quantityInStock.trim() === "" ||
+    Number.isNaN(Number(f.quantityInStock))
+  )
     return "Quantity in stock must be a valid number.";
   if (Number(f.quantityInStock) < 0) return "Quantity cannot be negative.";
 
   if (f.reorderLevel.trim() === "" || Number.isNaN(Number(f.reorderLevel)))
     return "Reorder level must be a valid number.";
 
-  if (hasCurrency(f.unitCost)) return "Unit cost must be a number (no currency signs).";
+  if (hasCurrency(f.unitCost))
+    return "Unit cost must be a number (no currency signs).";
   if (f.unitCost.trim() === "" || Number.isNaN(Number(f.unitCost)))
     return "Unit cost must be a valid number.";
   if (Number(f.unitCost) < 0) return "Unit cost cannot be negative.";
-  if (((f.unitCost.split(".")[1] ?? "").length) > 2)
+  if ((f.unitCost.split(".")[1] ?? "").length > 2)
     return "Unit cost must have at most 2 decimal places.";
 
   return null;
@@ -215,11 +225,16 @@ export default function StaffItemEditPage() {
 
   const [form, setForm] = useState<ItemForm>(() => toForm(item));
   const [updatedAt, setUpdatedAt] = useState<string>(item.updatedAt ?? "");
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null,
+  );
 
   const originalRef = useRef<ItemForm>(toForm(item));
 
-  const isDirty = useMemoReact(() => !sameForm(form, originalRef.current), [form]);
+  const isDirty = useMemoReact(
+    () => !sameForm(form, originalRef.current),
+    [form],
+  );
 
   const update =
     <K extends keyof ItemForm>(key: K) =>
@@ -272,7 +287,10 @@ export default function StaffItemEditPage() {
       category3: prepared.category3,
       description: prepared.description,
       imageUrls: prepared.imageUrls,
-      quantityInStock: Math.max(0, Math.trunc(Number(prepared.quantityInStock))),
+      quantityInStock: Math.max(
+        0,
+        Math.trunc(Number(prepared.quantityInStock)),
+      ),
       unitOfMeasure: prepared.unitOfMeasure,
       storageLocation: prepared.storageLocation,
       storageConditions: prepared.storageConditions,
@@ -473,7 +491,6 @@ export default function StaffItemEditPage() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Storage</strong>
             <br />
-
             <strong>Storage Location:</strong>
             <br />
             <textarea
@@ -484,7 +501,6 @@ export default function StaffItemEditPage() {
               onBlur={blurNA("storageLocation")}
             />
             <br />
-
             <strong>Storage Conditions:</strong>
             <br />
             <textarea
@@ -495,7 +511,6 @@ export default function StaffItemEditPage() {
               onBlur={blurNA("storageConditions")}
             />
             <br />
-
             <strong>Date Acquired:</strong>{" "}
             <input
               type="text"
@@ -506,7 +521,6 @@ export default function StaffItemEditPage() {
               onBlur={blurNA("dateAcquired")}
             />
             <br />
-
             <strong>Expiration Date:</strong>{" "}
             <input
               type="text"
@@ -564,7 +578,9 @@ export default function StaffItemEditPage() {
                   <button
                     key={i}
                     type="button"
-                    onClick={() => setSelectedImageIndex((cur) => (cur === i ? null : i))}
+                    onClick={() =>
+                      setSelectedImageIndex((cur) => (cur === i ? null : i))
+                    }
                     aria-pressed={isSelected}
                     aria-label={`Select image ${i + 1}`}
                     style={{
@@ -605,7 +621,11 @@ export default function StaffItemEditPage() {
           </div>
 
           <div className="staff-dev-back-wrapper">
-            <button type="button" onClick={saveChanges} className="staff-dev-pill">
+            <button
+              type="button"
+              onClick={saveChanges}
+              className="staff-dev-pill"
+            >
               Save Changes
             </button>
           </div>

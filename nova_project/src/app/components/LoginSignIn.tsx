@@ -7,7 +7,9 @@ export default function LoginSignIn() {
   const { loggedIn, setLoggedIn, account, setAccount } = useLoginStatus();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+    {},
+  );
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -52,7 +54,10 @@ export default function LoginSignIn() {
             value={username}
             onChange={(e) => {
               setUsername(e.target.value);
-              setErrors((prev: typeof errors) => ({ ...prev, email: undefined }));
+              setErrors((prev: typeof errors) => ({
+                ...prev,
+                email: undefined,
+              }));
             }}
           />
           {errors.email && <p className="errorText">{errors.email}</p>}
@@ -65,12 +70,19 @@ export default function LoginSignIn() {
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
-              setErrors((prev: typeof errors) => ({ ...prev, password: undefined }));
+              setErrors((prev: typeof errors) => ({
+                ...prev,
+                password: undefined,
+              }));
             }}
           />
           {errors.password && <p className="errorText">{errors.password}</p>}
         </label>
-        <button className="loginButton" type="submit" style={{ marginTop: "1rem" }}>
+        <button
+          className="loginButton"
+          type="submit"
+          style={{ marginTop: "1rem" }}
+        >
           Log in
         </button>
         {loggedIn && (
@@ -89,8 +101,11 @@ export default function LoginSignIn() {
           </button>
         )}
       </form>
-      <div style={{ marginTop: "2rem", color: loggedIn ? "#059669" : "#32486b" }}>
-        <strong>Status:</strong> {loggedIn ? `Logged in as ${account}` : "Logged out"}
+      <div
+        style={{ marginTop: "2rem", color: loggedIn ? "#059669" : "#32486b" }}
+      >
+        <strong>Status:</strong>{" "}
+        {loggedIn ? `Logged in as ${account}` : "Logged out"}
       </div>
     </section>
   );

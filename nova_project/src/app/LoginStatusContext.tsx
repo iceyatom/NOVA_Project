@@ -12,11 +12,17 @@ export function useLoginStatus() {
   return useContext(LoginStatusContext);
 }
 
-export function LoginStatusProvider({ children }: { children: React.ReactNode }) {
+export function LoginStatusProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [account, setAccount] = useState("");
   return (
-    <LoginStatusContext.Provider value={{ loggedIn, setLoggedIn, account, setAccount }}>
+    <LoginStatusContext.Provider
+      value={{ loggedIn, setLoggedIn, account, setAccount }}
+    >
       {children}
     </LoginStatusContext.Provider>
   );

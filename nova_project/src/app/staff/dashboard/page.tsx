@@ -3,15 +3,17 @@ export default function StaffDashboardHome() {
     <div>
       <div className="staffTitle">Welcome, Employee Name</div>
       <div className="staffSubtitle">
-        This is the staff dashboard foundation. Panels below are placeholders for
-        inventory summaries and future widgets.
+        This is the staff dashboard foundation. Panels below are placeholders
+        for inventory summaries and future widgets.
       </div>
 
       <div className="staffGrid">
         <div className="staffCard col4">
           <div className="staffCardLabel">Total Catalog Items</div>
           <div className="staffCardValue">00</div>
-          <div className="staffCardHint">Placeholder for overall item count.</div>
+          <div className="staffCardHint">
+            Placeholder for overall item count.
+          </div>
         </div>
 
         <div className="staffCard col4">

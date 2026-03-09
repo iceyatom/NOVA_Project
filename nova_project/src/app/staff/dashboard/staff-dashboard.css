@@ -133,7 +133,7 @@
 
 /* Active */
 .staffNavLink.active {
-  background: rgba(16, 185, 129, 0.10);
+  background: rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.35);
   color: #064e3b;
 }
@@ -202,10 +202,18 @@
   color: #64748b;
 }
 
-.col4 { grid-column: span 4; }
-.col6 { grid-column: span 6; }
-.col8 { grid-column: span 8; }
-.col12 { grid-column: span 12; }
+.col4 {
+  grid-column: span 4;
+}
+.col6 {
+  grid-column: span 6;
+}
+.col8 {
+  grid-column: span 8;
+}
+.col12 {
+  grid-column: span 12;
+}
 
 /* =========
    Responsive

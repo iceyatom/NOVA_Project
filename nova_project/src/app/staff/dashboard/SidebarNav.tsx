@@ -45,9 +45,7 @@ export default function SidebarNav() {
 
       <Section
         title="Inventory"
-        items={[
-          { label: "Item Search & Browse", href: "/staff/item_search" },
-        ]}
+        items={[{ label: "Item Search & Browse", href: "/staff/item_search" }]}
       />
 
       <Section

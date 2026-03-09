@@ -48,7 +48,7 @@ export default function Header() {
         </button>
 
         {/* Primary Navigation */}
-        <ul id="topbar-links" className={`links ${open ? "open" : ""}`}> 
+        <ul id="topbar-links" className={`links ${open ? "open" : ""}`}>
           {/* ...existing nav links... */}
           <li>
             <Link className="navlink" href="/" aria-current="page">
@@ -90,7 +90,7 @@ export default function Header() {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                height: "44px"
+                height: "44px",
               }}
             >
               <Image
@@ -104,12 +104,12 @@ export default function Header() {
                         borderRadius: "50%",
                         boxShadow: "0 0 0 3px #059669",
                         border: "2px solid #059669",
-                        cursor: "pointer"
+                        cursor: "pointer",
                       }
                     : {
                         filter: "grayscale(1) opacity(0.6)",
                         borderRadius: "50%",
-                        cursor: "pointer"
+                        cursor: "pointer",
                       }
                 }
                 aria-hidden="true"
@@ -118,7 +118,9 @@ export default function Header() {
                 <div className="profile-popup" role="dialog" aria-modal="false">
                   {loggedIn ? (
                     <div>
-                      <div><strong>{account || "User"}</strong></div>
+                      <div>
+                        <strong>{account || "User"}</strong>
+                      </div>
                       <div>{account || "No email"}</div>
                     </div>
                   ) : (
