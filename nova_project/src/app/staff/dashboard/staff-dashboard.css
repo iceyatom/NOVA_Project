@@ -1,0 +1,244 @@
+/* =========
+   Staff Dashboard Shell
+   ========= */
+
+.staffShell {
+  min-height: 100vh;
+  display: flex;
+  background: #f6f7fb;
+  color: #0f172a;
+}
+
+/* =========
+   Sidebar (WHITE + boxed with rounded edges)
+   ========= */
+
+.staffSidebar {
+  width: 280px;
+  flex: 0 0 280px;
+  background: transparent; /* key: let the inner box show */
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Create the "boxed" sidebar panel */
+.staffSidebarHeader,
+.staffNav,
+.staffSidebarFooter {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+/* Round the overall shape */
+.staffSidebarHeader {
+  border-radius: 16px 16px 0 0;
+}
+
+.staffNav {
+  border-top: none;
+  border-bottom: none;
+}
+
+.staffSidebarFooter {
+  border-radius: 0 0 16px 16px;
+}
+
+.staffSidebarHeader {
+  padding: 18px 16px 12px 16px;
+}
+
+.staffBadge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12); /* subtle green */
+  color: #065f46;
+}
+
+.staffSidebarTitle {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.staffSidebarBackLink {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #334155;
+  text-decoration: none;
+}
+
+.staffSidebarBackLink:hover {
+  text-decoration: underline;
+}
+
+.staffSidebarFooter {
+  padding: 12px 14px;
+}
+
+.staffSidebarFooterText {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* =========
+   Nav
+   ========= */
+
+.staffNav {
+  padding: 12px 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.staffNavSection {
+  margin-bottom: 14px;
+}
+
+.staffNavSectionTitle {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 8px 10px;
+}
+
+.staffNavSectionItems {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 6px;
+}
+
+/* Buttons: rounded boxes */
+.staffNavLink {
+  text-decoration: none;
+  color: #0f172a;
+  font-size: 14px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.staffNavLink:hover {
+  background: #eef2ff;
+}
+
+/* Active */
+.staffNavLink.active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #064e3b;
+}
+
+/* =========
+   Main Content
+   ========= */
+
+.staffMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.staffMainInner {
+  width: 100%;
+  padding: 22px;
+}
+
+/* =========
+   Page Typography + Layout Helpers
+   ========= */
+
+.staffTitle {
+  font-size: 26px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.staffSubtitle {
+  font-size: 14px;
+  color: #475569;
+  margin-bottom: 18px;
+}
+
+.staffGrid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+}
+
+.staffCard {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+}
+
+.staffCardLabel {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.staffCardValue {
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.staffCardHint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.col4 {
+  grid-column: span 4;
+}
+.col6 {
+  grid-column: span 6;
+}
+.col8 {
+  grid-column: span 8;
+}
+.col12 {
+  grid-column: span 12;
+}
+
+/* =========
+   Responsive
+   ========= */
+
+@media (max-width: 980px) {
+  .staffSidebar {
+    width: 240px;
+    flex-basis: 240px;
+  }
+
+  .col4,
+  .col6,
+  .col8 {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 720px) {
+  .staffShell {
+    flex-direction: column;
+  }
+
+  .staffSidebar {
+    width: 100%;
+    flex-basis: auto;
+  }
+}
