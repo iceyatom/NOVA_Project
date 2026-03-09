@@ -6,12 +6,13 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 20;
 const ALLOWED_LIMITS = new Set([20, 50, 100]);
-
-const PRICE_BUCKETS = new Map<string, { min?: number; max?: number }>([
-  ["under-50", { max: 49.99 }],
-  ["50-99", { min: 50, max: 99.99 }],
-  ["100-249", { min: 100, max: 249.99 }],
-  ["250-plus", { min: 250 }],
+const DEFAULT_MIN_PRICE = 0;
+const DEFAULT_MAX_PRICE = 500;
+const LEGACY_PRICE_BUCKETS = new Map<string, { min?: number; max?: number }>([
+  ["under-50", { max: 50 }],
+  ["50-99", { min: 50, max: 100 }],
+  ["100-249", { min: 100, max: 250 }],
+  ["250-plus", { min: 250, max: DEFAULT_MAX_PRICE }],
 ]);
 
 type DataSourceMode = "auto" | "prisma" | "lambda";
@@ -50,6 +51,13 @@ function parsePositiveInt(value: string | null): number | null {
   return parsed;
 }
 
+function parseNonNegativeNumber(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
 function parseCsv(value: string | null): string[] {
   if (!value) return [];
   return value
@@ -58,15 +66,22 @@ function parseCsv(value: string | null): string[] {
     .filter(Boolean);
 }
 
+type PriceRange = {
+  min: number | null;
+  max: number | null;
+};
+
 type CatalogQuery = {
   id: number | null;
   limit: number;
   offset: number;
   q: string;
   categories: string[];
-  priceBuckets: string[];
+  priceRange: PriceRange;
   categoriesCsv: string;
   priceBucketsCsv: string;
+  minPriceRaw: string;
+  maxPriceRaw: string;
 };
 
 type CatalogResponse = {
@@ -114,6 +129,31 @@ function withNoCache(resp: NextResponse) {
   return resp;
 }
 
+function normalizePriceRange(
+  minPrice: number | null,
+  maxPrice: number | null,
+): PriceRange {
+  const resolvedMin = minPrice ?? DEFAULT_MIN_PRICE;
+  const resolvedMax = maxPrice ?? DEFAULT_MAX_PRICE;
+  const min = Math.max(DEFAULT_MIN_PRICE, Math.min(resolvedMin, resolvedMax));
+  const max = Math.min(DEFAULT_MAX_PRICE, Math.max(resolvedMin, resolvedMax));
+
+  return {
+    min: min > DEFAULT_MIN_PRICE ? min : null,
+    max: max < DEFAULT_MAX_PRICE ? max : null,
+  };
+}
+
+function getLegacyPriceRange(priceBuckets: string[]): PriceRange {
+  const bucket = priceBuckets[0];
+  const range = bucket ? LEGACY_PRICE_BUCKETS.get(bucket) : null;
+
+  return {
+    min: range?.min ?? null,
+    max: range?.max ?? null,
+  };
+}
+
 function parseCatalogQuery(request: NextRequest): CatalogQuery {
   const url = new URL(request.url);
   const sp = url.searchParams;
@@ -135,9 +175,18 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
 
   const categoriesCsv = sp.get("categories") ?? "";
   const priceBucketsCsv = sp.get("priceBuckets") ?? "";
+  const minPriceRaw = sp.get("minPrice") ?? "";
+  const maxPriceRaw = sp.get("maxPrice") ?? "";
 
   const categories = parseCsv(categoriesCsv);
   const priceBuckets = parseCsv(priceBucketsCsv);
+
+  const explicitMinPrice = parseNonNegativeNumber(minPriceRaw);
+  const explicitMaxPrice = parseNonNegativeNumber(maxPriceRaw);
+  const priceRange =
+    explicitMinPrice !== null || explicitMaxPrice !== null
+      ? normalizePriceRange(explicitMinPrice, explicitMaxPrice)
+      : getLegacyPriceRange(priceBuckets);
 
   return {
     id,
@@ -145,9 +194,11 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
     offset: safeOffset,
     q,
     categories,
-    priceBuckets,
+    priceRange,
     categoriesCsv,
     priceBucketsCsv,
+    minPriceRaw,
+    maxPriceRaw,
   };
 }
 
@@ -250,10 +301,6 @@ function normalizeLambdaPayload(
 function buildPrismaWhere(q: CatalogQuery) {
   const whereFilters: Record<string, unknown>[] = [];
 
-  if (q.id) {
-    whereFilters.push({ id: q.id });
-  }
-
   if (q.q) {
     whereFilters.push({
       itemName: {
@@ -272,21 +319,13 @@ function buildPrismaWhere(q: CatalogQuery) {
     });
   }
 
-  if (q.priceBuckets.length > 0) {
-    const ranges = q.priceBuckets
-      .map((bucket) => PRICE_BUCKETS.get(bucket))
-      .filter(Boolean) as Array<{ min?: number; max?: number }>;
-
-    if (ranges.length > 0) {
-      whereFilters.push({
-        OR: ranges.map((range) => ({
-          price: {
-            ...(range.min !== undefined ? { gte: range.min } : {}),
-            ...(range.max !== undefined ? { lte: range.max } : {}),
-          },
-        })),
-      });
-    }
+  if (q.priceRange.min !== null || q.priceRange.max !== null) {
+    whereFilters.push({
+      price: {
+        ...(q.priceRange.min !== null ? { gte: q.priceRange.min } : {}),
+        ...(q.priceRange.max !== null ? { lte: q.priceRange.max } : {}),
+      },
+    });
   }
 
   return whereFilters.length > 0 ? { AND: whereFilters } : undefined;
@@ -373,20 +412,17 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
     ? upstreamBase
     : `${upstreamBase.replace(/\/$/, "")}/catalog`;
 
-  const upstreamUrl = new URL(normalizedBase);
-
-  if (q.id) {
-    upstreamUrl.searchParams.set("id", String(q.id));
-  } else {
-    upstreamUrl.searchParams.set("limit", String(q.limit));
-    upstreamUrl.searchParams.set("offset", String(q.offset));
-  }
-
   if (q.q) upstreamUrl.searchParams.set("q", q.q);
   if (q.categoriesCsv) {
     upstreamUrl.searchParams.set("categories", q.categoriesCsv);
   }
-  if (q.priceBucketsCsv) {
+  if (q.minPriceRaw) {
+    upstreamUrl.searchParams.set("minPrice", q.minPriceRaw);
+  }
+  if (q.maxPriceRaw) {
+    upstreamUrl.searchParams.set("maxPrice", q.maxPriceRaw);
+  }
+  if (!q.minPriceRaw && !q.maxPriceRaw && q.priceBucketsCsv) {
     upstreamUrl.searchParams.set("priceBuckets", q.priceBucketsCsv);
   }
 
