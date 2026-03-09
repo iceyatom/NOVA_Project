@@ -34,80 +34,27 @@ type CatalogResponse = {
   error?: string;
 };
 
+type PriceRange = {
+  min: number;
+  max: number;
+};
+
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
-
-// Mapping between UI price labels and API keys
-const PRICE_LABEL_TO_KEY: Record<string, string> = {
-  "Under $50": "under-50",
-  "$50–$99": "50-99",
-  "$100–$249": "100-249",
-  "$250+": "250-plus",
+const DEFAULT_PRICE_RANGE: PriceRange = { min: 0, max: 500 };
+const LEGACY_PRICE_BUCKETS: Record<string, PriceRange> = {
+  "under-50": { min: 0, max: 50 },
+  "50-99": { min: 50, max: 100 },
+  "100-249": { min: 100, max: 250 },
+  "250-plus": { min: 250, max: 500 },
 };
-const PRICE_KEY_TO_LABEL: Record<string, string> = {
-  "under-50": "Under $50",
-  "50-99": "$50–$99",
-  "100-249": "$100–$249",
-  "250-plus": "$250+",
-};
-
-type ViewState = "loading" | "ready" | "dbError";
-
-// Fallback items to display when database connection fails
-const FALLBACK_ITEMS: Item[] = [
-  {
-    id: null,
-    sku: null,
-    itemName: "Dissecting Kit 1-9 - Each",
-    category1: "Specimens",
-    category2: "Dissecting Kits",
-    category3: "Basic",
-    description:
-      "Basic dissecting kit for students in grades 1-9. Currently unavailable due to connection issues.",
-    price: null,
-    unitOfMeasure: null,
-    quantity: null,
-    imageUrl: "/FillerImage.webp",
-    quantityInStock: 0,
-  },
-  {
-    id: null,
-    sku: null,
-    itemName: "Dissecting Kit 10+ - Each",
-    category1: "Specimens",
-    category2: "Dissecting Kits",
-    category3: "Advanced",
-    description:
-      "Advanced dissecting kit for students in grades 10 and above. Currently unavailable due to connection issues.",
-    price: null,
-    unitOfMeasure: null,
-    quantity: null,
-    imageUrl: "/FillerImage.webp",
-    quantityInStock: 0,
-  },
-  {
-    id: null,
-    sku: null,
-    itemName: "Intermediate Dissecting Kit 1-9 - Each",
-    category1: "Specimens",
-    category2: "Dissecting Kits",
-    category3: "Intermediate",
-    description:
-      "Intermediate level dissecting kit for students in grades 1-9. Currently unavailable due to connection issues.",
-    price: null,
-    unitOfMeasure: null,
-    quantity: null,
-    imageUrl: "/FillerImage.webp",
-    quantityInStock: 0,
-  },
-];
 
 function buildCatalogParams(options: {
   page: number;
   pageSize: number;
   query: string;
   categories: string[];
-  priceBuckets: string[];
+  priceRange: PriceRange;
 }) {
   const params = new URLSearchParams();
   params.set("limit", String(options.pageSize));
@@ -121,8 +68,12 @@ function buildCatalogParams(options: {
     params.set("categories", options.categories.join(","));
   }
 
-  if (options.priceBuckets.length > 0) {
-    params.set("priceBuckets", options.priceBuckets.join(","));
+  if (options.priceRange.min > DEFAULT_PRICE_RANGE.min) {
+    params.set("minPrice", String(options.priceRange.min));
+  }
+
+  if (options.priceRange.max < DEFAULT_PRICE_RANGE.max) {
+    params.set("maxPrice", String(options.priceRange.max));
   }
 
   return params;
@@ -152,6 +103,19 @@ function parseNumberParam(value: string | null, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function parsePriceParam(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
 function parseListParam(value: string | null): string[] {
   if (!value) {
     return [];
@@ -166,6 +130,21 @@ function normalizeForCompare(values: string[]) {
   const normalized = values.map((v) => v.trim()).filter(Boolean);
 
   return Array.from(new Set(normalized)).sort().join("|");
+}
+
+function getLegacyPriceRange(priceBuckets: string[]): PriceRange {
+  const firstBucket = priceBuckets[0];
+  return LEGACY_PRICE_BUCKETS[firstBucket] ?? DEFAULT_PRICE_RANGE;
+}
+
+function normalizePriceRange(minPrice: number | null, maxPrice: number | null) {
+  const min = minPrice ?? DEFAULT_PRICE_RANGE.min;
+  const max = maxPrice ?? DEFAULT_PRICE_RANGE.max;
+
+  return {
+    min: Math.max(DEFAULT_PRICE_RANGE.min, Math.min(min, max)),
+    max: Math.min(DEFAULT_PRICE_RANGE.max, Math.max(max, min)),
+  };
 }
 
 function normalizeCatalogPayload(
@@ -209,15 +188,17 @@ export default function CatalogPageClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // URL is the "single source of truth"
   const catalogState = useMemo(() => {
     const query = (searchParams.get("q") ?? "").trim();
     const categories = parseListParam(searchParams.get("categories"));
 
-    const priceKeys = parseListParam(searchParams.get("priceBuckets"));
-    const prices = priceKeys
-      .map((key) => PRICE_KEY_TO_LABEL[key])
-      .filter((value): value is string => Boolean(value));
+    const minPrice = parsePriceParam(searchParams.get("minPrice"));
+    const maxPrice = parsePriceParam(searchParams.get("maxPrice"));
+    const legacyPriceBuckets = parseListParam(searchParams.get("priceBuckets"));
+    const priceRange =
+      minPrice !== null || maxPrice !== null
+        ? normalizePriceRange(minPrice, maxPrice)
+        : getLegacyPriceRange(legacyPriceBuckets);
 
     const page = Math.max(1, parseNumberParam(searchParams.get("page"), 1));
     const pageSize = Math.max(
@@ -225,12 +206,12 @@ export default function CatalogPageClient() {
       parseNumberParam(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
     );
 
-    return { query, categories, prices, page, pageSize };
+    return { query, categories, priceRange, page, pageSize };
   }, [searchParams]);
 
   const searchText = catalogState.query;
   const selectedCategories = catalogState.categories;
-  const selectedPrices = catalogState.prices;
+  const selectedPriceRange = catalogState.priceRange;
   const currentPage = catalogState.page;
   const pageSize = catalogState.pageSize;
 
@@ -242,7 +223,6 @@ export default function CatalogPageClient() {
       const next = new URLSearchParams(searchParams.toString());
       updater(next);
 
-      // Keep URLs tidy by omitting defaults
       if (next.get("page") === "1") {
         next.delete("page");
       }
@@ -274,16 +254,12 @@ export default function CatalogPageClient() {
   );
 
   useEffect(() => {
-    if (!hasLoadedOnce) {
-      return;
-    }
-    if (isLoading) {
-      return;
-    }
-    if (errorMessage) {
-      return;
-    }
-    if (currentPage <= totalPages) {
+    if (
+      !hasLoadedOnce ||
+      isLoading ||
+      errorMessage ||
+      currentPage <= totalPages
+    ) {
       return;
     }
 
@@ -310,16 +286,12 @@ export default function CatalogPageClient() {
       setErrorMessage(null);
 
       try {
-        // Convert selectedPrices (UI labels) to API keys for API call
-        const priceBucketKeys = selectedPrices
-          .map((label) => PRICE_LABEL_TO_KEY[label])
-          .filter((value): value is string => Boolean(value));
         const params = buildCatalogParams({
           page: currentPage,
           pageSize,
           query: searchText,
           categories: selectedCategories,
-          priceBuckets: priceBucketKeys,
+          priceRange: selectedPriceRange,
         });
 
         const response = await fetch(`/api/catalog?${params.toString()}`, {
@@ -372,7 +344,13 @@ export default function CatalogPageClient() {
     void loadCatalog();
 
     return () => controller.abort();
-  }, [currentPage, pageSize, searchText, selectedCategories, selectedPrices]);
+  }, [
+    currentPage,
+    pageSize,
+    searchText,
+    selectedCategories,
+    selectedPriceRange,
+  ]);
 
   const handleSearch = (query: string) => {
     const nextQuery = query.trim();
@@ -393,14 +371,16 @@ export default function CatalogPageClient() {
 
   const handleFiltersChange = (next: {
     categories: string[];
-    prices: string[];
+    priceRange: PriceRange;
   }) => {
     const sameCategories =
       normalizeForCompare(next.categories) ===
       normalizeForCompare(selectedCategories);
-    const samePrices =
-      normalizeForCompare(next.prices) === normalizeForCompare(selectedPrices);
-    if (sameCategories && samePrices) {
+    const samePriceRange =
+      next.priceRange.min === selectedPriceRange.min &&
+      next.priceRange.max === selectedPriceRange.max;
+
+    if (sameCategories && samePriceRange) {
       return;
     }
 
@@ -411,14 +391,18 @@ export default function CatalogPageClient() {
         params.delete("categories");
       }
 
-      const priceBucketKeys = next.prices
-        .map((label) => PRICE_LABEL_TO_KEY[label])
-        .filter((value): value is string => Boolean(value));
+      params.delete("priceBuckets");
 
-      if (priceBucketKeys.length > 0) {
-        params.set("priceBuckets", priceBucketKeys.join(","));
+      if (next.priceRange.min > DEFAULT_PRICE_RANGE.min) {
+        params.set("minPrice", String(next.priceRange.min));
       } else {
-        params.delete("priceBuckets");
+        params.delete("minPrice");
+      }
+
+      if (next.priceRange.max < DEFAULT_PRICE_RANGE.max) {
+        params.set("maxPrice", String(next.priceRange.max));
+      } else {
+        params.delete("maxPrice");
       }
 
       params.set("page", "1");
@@ -441,13 +425,12 @@ export default function CatalogPageClient() {
     }
     navigateWithSearchParams((params) => {
       params.set("pageSize", String(size));
-      params.set("page", String(1));
+      params.set("page", "1");
     });
   };
 
   return (
     <main aria-label="Catalog Layout">
-      {/* HERO search banner directly under the header */}
       <SearchBar
         bgImage="/hero-lab.jpg"
         query={searchText}
@@ -471,7 +454,7 @@ export default function CatalogPageClient() {
           <h2 className="pane-title">Filters</h2>
           <Filters
             selectedCategories={selectedCategories}
-            selectedPrices={selectedPrices}
+            selectedPriceRange={selectedPriceRange}
             onChange={handleFiltersChange}
           />
         </aside>
