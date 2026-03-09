@@ -95,9 +95,7 @@ export default function CreateAccountPage() {
             <label className="loginLabel">
               Phone Number
               <input
-                className={`loginInput ${
-                  errors.phone ? "inputError" : ""
-                }`}
+                className={`loginInput ${errors.phone ? "inputError" : ""}`}
                 type="tel"
                 value={phone}
                 autoComplete="tel"
@@ -108,9 +106,7 @@ export default function CreateAccountPage() {
                   setErrors((p) => ({ ...p, phone: undefined }));
                 }}
               />
-              {errors.phone && (
-                <p className="errorText">{errors.phone}</p>
-              )}
+              {errors.phone && <p className="errorText">{errors.phone}</p>}
             </label>
           </div>
 
@@ -141,9 +137,7 @@ export default function CreateAccountPage() {
                 setErrors((p) => ({ ...p, password: undefined }));
               }}
             />
-            {errors.password && (
-              <p className="errorText">{errors.password}</p>
-            )}
+            {errors.password && <p className="errorText">{errors.password}</p>}
           </label>
 
           <label className="loginLabel">
@@ -171,9 +165,7 @@ export default function CreateAccountPage() {
         </form>
 
         <div className="authLinks" aria-label="Account actions">
-          <span className="authLinksText">
-            Already have an account?
-          </span>
+          <span className="authLinksText">Already have an account?</span>
           <Link className="authLink" href="/login">
             Sign in
           </Link>
