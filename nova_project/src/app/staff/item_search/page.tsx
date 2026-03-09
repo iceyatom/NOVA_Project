@@ -1,62 +1,473 @@
-// src/app/staff/item_search/page.tsx
-// JIRA Subtask: STAFF-123
-// Developer: Gemini
-// Date: 2026-02-21
-// Description: Create a functional placeholder inventory browsing page for the staff dashboard.
-
+"use client";
 import React from "react";
 import Link from "next/link";
+import { CatalogItem } from "@prisma/client";
+import { useRouter, useSearchParams } from "next/navigation";
 
-// Mock data for catalog items
-const mockItems = [
-  {
-    id: "NILE-001",
-    name: "Preserved Frog",
-    category: "Vertebrates",
-    stock: 50,
-    price: 5.99,
-    updatedAt: "2026-02-18",
-  },
-  {
-    id: "NILE-002",
-    name: "Live Amoeba Culture",
-    category: "Protozoa",
-    stock: 120,
-    price: 12.5,
-    updatedAt: "2026-02-20",
-  },
-  {
-    id: "NILE-003",
-    name: "Owl Pellet",
-    category: "Owl Pellets",
-    stock: 200,
-    price: 2.75,
-    updatedAt: "2026-02-16",
-  },
-  {
-    id: "NILE-004",
-    name: "E. Coli Bacteria Slope",
-    category: "Bacteria & Fungi",
-    stock: 75,
-    price: 9.0,
-    updatedAt: "2026-02-21",
-  },
-  {
-    id: "NILE-005",
-    name: "Earthworm",
-    category: "Invertebrates",
-    stock: 150,
-    price: 1.5,
-    updatedAt: "2026-02-19",
-  },
+const CATEGORY_OPTIONS = [
+  "Laboratory Supplies",
+  "Live Algae Specimens",
+  "Live Bacteria & Fungi Specimens",
+  "Live Invertebrates",
+  "Live Plant Specimens",
+  "Live Protozoa Specimens",
+  "Live Vertebrates",
+  "Microbiological Supplies",
+  "Microscopes",
+  "Owl Pellets",
+  "Preserved Invertebrates",
+  "Preserved Vertebrates",
 ];
 
-const StaffItemSearchPage = () => {
+type SortColumn =
+  | "sku"
+  | "name"
+  | "category"
+  | "price"
+  | "stock"
+  | "lastModified";
+
+const StaffItemSearchPageContent = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const pageSizeParam = searchParams.get("pageSize") || "20";
+  const categoryParam = searchParams.get("category") || "all";
+  const subcategoryParam = searchParams.get("subcategory") || "all";
+  const typeParam = searchParams.get("type") || "all";
+  const searchQueryParam = searchParams.get("query") || "";
+  const sortByParam = searchParams.get("sortBy") || "";
+  const sortOrderParam = searchParams.get("sortOrder") || "asc";
+  const offset = Number(searchParams.get("offset")) || 0;
+
+  const [catalogItems, setCatalogItems] = React.useState<CatalogItem[]>([]);
+  const [totalItems, setTotalItems] = React.useState(0);
+  const [subcategories, setSubcategories] = React.useState<string[]>([]);
+  const [types, setTypes] = React.useState<string[]>([]);
+  const [searchInput, setSearchInput] = React.useState(searchQueryParam);
+
+  React.useEffect(() => {
+    setSearchInput(searchQueryParam);
+  }, [searchQueryParam]);
+
+  React.useEffect(() => {
+    const fetchItems = async () => {
+      const effectivePageSize =
+        pageSizeParam === "all"
+          ? Math.max(totalItems, 1)
+          : Number(pageSizeParam) || 20;
+      const params = new URLSearchParams({
+        pageSize: String(effectivePageSize),
+        offset: String(offset),
+      });
+
+      if (categoryParam !== "all") {
+        params.set("category", categoryParam);
+      }
+
+      if (subcategoryParam !== "all") {
+        params.set("subcategory", subcategoryParam);
+      }
+
+      if (typeParam !== "all") {
+        params.set("type", typeParam);
+      }
+
+      if (searchQueryParam) {
+        params.set("query", searchQueryParam);
+      }
+
+      if (sortByParam) {
+        params.set("sortBy", sortByParam);
+        params.set("sortOrder", sortOrderParam);
+      }
+
+      const response = await fetch(`/api/catalog/staff?${params.toString()}`);
+      const items = await response.json();
+      setCatalogItems(items);
+    };
+
+    fetchItems();
+  }, [
+    pageSizeParam,
+    offset,
+    totalItems,
+    categoryParam,
+    subcategoryParam,
+    typeParam,
+    searchQueryParam,
+    sortByParam,
+    sortOrderParam,
+  ]);
+
+  React.useEffect(() => {
+    const fetchTotalItems = async () => {
+      const params = new URLSearchParams();
+
+      if (categoryParam !== "all") {
+        params.set("category", categoryParam);
+      }
+
+      if (subcategoryParam !== "all") {
+        params.set("subcategory", subcategoryParam);
+      }
+
+      if (typeParam !== "all") {
+        params.set("type", typeParam);
+      }
+
+      if (searchQueryParam) {
+        params.set("query", searchQueryParam);
+      }
+
+      const response = await fetch(
+        `/api/catalog/staff/count?${params.toString()}`,
+      );
+      const { count } = await response.json();
+      setTotalItems(count);
+    };
+
+    fetchTotalItems();
+  }, [categoryParam, subcategoryParam, typeParam, searchQueryParam]);
+
+  React.useEffect(() => {
+    const fetchSubcategories = async () => {
+      if (categoryParam === "all") {
+        setSubcategories([]);
+        return;
+      }
+
+      const response = await fetch(
+        `/api/catalog/staff/subcategories?category=${encodeURIComponent(categoryParam)}`,
+      );
+      const { subcategories: nextSubcategories } = await response.json();
+      setSubcategories(nextSubcategories);
+    };
+
+    fetchSubcategories();
+  }, [categoryParam]);
+
+  React.useEffect(() => {
+    const fetchTypes = async () => {
+      if (categoryParam === "all" || subcategoryParam === "all") {
+        setTypes([]);
+        return;
+      }
+
+      const params = new URLSearchParams({
+        category: categoryParam,
+        subcategory: subcategoryParam,
+      });
+
+      const response = await fetch(
+        `/api/catalog/staff/types?${params.toString()}`,
+      );
+      const { types: nextTypes } = await response.json();
+      setTypes(nextTypes);
+    };
+
+    fetchTypes();
+  }, [categoryParam, subcategoryParam]);
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newPageSize = e.target.value;
+    const params = new URLSearchParams({
+      pageSize: newPageSize,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategory = e.target.value;
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (newCategory !== "all") {
+      params.set("category", newCategory);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleSubcategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSubcategory = e.target.value;
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (newSubcategory !== "all") {
+      params.set("subcategory", newSubcategory);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value;
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (newType !== "all") {
+      params.set("type", newType);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleSortChange = (column: SortColumn) => {
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
+    const nextSortOrder =
+      sortByParam === column && sortOrderParam === "asc" ? "desc" : "asc";
+
+    params.set("sortBy", column);
+    params.set("sortOrder", nextSortOrder);
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handlePageChange = (newOffset: number) => {
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: String(newOffset),
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleClearSort = () => {
+    const params = new URLSearchParams({
+      pageSize: "20",
+      offset: "0",
+    });
+
+    if (searchQueryParam) {
+      params.set("query", searchQueryParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    const trimmedSearchInput = searchInput.trim();
+
+    if (trimmedSearchInput) {
+      params.set("query", trimmedSearchInput);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+
+    const params = new URLSearchParams({
+      pageSize: pageSizeParam,
+      offset: "0",
+    });
+
+    if (categoryParam !== "all") {
+      params.set("category", categoryParam);
+    }
+
+    if (subcategoryParam !== "all") {
+      params.set("subcategory", subcategoryParam);
+    }
+
+    if (typeParam !== "all") {
+      params.set("type", typeParam);
+    }
+
+    if (sortByParam) {
+      params.set("sortBy", sortByParam);
+      params.set("sortOrder", sortOrderParam);
+    }
+
+    router.push(`/staff/item_search?${params.toString()}`);
+  };
+
+  const pageSize =
+    pageSizeParam === "all"
+      ? Math.max(totalItems, 1)
+      : Number(pageSizeParam) || 20;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const currentPage = Math.floor(offset / pageSize) + 1;
+  const maxOffset = Math.max(0, (totalPages - 1) * pageSize);
+
+  const handleJumpByPages = (pageDelta: number) => {
+    const newOffset = offset + pageDelta * pageSize;
+    handlePageChange(Math.min(Math.max(newOffset, 0), maxOffset));
+  };
+
+  const formatItemName = (name: string) => {
+    const maxLength = 36;
+
+    if (name.length <= maxLength) {
+      return name;
+    }
+
+    return `${name.slice(0, maxLength)}...`;
+  };
+
+  const formatCategoryName = (category: string | null) => {
+    if (!category) {
+      return "";
+    }
+
+    const maxLength = 24;
+
+    if (category.length <= maxLength) {
+      return category;
+    }
+
+    return `${category.slice(0, maxLength)}...`;
+  };
+
+  const getSortIndicator = (column: SortColumn) => {
+    if (sortByParam !== column) {
+      return "";
+    }
+
+    return sortOrderParam === "asc" ? " \u2191" : " \u2193";
+  };
+
   return (
     <div className="item-search-page">
       <div className="item-search-page__inner">
         <div className="item-search-page__header">
           <h1 className="item-search-page__title">Inventory Management</h1>
+
           <div className="staff-dev-back-wrapper">
             <Link href="/staff" className="staff-dev-pill">
               &larr; Back to Staff Hub
@@ -64,98 +475,332 @@ const StaffItemSearchPage = () => {
           </div>
         </div>
 
-        {/* Search and Filter Controls: Allows staff to search and filter for specific items. */}
         <div className="item-search-page__controls">
           <div className="item-search-page__search">
-            <div>
-              <input
-                type="text"
-                placeholder="Search by keyword, SKU, or name..."
-                className="item-search-page__search-input"
-              />
-            </div>
+            <form onSubmit={handleSearchSubmit}>
+              <div className="item-search-page__search-bar">
+                <div className="item-search-page__search-input-wrap">
+                  <input
+                    type="text"
+                    placeholder="Search by SKU or Name"
+                    className="item-search-page__search-input"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                  />
+                  {(searchInput || searchQueryParam) && (
+                    <button
+                      type="button"
+                      className="item-search-page__search-clear"
+                      onClick={handleClearSearch}
+                      aria-label="Clear search"
+                    >
+                      x
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  className="item-search-page__search-submit"
+                  aria-label="Search"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+
             <div className="item-search-page__filter-row">
-              <button className="item-search-page__filter-button">
-                Filters
-              </button>
-              <select className="item-search-page__select">
-                <option>Category: All</option>
-                <option>Vertebrates</option>
-                <option>Invertebrates</option>
-                <option>Protozoa</option>
+              <select
+                className="item-search-page__select"
+                onChange={handleCategoryChange}
+                value={categoryParam}
+              >
+                <option value="all">Category: All</option>
+                {CATEGORY_OPTIONS.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
               </select>
+
+              {categoryParam !== "all" && (
+                <select
+                  className="item-search-page__select"
+                  onChange={handleSubcategoryChange}
+                  value={subcategoryParam}
+                >
+                  <option value="all">Subcategory: All</option>
+                  {subcategories.map((subcategory) => (
+                    <option key={subcategory} value={subcategory}>
+                      {subcategory}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {subcategoryParam !== "all" && (
+                <select
+                  className="item-search-page__select"
+                  onChange={handleTypeChange}
+                  value={typeParam}
+                >
+                  <option value="all">Type: All</option>
+                  {types.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <select
+                className="item-search-page__select"
+                onChange={handlePageSizeChange}
+                value={pageSizeParam}
+              >
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+                <option value="all">All</option>
+              </select>
+
+              <button
+                type="button"
+                className="item-search-page__filter-button"
+                onClick={handleClearSort}
+                disabled={
+                  !sortByParam &&
+                  categoryParam === "all" &&
+                  pageSizeParam === "20" &&
+                  subcategoryParam === "all" &&
+                  typeParam === "all"
+                }
+              >
+                Clear Filters
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Inventory Table: Displays a list of all items in the inventory. */}
         <div className="item-search-page__table-wrap">
-          <table className="item-search-page__table">
-            <thead className="item-search-page__thead">
-              <tr>
-                <th className="item-search-page__th">
-                  <input type="checkbox" />
-                </th>
-                <th className="item-search-page__th">
-                  <button className="item-search-page__th-button">SKU</button>
-                </th>
-                <th className="item-search-page__th">
-                  <button className="item-search-page__th-button">Name</button>
-                </th>
-                <th className="item-search-page__th">
-                  <button className="item-search-page__th-button">
-                    Category
+          <div className="item-search-page__table-scroll">
+            <div className="item-search-page__table-content">
+              <table className="item-search-page__table">
+                <thead className="item-search-page__thead">
+                  <tr>
+                    <th className="item-search-page__th">
+                      <input type="checkbox" />
+                    </th>
+
+                    <th className="item-search-page__th">
+                      <button
+                        className={`item-search-page__th-button${
+                          sortByParam === "sku"
+                            ? " item-search-page__th-button--active"
+                            : ""
+                        }`}
+                        onClick={() => handleSortChange("sku")}
+                      >
+                        SKU
+                        {getSortIndicator("sku")}
+                      </button>
+                    </th>
+
+                    <th className="item-search-page__th">
+                      <button
+                        className={`item-search-page__th-button${
+                          sortByParam === "name"
+                            ? " item-search-page__th-button--active"
+                            : ""
+                        }`}
+                        onClick={() => handleSortChange("name")}
+                      >
+                        Name
+                        {getSortIndicator("name")}
+                      </button>
+                    </th>
+
+                    <th className="item-search-page__th">
+                      <button
+                        className={`item-search-page__th-button${
+                          sortByParam === "category"
+                            ? " item-search-page__th-button--active"
+                            : ""
+                        }`}
+                        onClick={() => handleSortChange("category")}
+                      >
+                        Category
+                        {getSortIndicator("category")}
+                      </button>
+                    </th>
+
+                    <th className="item-search-page__th">
+                      <button
+                        className={`item-search-page__th-button${
+                          sortByParam === "stock"
+                            ? " item-search-page__th-button--active"
+                            : ""
+                        }`}
+                        onClick={() => handleSortChange("stock")}
+                      >
+                        Stock
+                        {getSortIndicator("stock")}
+                      </button>
+                    </th>
+
+                    <th className="item-search-page__th">
+                      <button
+                        className={`item-search-page__th-button${
+                          sortByParam === "price"
+                            ? " item-search-page__th-button--active"
+                            : ""
+                        }`}
+                        onClick={() => handleSortChange("price")}
+                      >
+                        Price
+                        {getSortIndicator("price")}
+                      </button>
+                    </th>
+
+                    <th className="item-search-page__th">
+                      <button
+                        className={`item-search-page__th-button${
+                          sortByParam === "lastModified"
+                            ? " item-search-page__th-button--active"
+                            : ""
+                        }`}
+                        onClick={() => handleSortChange("lastModified")}
+                      >
+                        Last Modified
+                        {getSortIndicator("lastModified")}
+                      </button>
+                    </th>
+
+                    <th className="item-search-page__th">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody className="item-search-page__tbody">
+                  {catalogItems.map((item) => (
+                    <tr key={item.id} className="item-search-page__tr">
+                      <td className="item-search-page__td">
+                        <input type="checkbox" />
+                      </td>
+
+                      <td className="item-search-page__td">{item.sku}</td>
+
+                      <td className="item-search-page__td">
+                        {formatItemName(item.itemName)}
+                      </td>
+
+                      <td className="item-search-page__td">
+                        {formatCategoryName(item.category1)}
+                      </td>
+
+                      <td className="item-search-page__td">
+                        {item.quantityInStock}
+                      </td>
+
+                      <td className="item-search-page__td">
+                        ${Number(item.price).toFixed(2)}
+                      </td>
+
+                      <td className="item-search-page__td">
+                        {new Date(item.updatedAt).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </td>
+
+                      <td className="item-search-page__td">
+                        <Link
+                          href={`/staff/item_edit/${item.id}`}
+                          className="item-search-page__edit-link"
+                        >
+                          Edit
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <div
+                  className="item-search-page__pagination-controls"
+                  style={{ display: "flex", alignItems: "center", gap: "1rem" }}
+                >
+                  <button
+                    className="pagination__nav"
+                    onClick={() => handlePageChange(0)}
+                    disabled={offset === 0}
+                  >
+                    &lt;&lt;&lt;
                   </button>
-                </th>
-                <th className="item-search-page__th">
-                  <button className="item-search-page__th-button">Stock</button>
-                </th>
-                <th className="item-search-page__th">
-                  <button className="item-search-page__th-button">Price</button>
-                </th>
-                <th className="item-search-page__th">
-                  <button className="item-search-page__th-button">
-                    Last Modified
+                  <button
+                    className="pagination__nav"
+                    onClick={() => handleJumpByPages(-5)}
+                    disabled={offset === 0}
+                  >
+                    &lt;&lt;
                   </button>
-                </th>
-                <th className="item-search-page__th">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="item-search-page__tbody">
-              {mockItems.map((item) => (
-                <tr key={item.id} className="item-search-page__tr">
-                  <td className="item-search-page__td">
-                    <input type="checkbox" />
-                  </td>
-                  <td className="item-search-page__td">{item.id}</td>
-                  <td className="item-search-page__td">{item.name}</td>
-                  <td className="item-search-page__td">{item.category}</td>
-                  <td className="item-search-page__td">{item.stock}</td>
-                  <td className="item-search-page__td">
-                    ${item.price.toFixed(2)}
-                  </td>
-                  <td className="item-search-page__td">
-                    {new Date(item.updatedAt).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </td>
-                  <td className="item-search-page__td">
-                    <Link
-                      href={`/staff/item_edit/${item.id}`}
-                      className="item-search-page__edit-link"
-                    >
-                      Edit
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  <button
+                    className="pagination__nav"
+                    onClick={() => handlePageChange(offset - pageSize)}
+                    disabled={offset === 0}
+                  >
+                    &lt;
+                  </button>
+                  <span className="item-search-page__page-info">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    className="pagination__nav"
+                    onClick={() => handlePageChange(offset + pageSize)}
+                    disabled={currentPage === totalPages}
+                  >
+                    &gt;
+                  </button>
+                  <button
+                    className="pagination__nav"
+                    onClick={() => handleJumpByPages(5)}
+                    disabled={currentPage === totalPages}
+                  >
+                    &gt;&gt;
+                  </button>
+                  <button
+                    className="pagination__nav"
+                    onClick={() => handlePageChange(maxOffset)}
+                    disabled={currentPage === totalPages}
+                  >
+                    &gt;&gt;&gt;
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+  );
+};
+
+const StaffItemSearchPage = () => {
+  return (
+    <React.Suspense fallback={null}>
+      <StaffItemSearchPageContent />
+    </React.Suspense>
   );
 };
 
