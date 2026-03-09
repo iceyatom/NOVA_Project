@@ -412,6 +412,8 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
     ? upstreamBase
     : `${upstreamBase.replace(/\/$/, "")}/catalog`;
 
+  const upstreamUrl = new URL(normalizedBase);
+
   if (q.q) upstreamUrl.searchParams.set("q", q.q);
   if (q.categoriesCsv) {
     upstreamUrl.searchParams.set("categories", q.categoriesCsv);
