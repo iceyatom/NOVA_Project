@@ -4,11 +4,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import { useLoginStatus } from "../LoginStatusContext";
 
 /* Header: brand on left, nav on right */
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const pathname = usePathname();
+  const { loggedIn, account } = useLoginStatus();
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname?.startsWith(href));
@@ -46,7 +49,7 @@ export default function Header() {
 
         {/* Primary Navigation */}
         <ul id="topbar-links" className={`links ${open ? "open" : ""}`}>
-          {/* Linked */}
+          {/* ...existing nav links... */}
           <li>
             <Link className="navlink" href="/" aria-current="page">
               Home
@@ -72,10 +75,63 @@ export default function Header() {
               Login
             </Link>
           </li>
-
-          {/* Future pages: Unlinked for now */}
-          {/* <li><span className="navlink" aria-disabled="true" title="Coming soon">Blog</span></li> */}
-          {/* <li><span className="navlink" aria-disabled="true" title="Coming soon">Support</span></li> */}
+          {/* Profile/account icon */}
+          <li>
+            <div
+              className="profile-icon-container"
+              tabIndex={0}
+              aria-label={loggedIn ? "Account" : "Not logged in"}
+              onMouseEnter={() => setShowProfile(true)}
+              onMouseLeave={() => setShowProfile(false)}
+              onFocus={() => setShowProfile(true)}
+              onBlur={() => setShowProfile(false)}
+              style={{
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "44px",
+              }}
+            >
+              <Image
+                src={loggedIn ? "/logo-frog.webp" : "/profile-icon.svg"}
+                alt={loggedIn ? "Account (logged in)" : "Not logged in"}
+                width={32}
+                height={32}
+                style={
+                  loggedIn
+                    ? {
+                        borderRadius: "50%",
+                        boxShadow: "0 0 0 3px #059669",
+                        border: "2px solid #059669",
+                        cursor: "pointer",
+                      }
+                    : {
+                        filter: "grayscale(1) opacity(0.6)",
+                        borderRadius: "50%",
+                        cursor: "pointer",
+                      }
+                }
+                aria-hidden="true"
+              />
+              {showProfile && (
+                <div className="profile-popup" role="dialog" aria-modal="false">
+                  {loggedIn ? (
+                    <div>
+                      <div>
+                        <strong>{account || "User"}</strong>
+                      </div>
+                      <div>{account || "No email"}</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <span>Not logged in</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </li>
         </ul>
       </nav>
     </header>
