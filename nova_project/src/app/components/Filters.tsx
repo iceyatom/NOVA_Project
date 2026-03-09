@@ -186,7 +186,10 @@ export default function Filters({
             />
           </div>
           <div className="price-range-display" aria-live="polite">
-            Selected range: <strong>${customMin} - ${customMax}</strong>
+            Selected range:{" "}
+            <strong>
+              ${customMin} - ${customMax}
+            </strong>
           </div>
         </div>
       </fieldset>

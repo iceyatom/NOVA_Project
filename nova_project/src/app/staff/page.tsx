@@ -7,6 +7,7 @@ const tools = [
   { label: "Item specific edit page UI", href: "/staff/item_edit" },
   { label: "Create item UI", href: "/staff/item_create" },
   { label: "Password hashing test", href: "/staff/dev-hub/password-hash-test" },
+  { label: "Image upload demo", href: "/staff/image-upload-demo" },
 ];
 
 export default function StaffDevHubPage() {
