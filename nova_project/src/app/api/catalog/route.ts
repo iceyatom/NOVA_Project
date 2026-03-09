@@ -414,16 +414,29 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
 
   const upstreamUrl = new URL(normalizedBase);
 
-  if (q.q) upstreamUrl.searchParams.set("q", q.q);
+  if (q.id) {
+    upstreamUrl.searchParams.set("id", String(q.id));
+  } else {
+    upstreamUrl.searchParams.set("limit", String(q.limit));
+    upstreamUrl.searchParams.set("offset", String(q.offset));
+  }
+
+  if (q.q) {
+    upstreamUrl.searchParams.set("q", q.q);
+  }
+
   if (q.categoriesCsv) {
     upstreamUrl.searchParams.set("categories", q.categoriesCsv);
   }
+
   if (q.minPriceRaw) {
     upstreamUrl.searchParams.set("minPrice", q.minPriceRaw);
   }
+
   if (q.maxPriceRaw) {
     upstreamUrl.searchParams.set("maxPrice", q.maxPriceRaw);
   }
+
   if (!q.minPriceRaw && !q.maxPriceRaw && q.priceBucketsCsv) {
     upstreamUrl.searchParams.set("priceBuckets", q.priceBucketsCsv);
   }
