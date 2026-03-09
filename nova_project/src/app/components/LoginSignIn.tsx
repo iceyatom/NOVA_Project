@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useLoginStatus } from "../LoginStatusContext";
 import React, { useState } from "react";
 
@@ -32,6 +33,8 @@ export default function LoginSignIn() {
     setAccount(username);
   };
 
+  // No backend logic in this subtask:
+  console.log({ username, password });
   const handleSimulate = () => {
     if (loggedIn) {
       setLoggedIn(false);
@@ -101,6 +104,13 @@ export default function LoginSignIn() {
           </button>
         )}
       </form>
+
+      <div className="authLinks" aria-label="Account actions">
+        <span className="authLinksText">New here?</span>
+        <Link className="authLink" href="/create_account">
+          Create Account
+        </Link>
+      </div>
       <div
         style={{ marginTop: "2rem", color: loggedIn ? "#059669" : "#32486b" }}
       >

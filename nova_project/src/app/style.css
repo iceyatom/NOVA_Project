@@ -2760,3 +2760,38 @@ body:has(.loginPage) main {
     }
   }
 }
+
+/* Create Account component */
+.authLinks {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  font-size: 16px;
+}
+
+.authLinksText {
+  color: #374151;
+}
+
+.authLink {
+  color: var(--brand-teal);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.authLink:hover {
+  text-decoration: underline;
+}
+
+.twoCol {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 720px) {
+  .twoCol {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
