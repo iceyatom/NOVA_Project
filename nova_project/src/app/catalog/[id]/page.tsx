@@ -6,6 +6,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@prisma/client/runtime/library";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 type CatalogItemPageProps = {
   params: Promise<{
     id: string;
