@@ -43,6 +43,8 @@ next-env.d.ts
 
 #lighthouse reports
 /docs/lighthouse/
+/docs/image-upload-ui.md
+/docs/amazon-storage.md
 
 # Prisma Client
 /src/generated/prisma
