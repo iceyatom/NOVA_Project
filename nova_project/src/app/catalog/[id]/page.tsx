@@ -65,7 +65,9 @@ function getStockStatus(quantity: number, reorderLevel: number): string {
   return "IN STOCK";
 }
 
-async function getCatalogItem(itemId: number): Promise<CatalogItemRecord | null> {
+async function getCatalogItem(
+  itemId: number,
+): Promise<CatalogItemRecord | null> {
   const headerStore = await headers();
   const host = headerStore.get("host");
 
@@ -90,7 +92,7 @@ async function getCatalogItem(itemId: number): Promise<CatalogItemRecord | null>
   if (!response.ok) {
     const bodyText = await response.text().catch(() => "");
     throw new Error(
-      `Catalog request failed with status ${response.status}${bodyText ? `: ${bodyText}` : ""}`
+      `Catalog request failed with status ${response.status}${bodyText ? `: ${bodyText}` : ""}`,
     );
   }
 
@@ -226,9 +228,15 @@ export default async function CatalogItemPage({
           </div>
 
           <section className="product-category">
-            {item.category1 && <p className="product-category1-text">{item.category1}</p>}
-            {item.category2 && <p className="product-category2-text">{item.category2}</p>}
-            {item.category3 && <p className="product-category3-text">{item.category3}</p>}
+            {item.category1 && (
+              <p className="product-category1-text">{item.category1}</p>
+            )}
+            {item.category2 && (
+              <p className="product-category2-text">{item.category2}</p>
+            )}
+            {item.category3 && (
+              <p className="product-category3-text">{item.category3}</p>
+            )}
           </section>
 
           <section className="product-description">
@@ -280,13 +288,15 @@ export default async function CatalogItemPage({
 
               {item.expirationDate && (
                 <div>
-                  <strong>Expiration Date:</strong> {formatDate(item.expirationDate)}
+                  <strong>Expiration Date:</strong>{" "}
+                  {formatDate(item.expirationDate)}
                 </div>
               )}
 
               {item.dateAcquired && (
                 <div>
-                  <strong>Date Acquired:</strong> {formatDate(item.dateAcquired)}
+                  <strong>Date Acquired:</strong>{" "}
+                  {formatDate(item.dateAcquired)}
                 </div>
               )}
             </div>

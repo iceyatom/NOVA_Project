@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
+  const email =
+    typeof body.email === "string" ? normalizeEmail(body.email) : "";
   const password = typeof body.password === "string" ? body.password : "";
 
   if (!email || !password) {
@@ -49,7 +50,11 @@ export async function POST(request: Request) {
       },
     });
 
-    if (!account || account.deletedAt || account.status.toLowerCase() !== "active") {
+    if (
+      !account ||
+      account.deletedAt ||
+      account.status.toLowerCase() !== "active"
+    ) {
       return NextResponse.json(
         { ok: false, error: "Invalid email or password." },
         { status: 401 },
