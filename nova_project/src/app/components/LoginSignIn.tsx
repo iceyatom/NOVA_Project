@@ -8,12 +8,16 @@ export default function LoginSignIn() {
   const { loggedIn, setLoggedIn, account, setAccount } = useLoginStatus();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {},
   );
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     const newErrors: { email?: string; password?: string } = {};
     if (!username) {
       newErrors.email = "Email address is required.";
@@ -27,21 +31,42 @@ export default function LoginSignIn() {
       setErrors(newErrors);
       return;
     }
-    setErrors({});
-    // Simulate login: update global login state and account info
-    setLoggedIn(true);
-    setAccount(username);
-  };
 
-  // No backend logic in this subtask:
-  console.log({ username, password });
-  const handleSimulate = () => {
-    if (loggedIn) {
+    setErrors({});
+    setAuthError("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: username.trim().toLowerCase(),
+          password,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        account?: { email?: string; displayName?: string | null };
+      };
+
+      if (!response.ok || !data.ok) {
+        setLoggedIn(false);
+        setAccount("");
+        setAuthError(data.error ?? "Invalid email or password.");
+        return;
+      }
+
+      setLoggedIn(true);
+      setAccount(data.account?.displayName || data.account?.email || username);
+    } catch {
       setLoggedIn(false);
       setAccount("");
-    } else {
-      setLoggedIn(true);
-      setAccount("Simulated User");
+      setAuthError("Unable to login right now. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -61,6 +86,7 @@ export default function LoginSignIn() {
                 ...prev,
                 email: undefined,
               }));
+              setAuthError("");
             }}
           />
           {errors.email && <p className="errorText">{errors.email}</p>}
@@ -77,16 +103,19 @@ export default function LoginSignIn() {
                 ...prev,
                 password: undefined,
               }));
+              setAuthError("");
             }}
           />
           {errors.password && <p className="errorText">{errors.password}</p>}
         </label>
+        {authError && <p className="errorText">{authError}</p>}
         <button
           className="loginButton"
           type="submit"
           style={{ marginTop: "1rem" }}
+          disabled={isSubmitting}
         >
-          Log in
+          {isSubmitting ? "Logging in..." : "Log in"}
         </button>
         {loggedIn && (
           <button
@@ -98,6 +127,7 @@ export default function LoginSignIn() {
               setAccount("");
               setUsername("");
               setPassword("");
+              setAuthError("");
             }}
           >
             Log out
