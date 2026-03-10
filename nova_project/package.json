@@ -18,6 +18,8 @@
     "lh:preview": "powershell -NoProfile -Command \"New-Item -ItemType Directory -Path 'docs/lighthouse' -Force | Out-Null\"; npx lighthouse https://nova-project-umber.vercel.app --preset=desktop --only-categories=performance,accessibility,best-practices,seo --output=html --output-path=./docs/lighthouse/preview-desktop.html"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1004.0",
+    "@aws-sdk/s3-request-presigner": "^3.1004.0",
     "@aws-sdk/client-s3": "^3.932.0",
     "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",

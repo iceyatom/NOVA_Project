@@ -2795,3 +2795,85 @@ body:has(.loginPage) main {
     align-items: start;
   }
 }
+
+/* Upload Progress Bar */
+.image-upload-progress {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.image-upload-progress-bar {
+  height: 100%;
+  background: var(--brand-teal);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Upload URL Display */
+.image-upload-url {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+/* Upload Submit Button */
+.image-upload-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--brand-teal);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    transform 120ms ease;
+  margin-top: 0.5rem;
+}
+
+.image-upload-submit:hover {
+  background: var(--brand-teal-dark);
+  transform: translateY(-1px);
+}
+
+.image-upload-submit:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Upload Retry Button */
+.image-upload-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 150ms ease;
+  margin-top: 0.5rem;
+}
+
+.image-upload-retry:hover {
+  background: #fef2f2;
+  border-color: #ef4444;
+  transform: translateY(-1px);
+}
+
+.image-upload-retry:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
