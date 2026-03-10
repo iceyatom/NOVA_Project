@@ -59,25 +59,29 @@ export async function POST(request: NextRequest) {
     if (!body.fileName || typeof body.fileName !== "string") {
       return NextResponse.json(
         { success: false, error: "fileName is required and must be a string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!body.fileType || typeof body.fileType !== "string") {
       return NextResponse.json(
         { success: false, error: "fileType is required and must be a string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate file type
-    if (!ALLOWED_IMAGE_TYPES.includes(body.fileType as (typeof ALLOWED_IMAGE_TYPES)[number])) {
+    if (
+      !ALLOWED_IMAGE_TYPES.includes(
+        body.fileType as (typeof ALLOWED_IMAGE_TYPES)[number],
+      )
+    ) {
       return NextResponse.json(
         {
           success: false,
           error: `Invalid file type. Allowed types: ${ALLOWED_IMAGE_TYPES.join(", ")}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -87,7 +91,7 @@ export async function POST(request: NextRequest) {
       if (typeof customMaxSize !== "number" || customMaxSize <= 0) {
         return NextResponse.json(
           { success: false, error: "maxFileSize must be a positive number" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       if (customMaxSize > MAX_FILE_SIZE) {
@@ -96,7 +100,7 @@ export async function POST(request: NextRequest) {
             success: false,
             error: `maxFileSize cannot exceed ${MAX_FILE_SIZE} bytes (${(MAX_FILE_SIZE / 1024 / 1024).toFixed(1)}MB)`,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -125,14 +129,17 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       if (error.message.includes("S3_BUCKET_NAME")) {
         return NextResponse.json(
-          { success: false, error: "Server configuration error: S3 bucket not configured" },
-          { status: 500 }
+          {
+            success: false,
+            error: "Server configuration error: S3 bucket not configured",
+          },
+          { status: 500 },
         );
       }
       if (error.message.includes("Invalid file type")) {
         return NextResponse.json(
           { success: false, error: error.message },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -140,7 +147,7 @@ export async function POST(request: NextRequest) {
     // Generic error response
     return NextResponse.json(
       { success: false, error: "Failed to generate presigned URL" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -150,21 +157,30 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   return NextResponse.json(
-    { success: false, error: "Method not allowed. Use POST to generate a presigned URL." },
-    { status: 405 }
+    {
+      success: false,
+      error: "Method not allowed. Use POST to generate a presigned URL.",
+    },
+    { status: 405 },
   );
 }
 
 export async function PUT() {
   return NextResponse.json(
-    { success: false, error: "Method not allowed. Use POST to generate a presigned URL." },
-    { status: 405 }
+    {
+      success: false,
+      error: "Method not allowed. Use POST to generate a presigned URL.",
+    },
+    { status: 405 },
   );
 }
 
 export async function DELETE() {
   return NextResponse.json(
-    { success: false, error: "Method not allowed. Use POST to generate a presigned URL." },
-    { status: 405 }
+    {
+      success: false,
+      error: "Method not allowed. Use POST to generate a presigned URL.",
+    },
+    { status: 405 },
   );
 }

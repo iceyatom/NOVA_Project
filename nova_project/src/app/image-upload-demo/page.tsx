@@ -9,7 +9,10 @@ export default function ImageUploadDemoPage() {
   >([]);
 
   const handleUploadSuccess = (fileUrl: string, fileKey: string) => {
-    setUploadedImages((prev) => [...prev, { name: fileKey, url: fileUrl, key: fileKey }]);
+    setUploadedImages((prev) => [
+      ...prev,
+      { name: fileKey, url: fileUrl, key: fileKey },
+    ]);
   };
 
   const clearImages = () => {
@@ -23,9 +26,10 @@ export default function ImageUploadDemoPage() {
           <h1 className="pane-title">Image Upload to S3 Demo</h1>
 
           <p style={{ marginBottom: "1.5rem" }}>
-            This component uploads images directly to AWS S3 using presigned URLs.
-            The backend generates a presigned URL, and the file is uploaded
-            directly from the browser to S3 without passing through the server.
+            This component uploads images directly to AWS S3 using presigned
+            URLs. The backend generates a presigned URL, and the file is
+            uploaded directly from the browser to S3 without passing through the
+            server.
           </p>
 
           <h2 style={{ marginBottom: "1rem", fontSize: "1.25rem" }}>
@@ -180,7 +184,16 @@ export default function ImageUploadDemoPage() {
 
             <p style={{ marginBottom: "1rem", color: "var(--muted)" }}>
               To use this component, ensure the following environment variables
-              are set in your <code style={{ background: "var(--border)", padding: "0.25rem 0.5rem" }}>.env</code> file:
+              are set in your{" "}
+              <code
+                style={{
+                  background: "var(--border)",
+                  padding: "0.25rem 0.5rem",
+                }}
+              >
+                .env
+              </code>{" "}
+              file:
             </p>
 
             <code

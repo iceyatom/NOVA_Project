@@ -1,8 +1,5 @@
 // AWS S3 client configuration for presigned URL generation
-import {
-  S3Client,
-  type PutObjectCommandInput,
-} from "@aws-sdk/client-s3";
+import { S3Client, type PutObjectCommandInput } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 
@@ -59,8 +56,10 @@ export const ALLOWED_IMAGE_TYPES = [
 /**
  * Maximum file size (10MB default, can be overridden via environment)
  */
-export const MAX_FILE_SIZE =
-  Number.parseInt(process.env.MAX_UPLOAD_SIZE ?? "10485760", 10); // 10MB
+export const MAX_FILE_SIZE = Number.parseInt(
+  process.env.MAX_UPLOAD_SIZE ?? "10485760",
+  10,
+); // 10MB
 
 /**
  * Presigned URL expiration time (15 minutes by default)
@@ -100,8 +99,14 @@ export async function generatePresignedUrl(
   }
 
   // Validate file type
-  if (!ALLOWED_IMAGE_TYPES.includes(fileType as (typeof ALLOWED_IMAGE_TYPES)[number])) {
-    throw new Error(`Invalid file type: ${fileType}. Allowed types: ${ALLOWED_IMAGE_TYPES.join(", ")}`);
+  if (
+    !ALLOWED_IMAGE_TYPES.includes(
+      fileType as (typeof ALLOWED_IMAGE_TYPES)[number],
+    )
+  ) {
+    throw new Error(
+      `Invalid file type: ${fileType}. Allowed types: ${ALLOWED_IMAGE_TYPES.join(", ")}`,
+    );
   }
 
   // Generate file key
@@ -123,7 +128,7 @@ export async function generatePresignedUrl(
   const presignedUrl = await getSignedUrl(
     s3Client,
     new PutObjectCommand(params),
-    { expiresIn: PRESIGNED_URL_EXPIRATION }
+    { expiresIn: PRESIGNED_URL_EXPIRATION },
   );
 
   // Construct the public URL (assuming bucket is public-read or has a CDN)
@@ -153,6 +158,6 @@ export async function deleteFileFromS3(fileKey: string): Promise<void> {
     new DeleteObjectCommand({
       Bucket: process.env.S3_BUCKET_NAME,
       Key: fileKey,
-    })
+    }),
   );
 }

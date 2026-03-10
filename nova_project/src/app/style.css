@@ -2487,7 +2487,9 @@ body:has(.loginPage) main {
   border: 2px dashed var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-2);
-  transition: border-color 150ms ease, background-color 150ms ease;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
 }
 
 .image-upload-default:hover {
@@ -2507,7 +2509,9 @@ body:has(.loginPage) main {
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
-  transition: background-color 150ms ease, transform 120ms ease;
+  transition:
+    background-color 150ms ease,
+    transform 120ms ease;
   box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
 }
 
@@ -2680,7 +2684,9 @@ body:has(.loginPage) main {
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background-color 150ms ease, transform 120ms ease;
+  transition:
+    background-color 150ms ease,
+    transform 120ms ease;
   margin-top: 0.5rem;
 }
 
