@@ -492,7 +492,8 @@ export async function GET(request: NextRequest) {
     try {
       return await tryPrisma(q);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unknown Prisma error";
+      const msg =
+        error instanceof Error ? error.message : "Unknown Prisma error";
       console.error("Catalog API Prisma failed:", error);
       return errorResponse(
         "Prisma catalog query failed.",
@@ -518,7 +519,8 @@ export async function GET(request: NextRequest) {
     try {
       return await tryLambda(q);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unknown Lambda error";
+      const msg =
+        error instanceof Error ? error.message : "Unknown Lambda error";
       console.error("Catalog API Lambda failed:", error);
       return errorResponse(
         "Lambda catalog request failed.",
@@ -547,7 +549,10 @@ export async function GET(request: NextRequest) {
               ? lambdaError.message
               : "Unknown Lambda error";
 
-          console.error("Catalog API Lambda also failed in auto mode:", lambdaError);
+          console.error(
+            "Catalog API Lambda also failed in auto mode:",
+            lambdaError,
+          );
 
           return errorResponse(
             "Both Prisma and Lambda catalog requests failed.",
@@ -559,7 +564,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const msg = error instanceof Error ? error.message : "Unknown Prisma error";
+      const msg =
+        error instanceof Error ? error.message : "Unknown Prisma error";
       return errorResponse(
         "Prisma catalog query failed.",
         msg,
@@ -574,7 +580,8 @@ export async function GET(request: NextRequest) {
     try {
       return await tryLambda(q);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unknown Lambda error";
+      const msg =
+        error instanceof Error ? error.message : "Unknown Lambda error";
       console.error("Catalog API Lambda failed in auto mode:", error);
       return errorResponse(
         "Lambda catalog request failed.",
