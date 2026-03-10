@@ -6,17 +6,55 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 20;
 const ALLOWED_LIMITS = new Set([20, 50, 100]);
-const PRICE_BUCKETS = new Map<string, { min?: number; max?: number }>([
-  ["under-50", { max: 49.99 }],
-  ["50-99", { min: 50, max: 99.99 }],
-  ["100-249", { min: 100, max: 249.99 }],
-  ["250-plus", { min: 250 }],
+const DEFAULT_MIN_PRICE = 0;
+const DEFAULT_MAX_PRICE = 500;
+const LEGACY_PRICE_BUCKETS = new Map<string, { min?: number; max?: number }>([
+  ["under-50", { max: 50 }],
+  ["50-99", { min: 50, max: 100 }],
+  ["100-249", { min: 100, max: 250 }],
+  ["250-plus", { min: 250, max: DEFAULT_MAX_PRICE }],
 ]);
+
+type DataSourceMode = "auto" | "prisma" | "lambda";
+
+function getDataSourceMode(): DataSourceMode {
+  const raw = (process.env.CATALOG_DATA_SOURCE ?? "auto").trim().toLowerCase();
+
+  if (raw === "prisma" || raw === "lambda" || raw === "auto") {
+    return raw;
+  }
+
+  return "auto";
+}
+
+function getLambdaBaseUrl(): string {
+  return (
+    process.env.CATALOG_LAMBDA_BASE_URL ||
+    process.env.API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ""
+  ).trim();
+}
+
+function hasPrismaConfig(): boolean {
+  return Boolean((process.env.DATABASE_URL ?? "").trim());
+}
+
+function hasLambdaConfig(): boolean {
+  return Boolean(getLambdaBaseUrl());
+}
 
 function parsePositiveInt(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parseNonNegativeNumber(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
   return parsed;
 }
 
@@ -28,19 +66,27 @@ function parseCsv(value: string | null): string[] {
     .filter(Boolean);
 }
 
+type PriceRange = {
+  min: number | null;
+  max: number | null;
+};
+
 type CatalogQuery = {
+  id: number | null;
   limit: number;
   offset: number;
   q: string;
   categories: string[];
-  priceBuckets: string[];
+  priceRange: PriceRange;
   categoriesCsv: string;
   priceBucketsCsv: string;
+  minPriceRaw: string;
+  maxPriceRaw: string;
 };
 
 type CatalogResponse = {
   success: boolean;
-  data: unknown[];
+  data: unknown[] | unknown | null;
   count: number;
   totalCount: number;
   limit: number;
@@ -83,9 +129,36 @@ function withNoCache(resp: NextResponse) {
   return resp;
 }
 
+function normalizePriceRange(
+  minPrice: number | null,
+  maxPrice: number | null,
+): PriceRange {
+  const resolvedMin = minPrice ?? DEFAULT_MIN_PRICE;
+  const resolvedMax = maxPrice ?? DEFAULT_MAX_PRICE;
+  const min = Math.max(DEFAULT_MIN_PRICE, Math.min(resolvedMin, resolvedMax));
+  const max = Math.min(DEFAULT_MAX_PRICE, Math.max(resolvedMin, resolvedMax));
+
+  return {
+    min: min > DEFAULT_MIN_PRICE ? min : null,
+    max: max < DEFAULT_MAX_PRICE ? max : null,
+  };
+}
+
+function getLegacyPriceRange(priceBuckets: string[]): PriceRange {
+  const bucket = priceBuckets[0];
+  const range = bucket ? LEGACY_PRICE_BUCKETS.get(bucket) : null;
+
+  return {
+    min: range?.min ?? null,
+    max: range?.max ?? null,
+  };
+}
+
 function parseCatalogQuery(request: NextRequest): CatalogQuery {
   const url = new URL(request.url);
   const sp = url.searchParams;
+
+  const id = parsePositiveInt(sp.get("id"));
 
   const requestedLimit = parsePositiveInt(sp.get("limit"));
   const limit =
@@ -102,31 +175,45 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
 
   const categoriesCsv = sp.get("categories") ?? "";
   const priceBucketsCsv = sp.get("priceBuckets") ?? "";
+  const minPriceRaw = sp.get("minPrice") ?? "";
+  const maxPriceRaw = sp.get("maxPrice") ?? "";
 
   const categories = parseCsv(categoriesCsv);
   const priceBuckets = parseCsv(priceBucketsCsv);
 
+  const explicitMinPrice = parseNonNegativeNumber(minPriceRaw);
+  const explicitMaxPrice = parseNonNegativeNumber(maxPriceRaw);
+  const priceRange =
+    explicitMinPrice !== null || explicitMaxPrice !== null
+      ? normalizePriceRange(explicitMinPrice, explicitMaxPrice)
+      : getLegacyPriceRange(priceBuckets);
+
   return {
+    id,
     limit,
     offset: safeOffset,
     q,
     categories,
-    priceBuckets,
+    priceRange,
     categoriesCsv,
     priceBucketsCsv,
+    minPriceRaw,
+    maxPriceRaw,
   };
 }
 
 function shapeResponse(args: {
-  data: unknown[];
+  data: unknown[] | unknown | null;
   totalCount: number;
   limit: number;
   offset: number;
 }): CatalogResponse {
+  const count = Array.isArray(args.data) ? args.data.length : args.data ? 1 : 0;
+
   return {
     success: true,
     data: args.data,
-    count: args.data.length,
+    count,
     totalCount: args.totalCount,
     limit: args.limit,
     offset: args.offset,
@@ -139,6 +226,7 @@ function normalizeLambdaPayload(
   offset: number,
 ): CatalogResponse {
   const body = getString(raw, "body");
+
   if (body !== null) {
     try {
       const inner: unknown = JSON.parse(body);
@@ -155,21 +243,6 @@ function normalizeLambdaPayload(
       };
     }
   }
-
-  const dataRaw =
-    getArray(raw, "data") ??
-    getArray(raw, "items") ??
-    (Array.isArray(raw) ? (raw as unknown[]) : []);
-
-  const pageStart = Math.max(0, offset);
-  const pageEnd = pageStart + limit;
-  const data = dataRaw.slice(pageStart, pageEnd);
-
-  const totalCount =
-    getNumber(raw, "totalCount") ??
-    getNumber(raw, "total") ??
-    getNumber(raw, "total_count") ??
-    dataRaw.length;
 
   const success = isRecord(raw) && raw["success"] === false ? false : true;
 
@@ -196,16 +269,43 @@ function normalizeLambdaPayload(
     };
   }
 
-  return shapeResponse({ data, totalCount, limit, offset });
+  const dataField = isRecord(raw) ? raw["data"] : raw;
+
+  if (Array.isArray(dataField)) {
+    const totalCount =
+      getNumber(raw, "totalCount") ??
+      getNumber(raw, "total") ??
+      getNumber(raw, "total_count") ??
+      dataField.length;
+
+    return shapeResponse({ data: dataField, totalCount, limit, offset });
+  }
+
+  if (dataField && typeof dataField === "object") {
+    return shapeResponse({
+      data: dataField,
+      totalCount: 1,
+      limit,
+      offset,
+    });
+  }
+
+  return shapeResponse({
+    data: null,
+    totalCount: 0,
+    limit,
+    offset,
+  });
 }
 
-async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
+function buildPrismaWhere(q: CatalogQuery) {
   const whereFilters: Record<string, unknown>[] = [];
 
-  // ✅ Search ONLY by itemName (case-insensitive, partial match)
   if (q.q) {
     whereFilters.push({
-      itemName: { contains: q.q },
+      itemName: {
+        contains: q.q,
+      },
     });
   }
 
@@ -219,31 +319,21 @@ async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
     });
   }
 
-  if (q.priceBuckets.length > 0) {
-    const ranges = q.priceBuckets
-      .map((bucket) => PRICE_BUCKETS.get(bucket))
-      .filter(Boolean) as Array<{ min?: number; max?: number }>;
-
-    if (ranges.length > 0) {
-      whereFilters.push({
-        OR: ranges.map((range) => ({
-          price: {
-            ...(range.min !== undefined ? { gte: range.min } : {}),
-            ...(range.max !== undefined ? { lte: range.max } : {}),
-          },
-        })),
-      });
-    }
+  if (q.priceRange.min !== null || q.priceRange.max !== null) {
+    whereFilters.push({
+      price: {
+        ...(q.priceRange.min !== null ? { gte: q.priceRange.min } : {}),
+        ...(q.priceRange.max !== null ? { lte: q.priceRange.max } : {}),
+      },
+    });
   }
 
-  const where =
-    whereFilters.length > 0
-      ? {
-          AND: whereFilters,
-        }
-      : undefined;
+  return whereFilters.length > 0 ? { AND: whereFilters } : undefined;
+}
 
-  // ✅ Matches your prisma schema.prisma exactly
+async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
+  const where = buildPrismaWhere(q);
+
   const select = {
     id: true,
     sku: true,
@@ -264,6 +354,25 @@ async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
     createdAt: true,
     updatedAt: true,
   };
+
+  if (q.id) {
+    const item = await prisma.catalogItem.findUnique({
+      where: { id: q.id },
+      select,
+    });
+
+    const response = NextResponse.json(
+      shapeResponse({
+        data: item,
+        totalCount: item ? 1 : 0,
+        limit: q.limit,
+        offset: q.offset,
+      }),
+      { status: item ? 200 : 404 },
+    );
+
+    return withNoCache(response);
+  }
 
   const [totalCount, catalogItems] = await prisma.$transaction([
     prisma.catalogItem.count({ where }),
@@ -289,64 +398,206 @@ async function tryRdsFirst(q: CatalogQuery): Promise<NextResponse> {
   return withNoCache(response);
 }
 
-async function fallbackToLambda(q: CatalogQuery): Promise<NextResponse> {
-  const upstreamBase = process.env.NEXT_PUBLIC_API_URL;
+async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
+  const upstreamBase = getLambdaBaseUrl();
 
   if (!upstreamBase) {
     return NextResponse.json(
-      { success: false, error: "NEXT_PUBLIC_API_URL is not set" },
+      { success: false, error: "Lambda base URL is not set" },
       { status: 500 },
     );
   }
 
-  const upstreamUrl = new URL(`${upstreamBase}/catalog`);
-  upstreamUrl.searchParams.set("limit", String(q.limit));
-  upstreamUrl.searchParams.set("offset", String(q.offset));
+  const normalizedBase = upstreamBase.endsWith("/catalog")
+    ? upstreamBase
+    : `${upstreamBase.replace(/\/$/, "")}/catalog`;
 
-  // Keep query param name consistent with your app ("q")
+  const upstreamUrl = new URL(normalizedBase);
+
   if (q.q) upstreamUrl.searchParams.set("q", q.q);
-
-  if (q.categoriesCsv)
+  if (q.categoriesCsv) {
     upstreamUrl.searchParams.set("categories", q.categoriesCsv);
-  if (q.priceBucketsCsv)
+  }
+  if (q.minPriceRaw) {
+    upstreamUrl.searchParams.set("minPrice", q.minPriceRaw);
+  }
+  if (q.maxPriceRaw) {
+    upstreamUrl.searchParams.set("maxPrice", q.maxPriceRaw);
+  }
+  if (!q.minPriceRaw && !q.maxPriceRaw && q.priceBucketsCsv) {
     upstreamUrl.searchParams.set("priceBuckets", q.priceBucketsCsv);
+  }
+
+  const r = await fetch(upstreamUrl.toString(), { cache: "no-store" });
+  const text = await r.text();
+
+  let parsed: unknown = null;
 
   try {
-    const r = await fetch(upstreamUrl.toString(), { cache: "no-store" });
-    const text = await r.text();
-
-    let parsed: unknown = null;
-    try {
-      parsed = text ? (JSON.parse(text) as unknown) : null;
-    } catch {
-      const passthrough = new NextResponse(text, {
-        status: r.status,
-        headers: {
-          "Content-Type": r.headers.get("content-type") ?? "text/plain",
-        },
-      });
-      return withNoCache(passthrough);
-    }
-
-    const normalized = normalizeLambdaPayload(parsed, q.limit, q.offset);
-    const response = NextResponse.json(normalized, { status: r.status });
-    return withNoCache(response);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return NextResponse.json(
-      { success: false, error: "Upstream Lambda request failed", details: msg },
-      { status: 502 },
-    );
+    parsed = text ? (JSON.parse(text) as unknown) : null;
+  } catch {
+    const passthrough = new NextResponse(text, {
+      status: r.status,
+      headers: {
+        "Content-Type": r.headers.get("content-type") ?? "text/plain",
+      },
+    });
+    return withNoCache(passthrough);
   }
+
+  const normalized = normalizeLambdaPayload(parsed, q.limit, q.offset);
+  const response = NextResponse.json(normalized, { status: r.status });
+  return withNoCache(response);
+}
+
+function errorResponse(
+  message: string,
+  details?: string,
+  status = 500,
+  limit = DEFAULT_LIMIT,
+  offset = 0,
+) {
+  return withNoCache(
+    NextResponse.json(
+      {
+        success: false,
+        data: [],
+        count: 0,
+        totalCount: 0,
+        limit,
+        offset,
+        error: message,
+        ...(details ? { details } : {}),
+      },
+      { status },
+    ),
+  );
 }
 
 export async function GET(request: NextRequest) {
   const q = parseCatalogQuery(request);
+  const mode = getDataSourceMode();
 
-  try {
-    return await tryRdsFirst(q);
-  } catch (error: unknown) {
-    console.error("Catalog API RDS failed, falling back to Lambda:", error);
-    return await fallbackToLambda(q);
+  if (mode === "prisma") {
+    if (!hasPrismaConfig()) {
+      return errorResponse(
+        "CATALOG_DATA_SOURCE=prisma but DATABASE_URL is not set.",
+        undefined,
+        500,
+        q.limit,
+        q.offset,
+      );
+    }
+
+    try {
+      return await tryPrisma(q);
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : "Unknown Prisma error";
+      console.error("Catalog API Prisma failed:", error);
+      return errorResponse(
+        "Prisma catalog query failed.",
+        msg,
+        500,
+        q.limit,
+        q.offset,
+      );
+    }
   }
+
+  if (mode === "lambda") {
+    if (!hasLambdaConfig()) {
+      return errorResponse(
+        "CATALOG_DATA_SOURCE=lambda but no Lambda base URL is set.",
+        undefined,
+        500,
+        q.limit,
+        q.offset,
+      );
+    }
+
+    try {
+      return await tryLambda(q);
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : "Unknown Lambda error";
+      console.error("Catalog API Lambda failed:", error);
+      return errorResponse(
+        "Lambda catalog request failed.",
+        msg,
+        502,
+        q.limit,
+        q.offset,
+      );
+    }
+  }
+
+  if (hasPrismaConfig()) {
+    try {
+      return await tryPrisma(q);
+    } catch (error: unknown) {
+      console.error("Catalog API Prisma failed in auto mode:", error);
+
+      if (hasLambdaConfig()) {
+        try {
+          return await tryLambda(q);
+        } catch (lambdaError: unknown) {
+          const prismaMsg =
+            error instanceof Error ? error.message : "Unknown Prisma error";
+          const lambdaMsg =
+            lambdaError instanceof Error
+              ? lambdaError.message
+              : "Unknown Lambda error";
+
+          console.error(
+            "Catalog API Lambda also failed in auto mode:",
+            lambdaError,
+          );
+
+          return errorResponse(
+            "Both Prisma and Lambda catalog requests failed.",
+            `Prisma: ${prismaMsg} | Lambda: ${lambdaMsg}`,
+            502,
+            q.limit,
+            q.offset,
+          );
+        }
+      }
+
+      const msg =
+        error instanceof Error ? error.message : "Unknown Prisma error";
+      return errorResponse(
+        "Prisma catalog query failed.",
+        msg,
+        500,
+        q.limit,
+        q.offset,
+      );
+    }
+  }
+
+  if (hasLambdaConfig()) {
+    try {
+      return await tryLambda(q);
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : "Unknown Lambda error";
+      console.error("Catalog API Lambda failed in auto mode:", error);
+      return errorResponse(
+        "Lambda catalog request failed.",
+        msg,
+        502,
+        q.limit,
+        q.offset,
+      );
+    }
+  }
+
+  return errorResponse(
+    "No catalog data source is configured.",
+    "Set CATALOG_DATA_SOURCE and the matching env vars.",
+    500,
+    q.limit,
+    q.offset,
+  );
 }

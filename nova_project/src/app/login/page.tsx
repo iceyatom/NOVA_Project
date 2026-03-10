@@ -2,8 +2,8 @@ import LoginSignIn from "../components/LoginSignIn";
 
 export default function LoginPage() {
   return (
-    <main className="loginPage">
+    <div className="loginPage">
       <LoginSignIn />
-    </main>
+    </div>
   );
 }
