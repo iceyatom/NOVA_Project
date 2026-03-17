@@ -3,10 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import React, {
-  useMemo,
+  useEffect,
   useRef,
   useState,
-  useMemo as useMemoReact,
+  useMemo,
 } from "react";
 import { useParams } from "next/navigation";
 
@@ -32,38 +32,63 @@ type Item = {
   updatedAt: string | null;
 };
 
-const getMockItemData = (idOrSku: number | string): Item => {
-  const resolvedId =
-    typeof idOrSku === "number"
-      ? idOrSku
-      : Number.parseInt(String(idOrSku), 10) || 0;
-
-  // Get the item data from the database based on the ID or SKU
-  return {
-    id: resolvedId,
-    sku: "ABC123",
-    itemName: "Sample Item",
-    price: 10.0,
-    category3: "Category 3",
-    category2: "Category 2",
-    category1: "Category 1",
-    description: "This is a sample item description.",
-    imageUrls: [
-      "https://cdn.mos.cms.futurecdn.net/39CUYMP8vJqHAYGVzUghBX-1200-80.jpg",
-      "/FillerImage.webp",
-    ],
-    quantityInStock: 10,
-    unitOfMeasure: "Each",
-    storageLocation: "Storage Location",
-    storageConditions: "Storage Conditions",
-    expirationDate: "2023-12-31",
-    dateAcquired: "2022-01-01",
-    reorderLevel: 5,
-    unitCost: 5.0,
-    createdAt: "2022-01-01T00:00:00.000Z",
-    updatedAt: "2022-01-01T00:00:00.000Z",
-  };
+type CatalogApiResponse = {
+  success: boolean;
+  data: unknown;
 };
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function getNullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function getNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function parseCatalogItem(data: unknown): Item | null {
+  if (Array.isArray(data)) {
+    return parseCatalogItem(data[0]);
+  }
+
+  const raw = asRecord(data);
+  if (!raw) return null;
+
+  const parsedId = getNullableNumber(raw.id);
+  if (parsedId === null) return null;
+
+  return {
+    id: parsedId,
+    sku: getNullableString(raw.sku),
+    itemName: getNullableString(raw.itemName),
+    price: getNullableNumber(raw.price),
+    category3: getNullableString(raw.category3),
+    category2: getNullableString(raw.category2),
+    category1: getNullableString(raw.category1),
+    description: getNullableString(raw.description),
+    imageUrls: ["/FillerImage.webp"],
+    quantityInStock: getNullableNumber(raw.quantityInStock),
+    unitOfMeasure: getNullableString(raw.unitOfMeasure),
+    storageLocation: getNullableString(raw.storageLocation),
+    storageConditions: getNullableString(raw.storageConditions),
+    expirationDate: getNullableString(raw.expirationDate),
+    dateAcquired: getNullableString(raw.dateAcquired),
+    reorderLevel: getNullableNumber(raw.reorderLevel),
+    unitCost: getNullableNumber(raw.unitCost),
+    createdAt: getNullableString(raw.createdAt),
+    updatedAt: getNullableString(raw.updatedAt),
+  };
+}
 
 type ItemForm = {
   sku: string;
@@ -228,23 +253,106 @@ export default function StaffItemEditPage() {
   const params = useParams<{ id?: string | string[] }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const itemId = Number.parseInt(rawId ?? "", 10) || 0;
+  const id = itemId;
 
-  const item = useMemo(() => getMockItemData(itemId), [itemId]);
-  const id = item.id ?? 0;
-  const createdAt = item.createdAt ?? "";
-
-  const [form, setForm] = useState<ItemForm>(() => toForm(item));
-  const [updatedAt, setUpdatedAt] = useState<string>(item.updatedAt ?? "");
+  const [form, setForm] = useState<ItemForm>(() =>
+    toForm({
+      id: itemId,
+      sku: "",
+      itemName: "",
+      price: null,
+      category3: "",
+      category2: "",
+      category1: "",
+      description: "",
+      imageUrls: ["/FillerImage.webp"],
+      quantityInStock: 0,
+      unitOfMeasure: "",
+      storageLocation: "",
+      storageConditions: "",
+      expirationDate: null,
+      dateAcquired: null,
+      reorderLevel: 0,
+      unitCost: null,
+      createdAt: null,
+      updatedAt: null,
+    }),
+  );
+  const [createdAt, setCreatedAt] = useState<string>("");
+  const [updatedAt, setUpdatedAt] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
   );
 
-  const originalRef = useRef<ItemForm>(toForm(item));
+  const originalRef = useRef<ItemForm>(form);
 
-  const isDirty = useMemoReact(
-    () => !sameForm(form, originalRef.current),
-    [form],
-  );
+  const isDirty = useMemo(() => !sameForm(form, originalRef.current), [form]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchItem = async () => {
+      if (!itemId) {
+        if (!mounted) return;
+        setLoadError("Invalid item ID.");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const response = await fetch(`/api/catalog?id=${itemId}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load item (HTTP ${response.status}).`);
+        }
+
+        const payload = (await response.json()) as CatalogApiResponse;
+
+        if (!payload?.success) {
+          throw new Error("Catalog API returned an unsuccessful response.");
+        }
+
+        const loadedItem = parseCatalogItem(payload.data);
+
+        if (!loadedItem) {
+          throw new Error("No item data found for the requested ID.");
+        }
+
+        const nextForm = toForm(loadedItem);
+
+        if (!mounted) return;
+        setForm(nextForm);
+        originalRef.current = structuredClone(nextForm);
+        setCreatedAt(loadedItem.createdAt ?? "");
+        setUpdatedAt(loadedItem.updatedAt ?? "");
+        setSelectedImageIndex(null);
+      } catch (error) {
+        if (!mounted) return;
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load item data.",
+        );
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchItem();
+
+    return () => {
+      mounted = false;
+    };
+  }, [itemId]);
 
   const update =
     <K extends keyof ItemForm>(key: K) =>
@@ -347,6 +455,18 @@ export default function StaffItemEditPage() {
         <h1 className="staff-dev-title">Staff Item Edit</h1>
 
         <div className="item-edit-container">
+          {isLoading && (
+            <div className="item-edit-box">
+              <strong>Loading item data...</strong>
+            </div>
+          )}
+
+          {loadError && (
+            <div className="item-edit-box">
+              <strong>Error:</strong> {loadError}
+            </div>
+          )}
+
           <div className="item-edit-box">
             <strong className="item-edit-label">Item Details</strong>
             <br />
@@ -635,6 +755,7 @@ export default function StaffItemEditPage() {
               type="button"
               onClick={saveChanges}
               className="staff-dev-pill"
+              disabled={isLoading || !!loadError}
             >
               Save Changes
             </button>
