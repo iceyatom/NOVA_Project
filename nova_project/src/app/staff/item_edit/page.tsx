@@ -37,6 +37,21 @@ type CatalogApiResponse = {
   data: unknown;
 };
 
+const CATEGORY_OPTIONS = [
+  "Laboratory Supplies",
+  "Live Algae Specimens",
+  "Live Bacteria & Fungi Specimens",
+  "Live Invertebrates",
+  "Live Plant Specimens",
+  "Live Protozoa Specimens",
+  "Live Vertebrates",
+  "Microbiological Supplies",
+  "Microscopes",
+  "Owl Pellets",
+  "Preserved Invertebrates",
+  "Preserved Vertebrates",
+];
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
@@ -282,6 +297,8 @@ export default function StaffItemEditPage() {
   const [updatedAt, setUpdatedAt] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [types, setTypes] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
   );
@@ -353,6 +370,74 @@ export default function StaffItemEditPage() {
       mounted = false;
     };
   }, [itemId]);
+
+  useEffect(() => {
+    const fetchSubcategories = async () => {
+      if (!form.category3.trim()) {
+        setSubcategories([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/catalog/staff/subcategories?category=${encodeURIComponent(form.category3)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          setSubcategories([]);
+          return;
+        }
+
+        const payload = (await response.json()) as { subcategories?: unknown };
+        const nextSubcategories = Array.isArray(payload?.subcategories)
+          ? payload.subcategories.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+        setSubcategories(nextSubcategories);
+      } catch {
+        setSubcategories([]);
+      }
+    };
+
+    fetchSubcategories();
+  }, [form.category3]);
+
+  useEffect(() => {
+    const fetchTypes = async () => {
+      if (!form.category3.trim() || !form.category2.trim()) {
+        setTypes([]);
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          category: form.category3,
+          subcategory: form.category2,
+        });
+        const response = await fetch(
+          `/api/catalog/staff/types?${params.toString()}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          setTypes([]);
+          return;
+        }
+
+        const payload = (await response.json()) as { types?: unknown };
+        const nextTypes = Array.isArray(payload?.types)
+          ? payload.types.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+        setTypes(nextTypes);
+      } catch {
+        setTypes([]);
+      }
+    };
+
+    fetchTypes();
+  }, [form.category3, form.category2]);
 
   const update =
     <K extends keyof ItemForm>(key: K) =>
@@ -499,29 +584,75 @@ export default function StaffItemEditPage() {
             />
             <br />
             <strong>Categories:</strong>&nbsp;
-            <input
-              type="text"
-              id="category1"
-              className="item-edit-input"
-              value={form.category1}
-              onChange={update("category1")}
-            />{" "}
-            &gt;&nbsp;
-            <input
-              type="text"
-              id="category2"
-              className="item-edit-input"
-              value={form.category2}
-              onChange={update("category2")}
-            />{" "}
-            &gt;&nbsp;
-            <input
-              type="text"
+            <select
               id="category3"
-              className="item-edit-input"
+              className="item-search-page__select"
               value={form.category3}
-              onChange={update("category3")}
-            />
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  category3: e.target.value,
+                  category2: "",
+                  category1: "",
+                }))
+              }
+            >
+              <option value="">Category</option>
+              {CATEGORY_OPTIONS.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+              {form.category3 &&
+                !CATEGORY_OPTIONS.includes(form.category3) && (
+                  <option value={form.category3}>{form.category3}</option>
+                )}
+            </select>{" "}
+            &gt;&nbsp;
+            <select
+              id="category2"
+              className="item-search-page__select"
+              value={form.category2}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  category2: e.target.value,
+                  category1: "",
+                }))
+              }
+            >
+              <option value="">Subcategory</option>
+              {subcategories.map((subcategory) => (
+                <option key={subcategory} value={subcategory}>
+                  {subcategory}
+                </option>
+              ))}
+              {form.category2 && !subcategories.includes(form.category2) && (
+                <option value={form.category2}>{form.category2}</option>
+              )}
+            </select>{" "}
+            &gt;&nbsp;
+            <select
+              id="category1"
+              className="item-search-page__select"
+              value={form.category1}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  category1: e.target.value,
+                }))
+              }
+            >
+              <option value="">Type</option>
+              {types.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+              {form.category1 && !types.includes(form.category1) && (
+                <option value={form.category1}>{form.category1}</option>
+              )}
+            </select>
             <br />
             <strong>Price:</strong> $
             <input
