@@ -58,9 +58,9 @@ function buildWhere(q: ReturnType<typeof parseQuery>) {
     });
   }
 
-  if (q.category !== "all") and.push({ category1: q.category });
+  if (q.category !== "all") and.push({ category3: q.category });
   if (q.subcategory !== "all") and.push({ category2: q.subcategory });
-  if (q.type !== "all") and.push({ category3: q.type });
+  if (q.type !== "all") and.push({ category1: q.type });
 
   return and.length > 0 ? { AND: and } : undefined;
 }

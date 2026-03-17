@@ -8,6 +8,7 @@ import React, {
   useState,
   useMemo as useMemoReact,
 } from "react";
+import { useParams } from "next/navigation";
 
 type Item = {
   id: number | null;
@@ -32,9 +33,14 @@ type Item = {
 };
 
 const getMockItemData = (idOrSku: number | string): Item => {
+  const resolvedId =
+    typeof idOrSku === "number"
+      ? idOrSku
+      : Number.parseInt(String(idOrSku), 10) || 0;
+
   // Get the item data from the database based on the ID or SKU
   return {
-    id: 1,
+    id: resolvedId,
     sku: "ABC123",
     itemName: "Sample Item",
     price: 10.0,
@@ -219,7 +225,11 @@ function validateForm(f: ItemForm): string | null {
 }
 
 export default function StaffItemEditPage() {
-  const item = useMemo(() => getMockItemData(0), []);
+  const params = useParams<{ id?: string | string[] }>();
+  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const itemId = Number.parseInt(rawId ?? "", 10) || 0;
+
+  const item = useMemo(() => getMockItemData(itemId), [itemId]);
   const id = item.id ?? 0;
   const createdAt = item.createdAt ?? "";
 
