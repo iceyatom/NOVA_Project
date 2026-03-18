@@ -563,6 +563,17 @@ function StaffItemEditPageContent() {
     }
   }
 
+  function resetChanges() {
+    if (!isDirty || isSaving || isLoading || !!loadError) {
+      return;
+    }
+
+    const snapshot = structuredClone(originalRef.current);
+    setForm(snapshot);
+    setSelectedImageIndex(null);
+    setSaveError(null);
+  }
+
   const uploadImage = () => {
     console.log("Image upload functionality is not implemented yet.");
   };
@@ -937,7 +948,15 @@ function StaffItemEditPageContent() {
             )}
           </div>
 
-          <div className="staff-dev-back-wrapper">
+          <div className="staff-dev-back-wrapper item-edit-actions">
+            <button
+              type="button"
+              onClick={resetChanges}
+              className={`staff-dev-pill${isDirty ? " staff-dev-pill--reset-ready" : ""}`}
+              disabled={isLoading || !!loadError || isSaving || !isDirty}
+            >
+              Reset Changes
+            </button>
             <button
               type="button"
               onClick={saveChanges}
