@@ -2140,12 +2140,54 @@ body {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
+.staff-dev-pill--ready {
+  background: #ba6f00;
+  border-color: rgba(90, 48, 0, 0.35);
+  box-shadow: 0 0 0 3px rgba(186, 111, 0, 0.2);
+}
+
+.staff-dev-pill--ready:hover {
+  background: #995b00;
+}
+
+.staff-dev-pill--reset-ready {
+  background: #4a6fbe;
+  border-color: rgba(28, 52, 102, 0.35);
+  box-shadow: 0 0 0 3px rgba(74, 111, 190, 0.2);
+}
+
+.staff-dev-pill--reset-ready:hover {
+  background: #3c5a9a;
+}
+
+button.staff-dev-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .staff-dev-back-wrapper {
   margin-top: 20px;
 }
 
+.item-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .staff-dev-back-wrapper .staff-dev-pill {
   background: #1e7f5a;
+}
+
+.staff-dev-back-wrapper .staff-dev-pill--ready {
+  background: #ba6f00;
+}
+
+.staff-dev-back-wrapper .staff-dev-pill--reset-ready {
+  background: #4a6fbe;
 }
 
 .staff-dev-title {
@@ -2546,22 +2588,9 @@ body:has(.loginPage) main {
     color: #004000;
   }
 
-  .item-edit-box > div > .item-edit-upload-image-button {
-    padding: 0.25rem 0.5rem;
-    background-color: #059669;
-    color: #ffffff;
-    border-color: #004000;
-    border-radius: 0.25rem;
-    cursor: pointer;
-  }
-
+  .item-edit-box > div > .item-edit-upload-image-button,
   .item-edit-box > div > .item-edit-remove-image-button {
-    padding: 0.25rem 0.5rem;
-    background-color: #059669;
-    color: #ffffff;
-    border-color: #004000;
-    border-radius: 0.25rem;
-    cursor: pointer;
+    text-decoration: none;
   }
 
   .item-edit-decrement-stock-button {
@@ -2876,4 +2905,12 @@ body:has(.loginPage) main {
 .image-upload-retry:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+.item-edit-field-name {
+  color: #000 !important;
+}
+
+.item-edit-field-name--dirty {
+  color: #dc2626 !important;
 }

@@ -67,9 +67,7 @@ function parseStaffQuery(request: NextRequest): StaffQuery {
 
   const pageSizeRaw = sp.get("pageSize");
   const pageSize =
-    pageSizeRaw === "all"
-      ? 1000
-      : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT);
+    pageSizeRaw === "all" ? 1000 : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT);
 
   const offset = parsePositiveInt(sp.get("offset"), 0);
   const category = sp.get("category") || "all";
@@ -112,7 +110,7 @@ function buildPrismaWhere(q: StaffQuery) {
   }
 
   if (q.category !== "all") {
-    and.push({ category1: q.category });
+    and.push({ category3: q.category });
   }
 
   if (q.subcategory !== "all") {
@@ -120,7 +118,7 @@ function buildPrismaWhere(q: StaffQuery) {
   }
 
   if (q.type !== "all") {
-    and.push({ category3: q.type });
+    and.push({ category1: q.type });
   }
 
   return and.length > 0 ? { AND: and } : undefined;

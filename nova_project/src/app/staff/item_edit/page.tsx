@@ -2,12 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import React, {
-  useMemo,
-  useRef,
-  useState,
-  useMemo as useMemoReact,
-} from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 
 type Item = {
   id: number | null;
@@ -31,33 +27,78 @@ type Item = {
   updatedAt: string | null;
 };
 
-const getMockItemData = (idOrSku: number | string): Item => {
-  // Get the item data from the database based on the ID or SKU
-  return {
-    id: 1,
-    sku: "ABC123",
-    itemName: "Sample Item",
-    price: 10.0,
-    category3: "Category 3",
-    category2: "Category 2",
-    category1: "Category 1",
-    description: "This is a sample item description.",
-    imageUrls: [
-      "https://cdn.mos.cms.futurecdn.net/39CUYMP8vJqHAYGVzUghBX-1200-80.jpg",
-      "/FillerImage.webp",
-    ],
-    quantityInStock: 10,
-    unitOfMeasure: "Each",
-    storageLocation: "Storage Location",
-    storageConditions: "Storage Conditions",
-    expirationDate: "2023-12-31",
-    dateAcquired: "2022-01-01",
-    reorderLevel: 5,
-    unitCost: 5.0,
-    createdAt: "2022-01-01T00:00:00.000Z",
-    updatedAt: "2022-01-01T00:00:00.000Z",
-  };
+type CatalogApiResponse = {
+  success: boolean;
+  data: unknown;
 };
+
+const CATEGORY_OPTIONS = [
+  "Laboratory Supplies",
+  "Live Algae Specimens",
+  "Live Bacteria & Fungi Specimens",
+  "Live Invertebrates",
+  "Live Plant Specimens",
+  "Live Protozoa Specimens",
+  "Live Vertebrates",
+  "Microbiological Supplies",
+  "Microscopes",
+  "Owl Pellets",
+  "Preserved Invertebrates",
+  "Preserved Vertebrates",
+];
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function getNullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function getNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function parseCatalogItem(data: unknown): Item | null {
+  if (Array.isArray(data)) {
+    return parseCatalogItem(data[0]);
+  }
+
+  const raw = asRecord(data);
+  if (!raw) return null;
+
+  const parsedId = getNullableNumber(raw.id);
+  if (parsedId === null) return null;
+
+  return {
+    id: parsedId,
+    sku: getNullableString(raw.sku),
+    itemName: getNullableString(raw.itemName),
+    price: getNullableNumber(raw.price),
+    category3: getNullableString(raw.category3),
+    category2: getNullableString(raw.category2),
+    category1: getNullableString(raw.category1),
+    description: getNullableString(raw.description),
+    imageUrls: ["/FillerImage.webp"],
+    quantityInStock: getNullableNumber(raw.quantityInStock),
+    unitOfMeasure: getNullableString(raw.unitOfMeasure),
+    storageLocation: getNullableString(raw.storageLocation),
+    storageConditions: getNullableString(raw.storageConditions),
+    expirationDate: getNullableString(raw.expirationDate),
+    dateAcquired: getNullableString(raw.dateAcquired),
+    reorderLevel: getNullableNumber(raw.reorderLevel),
+    unitCost: getNullableNumber(raw.unitCost),
+    createdAt: getNullableString(raw.createdAt),
+    updatedAt: getNullableString(raw.updatedAt),
+  };
+}
 
 type ItemForm = {
   sku: string;
@@ -178,6 +219,8 @@ function sameForm(a: ItemForm, b: ItemForm) {
   );
 }
 
+type NormalizedItemForm = ReturnType<typeof normalizeForCompare>;
+
 function validateForm(f: ItemForm): string | null {
   const currencyToCheck = ["$", "€", "£", "¥"];
   const hasCurrency = (s: string) => currencyToCheck.some((c) => s.includes(c));
@@ -218,23 +261,194 @@ function validateForm(f: ItemForm): string | null {
   return null;
 }
 
-export default function StaffItemEditPage() {
-  const item = useMemo(() => getMockItemData(0), []);
-  const id = item.id ?? 0;
-  const createdAt = item.createdAt ?? "";
+function StaffItemEditPageContent() {
+  const params = useParams<{ id?: string | string[] }>();
+  const searchParams = useSearchParams();
+  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const itemId = Number.parseInt(rawId ?? "", 10) || 0;
+  const id = itemId;
+  const backToItemSearchHref = useMemo(() => {
+    const query = searchParams.toString();
+    return query ? `/staff/item_search?${query}` : "/staff/item_search";
+  }, [searchParams]);
 
-  const [form, setForm] = useState<ItemForm>(() => toForm(item));
-  const [updatedAt, setUpdatedAt] = useState<string>(item.updatedAt ?? "");
+  const [form, setForm] = useState<ItemForm>(() =>
+    toForm({
+      id: itemId,
+      sku: "",
+      itemName: "",
+      price: null,
+      category3: "",
+      category2: "",
+      category1: "",
+      description: "",
+      imageUrls: ["/FillerImage.webp"],
+      quantityInStock: 0,
+      unitOfMeasure: "",
+      storageLocation: "",
+      storageConditions: "",
+      expirationDate: null,
+      dateAcquired: null,
+      reorderLevel: 0,
+      unitCost: null,
+      createdAt: null,
+      updatedAt: null,
+    }),
+  );
+  const [createdAt, setCreatedAt] = useState<string>("");
+  const [updatedAt, setUpdatedAt] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [types, setTypes] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
   );
 
-  const originalRef = useRef<ItemForm>(toForm(item));
+  const originalRef = useRef<ItemForm>(form);
 
-  const isDirty = useMemoReact(
-    () => !sameForm(form, originalRef.current),
-    [form],
-  );
+  const isDirty = useMemo(() => !sameForm(form, originalRef.current), [form]);
+  const normalizedForm = useMemo(() => normalizeForCompare(form), [form]);
+  const normalizedOriginal = normalizeForCompare(originalRef.current);
+  const isFieldDirty = (field: keyof NormalizedItemForm) =>
+    JSON.stringify(normalizedForm[field]) !==
+    JSON.stringify(normalizedOriginal[field]);
+  const isAnyFieldDirty = (fields: (keyof NormalizedItemForm)[]) =>
+    fields.some((field) => isFieldDirty(field));
+  const fieldNameClass = (dirty: boolean) =>
+    `item-edit-field-name${dirty ? " item-edit-field-name--dirty" : ""}`;
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchItem = async () => {
+      if (!itemId) {
+        if (!mounted) return;
+        setLoadError("Invalid item ID.");
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const response = await fetch(`/api/catalog?id=${itemId}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load item (HTTP ${response.status}).`);
+        }
+
+        const payload = (await response.json()) as CatalogApiResponse;
+
+        if (!payload?.success) {
+          throw new Error("Catalog API returned an unsuccessful response.");
+        }
+
+        const loadedItem = parseCatalogItem(payload.data);
+
+        if (!loadedItem) {
+          throw new Error("No item data found for the requested ID.");
+        }
+
+        const nextForm = toForm(loadedItem);
+
+        if (!mounted) return;
+        setForm(nextForm);
+        originalRef.current = structuredClone(nextForm);
+        setCreatedAt(loadedItem.createdAt ?? "");
+        setUpdatedAt(loadedItem.updatedAt ?? "");
+        setSelectedImageIndex(null);
+      } catch (error) {
+        if (!mounted) return;
+        setLoadError(
+          error instanceof Error ? error.message : "Failed to load item data.",
+        );
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchItem();
+
+    return () => {
+      mounted = false;
+    };
+  }, [itemId]);
+
+  useEffect(() => {
+    const fetchSubcategories = async () => {
+      if (!form.category3.trim()) {
+        setSubcategories([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/catalog/staff/subcategories?category=${encodeURIComponent(form.category3)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          setSubcategories([]);
+          return;
+        }
+
+        const payload = (await response.json()) as { subcategories?: unknown };
+        const nextSubcategories = Array.isArray(payload?.subcategories)
+          ? payload.subcategories.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+        setSubcategories(nextSubcategories);
+      } catch {
+        setSubcategories([]);
+      }
+    };
+
+    fetchSubcategories();
+  }, [form.category3]);
+
+  useEffect(() => {
+    const fetchTypes = async () => {
+      if (!form.category3.trim() || !form.category2.trim()) {
+        setTypes([]);
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          category: form.category3,
+          subcategory: form.category2,
+        });
+        const response = await fetch(
+          `/api/catalog/staff/types?${params.toString()}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          setTypes([]);
+          return;
+        }
+
+        const payload = (await response.json()) as { types?: unknown };
+        const nextTypes = Array.isArray(payload?.types)
+          ? payload.types.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+        setTypes(nextTypes);
+      } catch {
+        setTypes([]);
+      }
+    };
+
+    fetchTypes();
+  }, [form.category3, form.category2]);
 
   const update =
     <K extends keyof ItemForm>(key: K) =>
@@ -262,7 +476,7 @@ export default function StaffItemEditPage() {
   };
 
   async function saveChanges() {
-    if (!isDirty) {
+    if (!isDirty || isSaving || isLoading || !!loadError) {
       console.log("No changes detected. Nothing to save.");
       return;
     }
@@ -274,9 +488,6 @@ export default function StaffItemEditPage() {
       alert(validationError);
       return;
     }
-
-    const currentTimestamp = new Date().toISOString();
-    setUpdatedAt(currentTimestamp);
 
     const payload = {
       sku: prepared.sku,
@@ -298,21 +509,74 @@ export default function StaffItemEditPage() {
       dateAcquired: prepared.dateAcquired,
       reorderLevel: Math.max(0, Math.trunc(Number(prepared.reorderLevel))),
       unitCost: Number(prepared.unitCost),
-      updatedAt: currentTimestamp,
     };
 
-    console.log("Saving payload:", payload);
+    setIsSaving(true);
+    setSaveError(null);
 
-    // TODO: await fetch(`/api/items/${id}`, { method: "PATCH", body: JSON.stringify(payload) })
+    try {
+      const response = await fetch(`/api/catalog?id=${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    // keep UI + dirty state consistent with what you'd persist
-    setForm(prepared);
-    originalRef.current = structuredClone(prepared);
+      if (!response.ok) {
+        let message = `Failed to save item (HTTP ${response.status}).`;
+
+        try {
+          const errorPayload = (await response.json()) as {
+            error?: unknown;
+            details?: unknown;
+          };
+          if (typeof errorPayload?.error === "string") {
+            message = errorPayload.error;
+            if (typeof errorPayload.details === "string") {
+              message = `${message} ${errorPayload.details}`;
+            }
+          }
+        } catch {
+          // Keep fallback message when no JSON payload is available.
+        }
+
+        throw new Error(message);
+      }
+
+      const result = (await response.json()) as CatalogApiResponse;
+      const savedItem = parseCatalogItem(result?.data);
+
+      if (savedItem) {
+        const nextForm = toForm(savedItem);
+        setForm(nextForm);
+        originalRef.current = structuredClone(nextForm);
+        setUpdatedAt((prev) => savedItem.updatedAt ?? prev);
+      } else {
+        // Fallback to local normalized values if the API response body shape changes.
+        setForm(prepared);
+        originalRef.current = structuredClone(prepared);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save changes.";
+      setSaveError(message);
+      alert(message);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  const uploadImage = () => {
-    console.log("Image upload functionality is not implemented yet.");
-  };
+  function resetChanges() {
+    if (!isDirty || isSaving || isLoading || !!loadError) {
+      return;
+    }
+
+    const snapshot = structuredClone(originalRef.current);
+    setForm(snapshot);
+    setSelectedImageIndex(null);
+    setSaveError(null);
+  }
 
   const removeImage = () => {
     setForm((prev) => {
@@ -329,14 +593,32 @@ export default function StaffItemEditPage() {
     <div className="staff-dev-page">
       <div className="staff-dev-card">
         <div className="staff-dev-back-wrapper">
-          <Link href="/staff" className="staff-dev-pill">
-            ← Back to Staff Dev Hub
+          <Link href={backToItemSearchHref} className="staff-dev-pill">
+            ← Back to Item Search
           </Link>
         </div>
 
         <h1 className="staff-dev-title">Staff Item Edit</h1>
 
         <div className="item-edit-container">
+          {isLoading && (
+            <div className="item-edit-box">
+              <strong>Loading item data...</strong>
+            </div>
+          )}
+
+          {loadError && (
+            <div className="item-edit-box">
+              <strong>Error:</strong> {loadError}
+            </div>
+          )}
+
+          {saveError && (
+            <div className="item-edit-box">
+              <strong>Save error:</strong> {saveError}
+            </div>
+          )}
+
           <div className="item-edit-box">
             <strong className="item-edit-label">Item Details</strong>
             <br />
@@ -350,7 +632,9 @@ export default function StaffItemEditPage() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Display</strong>
             <br />
-            <strong>Item Name:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("itemName"))}>
+              Item Name:
+            </strong>{" "}
             <input
               type="text"
               id="itemName"
@@ -359,7 +643,9 @@ export default function StaffItemEditPage() {
               onChange={update("itemName")}
             />
             <br />
-            <strong>SKU:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("sku"))}>
+              SKU:
+            </strong>{" "}
             <input
               type="text"
               id="sku"
@@ -368,32 +654,87 @@ export default function StaffItemEditPage() {
               onChange={update("sku")}
             />
             <br />
-            <strong>Categories:</strong>&nbsp;
-            <input
-              type="text"
-              id="category1"
-              className="item-edit-input"
-              value={form.category1}
-              onChange={update("category1")}
-            />{" "}
-            &gt;&nbsp;
-            <input
-              type="text"
-              id="category2"
-              className="item-edit-input"
-              value={form.category2}
-              onChange={update("category2")}
-            />{" "}
-            &gt;&nbsp;
-            <input
-              type="text"
+            <strong
+              className={fieldNameClass(
+                isAnyFieldDirty(["category3", "category2", "category1"]),
+              )}
+            >
+              Categories:
+            </strong>
+            &nbsp;
+            <select
               id="category3"
-              className="item-edit-input"
+              className="item-search-page__select"
               value={form.category3}
-              onChange={update("category3")}
-            />
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  category3: e.target.value,
+                  category2: "",
+                  category1: "",
+                }))
+              }
+            >
+              <option value="">Category</option>
+              {CATEGORY_OPTIONS.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+              {form.category3 && !CATEGORY_OPTIONS.includes(form.category3) && (
+                <option value={form.category3}>{form.category3}</option>
+              )}
+            </select>{" "}
+            &gt;&nbsp;
+            <select
+              id="category2"
+              className="item-search-page__select"
+              value={form.category2}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  category2: e.target.value,
+                  category1: "",
+                }))
+              }
+            >
+              <option value="">Subcategory</option>
+              {subcategories.map((subcategory) => (
+                <option key={subcategory} value={subcategory}>
+                  {subcategory}
+                </option>
+              ))}
+              {form.category2 && !subcategories.includes(form.category2) && (
+                <option value={form.category2}>{form.category2}</option>
+              )}
+            </select>{" "}
+            &gt;&nbsp;
+            <select
+              id="category1"
+              className="item-search-page__select"
+              value={form.category1}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  category1: e.target.value,
+                }))
+              }
+            >
+              <option value="">Type</option>
+              {types.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+              {form.category1 && !types.includes(form.category1) && (
+                <option value={form.category1}>{form.category1}</option>
+              )}
+            </select>
             <br />
-            <strong>Price:</strong> $
+            <strong className={fieldNameClass(isFieldDirty("price"))}>
+              Price:
+            </strong>{" "}
+            $
             <input
               type="text"
               id="price"
@@ -406,7 +747,10 @@ export default function StaffItemEditPage() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Logistics</strong>
             <br />
-            <strong>Quantity in Stock:</strong>&nbsp;
+            <strong className={fieldNameClass(isFieldDirty("quantityInStock"))}>
+              Quantity in Stock:
+            </strong>
+            &nbsp;
             <button
               type="button"
               onClick={() => bumpStock(-5)}
@@ -447,7 +791,9 @@ export default function StaffItemEditPage() {
               +5
             </button>
             <br />
-            <strong>Unit of Measure:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("unitOfMeasure"))}>
+              Unit of Measure:
+            </strong>{" "}
             <input
               type="text"
               id="unitOfMeasure"
@@ -457,7 +803,9 @@ export default function StaffItemEditPage() {
               onBlur={blurNA("unitOfMeasure")}
             />
             <br />
-            <strong>Reorder Level:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("reorderLevel"))}>
+              Reorder Level:
+            </strong>{" "}
             <input
               type="text"
               id="reorderLevel"
@@ -466,7 +814,10 @@ export default function StaffItemEditPage() {
               onChange={update("reorderLevel")}
             />
             <br />
-            <strong>Unit Cost:</strong> $
+            <strong className={fieldNameClass(isFieldDirty("unitCost"))}>
+              Unit Cost:
+            </strong>{" "}
+            $
             <input
               type="text"
               id="unitCost"
@@ -477,7 +828,11 @@ export default function StaffItemEditPage() {
           </div>
 
           <div className="item-edit-box">
-            <strong className="item-edit-label">Description</strong>
+            <strong
+              className={`item-edit-label ${fieldNameClass(isFieldDirty("description"))}`}
+            >
+              Description
+            </strong>
             <br />
             <textarea
               id="description"
@@ -491,7 +846,9 @@ export default function StaffItemEditPage() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Storage</strong>
             <br />
-            <strong>Storage Location:</strong>
+            <strong className={fieldNameClass(isFieldDirty("storageLocation"))}>
+              Storage Location:
+            </strong>
             <br />
             <textarea
               id="storageLocation"
@@ -501,7 +858,11 @@ export default function StaffItemEditPage() {
               onBlur={blurNA("storageLocation")}
             />
             <br />
-            <strong>Storage Conditions:</strong>
+            <strong
+              className={fieldNameClass(isFieldDirty("storageConditions"))}
+            >
+              Storage Conditions:
+            </strong>
             <br />
             <textarea
               id="storageConditions"
@@ -511,7 +872,9 @@ export default function StaffItemEditPage() {
               onBlur={blurNA("storageConditions")}
             />
             <br />
-            <strong>Date Acquired:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("dateAcquired"))}>
+              Date Acquired:
+            </strong>{" "}
             <input
               type="text"
               id="dateAcquired"
@@ -521,7 +884,9 @@ export default function StaffItemEditPage() {
               onBlur={blurNA("dateAcquired")}
             />
             <br />
-            <strong>Expiration Date:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("expirationDate"))}>
+              Expiration Date:
+            </strong>{" "}
             <input
               type="text"
               id="expirationDate"
@@ -533,23 +898,26 @@ export default function StaffItemEditPage() {
           </div>
 
           <div className="item-edit-box">
-            <strong className="item-edit-label">Images:</strong>
+            <strong
+              className={`item-edit-label ${fieldNameClass(isFieldDirty("imageUrls"))}`}
+            >
+              Images:
+            </strong>
             <br />
 
             <div>
-              <button
-                type="button"
-                onClick={uploadImage}
-                className="item-edit-upload-image-button"
+              <Link
+                href="/staff/image-upload-demo"
+                className="staff-dev-pill item-edit-upload-image-button"
                 aria-label="Upload new image"
               >
                 Upload Image
-              </button>
+              </Link>
               &nbsp;
               <button
                 type="button"
                 onClick={removeImage}
-                className="item-edit-remove-image-button"
+                className="staff-dev-pill item-edit-remove-image-button"
                 aria-label="Remove selected image"
                 disabled={selectedImageIndex === null}
                 title={
@@ -620,17 +988,34 @@ export default function StaffItemEditPage() {
             )}
           </div>
 
-          <div className="staff-dev-back-wrapper">
+          <div className="staff-dev-back-wrapper item-edit-actions">
+            <button
+              type="button"
+              onClick={resetChanges}
+              className={`staff-dev-pill${isDirty ? " staff-dev-pill--reset-ready" : ""}`}
+              disabled={isLoading || !!loadError || isSaving || !isDirty}
+            >
+              Reset Changes
+            </button>
             <button
               type="button"
               onClick={saveChanges}
-              className="staff-dev-pill"
+              className={`staff-dev-pill${isDirty ? " staff-dev-pill--ready" : ""}`}
+              disabled={isLoading || !!loadError || isSaving || !isDirty}
             >
-              Save Changes
+              {isSaving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StaffItemEditPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <StaffItemEditPageContent />
+    </React.Suspense>
   );
 }

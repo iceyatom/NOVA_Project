@@ -487,6 +487,119 @@ function errorResponse(
   );
 }
 
+type CatalogUpdateInput = {
+  sku: string | null;
+  itemName: string;
+  price: number;
+  category1: string | null;
+  category2: string | null;
+  category3: string | null;
+  description: string | null;
+  quantityInStock: number;
+  unitOfMeasure: string | null;
+  storageLocation: string | null;
+  storageConditions: string | null;
+  expirationDate: Date | null;
+  dateAcquired: Date | null;
+  reorderLevel: number;
+  unitCost: number;
+};
+
+function normalizeOptionalString(
+  value: unknown,
+  fieldName: string,
+): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") {
+    throw new Error(`${fieldName} must be a string.`);
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === "n/a") return null;
+  return trimmed;
+}
+
+function normalizeRequiredString(value: unknown, fieldName: string): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${fieldName} is required.`);
+  }
+
+  return value.trim();
+}
+
+function normalizeNonNegativeNumber(value: unknown, fieldName: string): number {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${fieldName} must be a non-negative number.`);
+  }
+
+  return parsed;
+}
+
+function normalizeNonNegativeInteger(
+  value: unknown,
+  fieldName: string,
+): number {
+  const parsed = normalizeNonNegativeNumber(value, fieldName);
+  return Math.trunc(parsed);
+}
+
+function normalizeNullableDate(value: unknown, fieldName: string): Date | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") {
+    throw new Error(`${fieldName} must be a date string.`);
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === "n/a") return null;
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`${fieldName} must be a valid date.`);
+  }
+
+  return parsed;
+}
+
+function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
+  if (!isRecord(raw)) {
+    throw new Error("Request body must be a JSON object.");
+  }
+
+  return {
+    sku: normalizeOptionalString(raw.sku, "sku"),
+    itemName: normalizeRequiredString(raw.itemName, "itemName"),
+    price: normalizeNonNegativeNumber(raw.price, "price"),
+    category1: normalizeOptionalString(raw.category1, "category1"),
+    category2: normalizeOptionalString(raw.category2, "category2"),
+    category3: normalizeOptionalString(raw.category3, "category3"),
+    description: normalizeOptionalString(raw.description, "description"),
+    quantityInStock: normalizeNonNegativeInteger(
+      raw.quantityInStock,
+      "quantityInStock",
+    ),
+    unitOfMeasure: normalizeOptionalString(raw.unitOfMeasure, "unitOfMeasure"),
+    storageLocation: normalizeOptionalString(
+      raw.storageLocation,
+      "storageLocation",
+    ),
+    storageConditions: normalizeOptionalString(
+      raw.storageConditions,
+      "storageConditions",
+    ),
+    expirationDate: normalizeNullableDate(raw.expirationDate, "expirationDate"),
+    dateAcquired: normalizeNullableDate(raw.dateAcquired, "dateAcquired"),
+    reorderLevel: normalizeNonNegativeInteger(raw.reorderLevel, "reorderLevel"),
+    unitCost: normalizeNonNegativeNumber(raw.unitCost, "unitCost"),
+  };
+}
+
 export async function GET(request: NextRequest) {
   const q = parseCatalogQuery(request);
   const mode = getDataSourceMode();
@@ -613,4 +726,77 @@ export async function GET(request: NextRequest) {
     q.limit,
     q.offset,
   );
+}
+
+export async function PATCH(request: NextRequest) {
+  const q = parseCatalogQuery(request);
+
+  if (!q.id) {
+    return errorResponse(
+      "A valid id query parameter is required.",
+      undefined,
+      400,
+    );
+  }
+
+  let payload: CatalogUpdateInput;
+
+  try {
+    const body = (await request.json()) as unknown;
+    payload = parseCatalogUpdatePayload(body);
+  } catch (error: unknown) {
+    const msg =
+      error instanceof Error ? error.message : "Invalid JSON request body.";
+    return errorResponse("Invalid update payload.", msg, 400);
+  }
+
+  const mode = getDataSourceMode();
+
+  if (mode === "lambda") {
+    return errorResponse(
+      "Catalog updates are only supported with Prisma data source.",
+      "Set CATALOG_DATA_SOURCE to prisma or auto with DATABASE_URL configured.",
+      501,
+    );
+  }
+
+  if (!hasPrismaConfig()) {
+    return errorResponse(
+      "DATABASE_URL is required to update catalog items.",
+      undefined,
+      500,
+    );
+  }
+
+  try {
+    const updatedItem = await prisma.catalogItem.update({
+      where: { id: q.id },
+      data: payload,
+    });
+
+    return withNoCache(
+      NextResponse.json(
+        {
+          success: true,
+          data: updatedItem,
+        },
+        { status: 200 },
+      ),
+    );
+  } catch (error: unknown) {
+    const code =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof (error as { code?: unknown }).code === "string"
+        ? ((error as { code: string }).code ?? "")
+        : "";
+
+    if (code === "P2025") {
+      return errorResponse("Catalog item not found.", undefined, 404);
+    }
+
+    const msg = error instanceof Error ? error.message : "Unknown Prisma error";
+    return errorResponse("Catalog update failed.", msg, 500);
+  }
 }
