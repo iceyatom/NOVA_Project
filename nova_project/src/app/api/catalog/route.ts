@@ -732,7 +732,11 @@ export async function PATCH(request: NextRequest) {
   const q = parseCatalogQuery(request);
 
   if (!q.id) {
-    return errorResponse("A valid id query parameter is required.", undefined, 400);
+    return errorResponse(
+      "A valid id query parameter is required.",
+      undefined,
+      400,
+    );
   }
 
   let payload: CatalogUpdateInput;

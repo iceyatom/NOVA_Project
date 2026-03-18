@@ -67,9 +67,7 @@ function parseStaffQuery(request: NextRequest): StaffQuery {
 
   const pageSizeRaw = sp.get("pageSize");
   const pageSize =
-    pageSizeRaw === "all"
-      ? 1000
-      : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT);
+    pageSizeRaw === "all" ? 1000 : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT);
 
   const offset = parsePositiveInt(sp.get("offset"), 0);
   const category = sp.get("category") || "all";

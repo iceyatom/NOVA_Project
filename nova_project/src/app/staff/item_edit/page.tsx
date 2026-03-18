@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
 type Item = {
@@ -371,9 +366,7 @@ function StaffItemEditPageContent() {
       } catch (error) {
         if (!mounted) return;
         setLoadError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load item data.",
+          error instanceof Error ? error.message : "Failed to load item data.",
         );
       } finally {
         if (mounted) {
@@ -639,7 +632,9 @@ function StaffItemEditPageContent() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Display</strong>
             <br />
-            <strong className={fieldNameClass(isFieldDirty("itemName"))}>Item Name:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("itemName"))}>
+              Item Name:
+            </strong>{" "}
             <input
               type="text"
               id="itemName"
@@ -648,7 +643,9 @@ function StaffItemEditPageContent() {
               onChange={update("itemName")}
             />
             <br />
-            <strong className={fieldNameClass(isFieldDirty("sku"))}>SKU:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("sku"))}>
+              SKU:
+            </strong>{" "}
             <input
               type="text"
               id="sku"
@@ -684,10 +681,9 @@ function StaffItemEditPageContent() {
                   {category}
                 </option>
               ))}
-              {form.category3 &&
-                !CATEGORY_OPTIONS.includes(form.category3) && (
-                  <option value={form.category3}>{form.category3}</option>
-                )}
+              {form.category3 && !CATEGORY_OPTIONS.includes(form.category3) && (
+                <option value={form.category3}>{form.category3}</option>
+              )}
             </select>{" "}
             &gt;&nbsp;
             <select
@@ -735,7 +731,10 @@ function StaffItemEditPageContent() {
               )}
             </select>
             <br />
-            <strong className={fieldNameClass(isFieldDirty("price"))}>Price:</strong> $
+            <strong className={fieldNameClass(isFieldDirty("price"))}>
+              Price:
+            </strong>{" "}
+            $
             <input
               type="text"
               id="price"
@@ -748,7 +747,10 @@ function StaffItemEditPageContent() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Logistics</strong>
             <br />
-            <strong className={fieldNameClass(isFieldDirty("quantityInStock"))}>Quantity in Stock:</strong>&nbsp;
+            <strong className={fieldNameClass(isFieldDirty("quantityInStock"))}>
+              Quantity in Stock:
+            </strong>
+            &nbsp;
             <button
               type="button"
               onClick={() => bumpStock(-5)}
@@ -789,7 +791,9 @@ function StaffItemEditPageContent() {
               +5
             </button>
             <br />
-            <strong className={fieldNameClass(isFieldDirty("unitOfMeasure"))}>Unit of Measure:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("unitOfMeasure"))}>
+              Unit of Measure:
+            </strong>{" "}
             <input
               type="text"
               id="unitOfMeasure"
@@ -799,7 +803,9 @@ function StaffItemEditPageContent() {
               onBlur={blurNA("unitOfMeasure")}
             />
             <br />
-            <strong className={fieldNameClass(isFieldDirty("reorderLevel"))}>Reorder Level:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("reorderLevel"))}>
+              Reorder Level:
+            </strong>{" "}
             <input
               type="text"
               id="reorderLevel"
@@ -808,7 +814,10 @@ function StaffItemEditPageContent() {
               onChange={update("reorderLevel")}
             />
             <br />
-            <strong className={fieldNameClass(isFieldDirty("unitCost"))}>Unit Cost:</strong> $
+            <strong className={fieldNameClass(isFieldDirty("unitCost"))}>
+              Unit Cost:
+            </strong>{" "}
+            $
             <input
               type="text"
               id="unitCost"
@@ -837,7 +846,9 @@ function StaffItemEditPageContent() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Storage</strong>
             <br />
-            <strong className={fieldNameClass(isFieldDirty("storageLocation"))}>Storage Location:</strong>
+            <strong className={fieldNameClass(isFieldDirty("storageLocation"))}>
+              Storage Location:
+            </strong>
             <br />
             <textarea
               id="storageLocation"
@@ -847,7 +858,11 @@ function StaffItemEditPageContent() {
               onBlur={blurNA("storageLocation")}
             />
             <br />
-            <strong className={fieldNameClass(isFieldDirty("storageConditions"))}>Storage Conditions:</strong>
+            <strong
+              className={fieldNameClass(isFieldDirty("storageConditions"))}
+            >
+              Storage Conditions:
+            </strong>
             <br />
             <textarea
               id="storageConditions"
@@ -857,7 +872,9 @@ function StaffItemEditPageContent() {
               onBlur={blurNA("storageConditions")}
             />
             <br />
-            <strong className={fieldNameClass(isFieldDirty("dateAcquired"))}>Date Acquired:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("dateAcquired"))}>
+              Date Acquired:
+            </strong>{" "}
             <input
               type="text"
               id="dateAcquired"
@@ -867,7 +884,9 @@ function StaffItemEditPageContent() {
               onBlur={blurNA("dateAcquired")}
             />
             <br />
-            <strong className={fieldNameClass(isFieldDirty("expirationDate"))}>Expiration Date:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("expirationDate"))}>
+              Expiration Date:
+            </strong>{" "}
             <input
               type="text"
               id="expirationDate"
@@ -1000,4 +1019,3 @@ export default function StaffItemEditPage() {
     </React.Suspense>
   );
 }
-

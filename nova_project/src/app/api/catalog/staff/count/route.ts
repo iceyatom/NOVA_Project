@@ -30,7 +30,10 @@ function hasLambdaConfig(): boolean {
 }
 
 function withNoCache(resp: NextResponse) {
-  resp.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  resp.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate",
+  );
   resp.headers.set("Pragma", "no-cache");
   resp.headers.set("Expires", "0");
   return resp;
@@ -51,10 +54,7 @@ function buildWhere(q: ReturnType<typeof parseQuery>) {
 
   if (q.query) {
     and.push({
-      OR: [
-        { itemName: { contains: q.query } },
-        { sku: { contains: q.query } },
-      ],
+      OR: [{ itemName: { contains: q.query } }, { sku: { contains: q.query } }],
     });
   }
 
@@ -94,7 +94,9 @@ async function tryLambda(q: ReturnType<typeof parseQuery>) {
   const payload = await r.json().catch(() => ({}));
 
   const count =
-    payload && typeof payload === "object" && typeof payload.totalCount === "number"
+    payload &&
+    typeof payload === "object" &&
+    typeof payload.totalCount === "number"
       ? payload.totalCount
       : 0;
 
