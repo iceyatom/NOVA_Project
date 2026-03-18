@@ -8,7 +8,7 @@ import React, {
   useState,
   useMemo,
 } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 type Item = {
   id: number | null;
@@ -266,9 +266,14 @@ function validateForm(f: ItemForm): string | null {
 
 export default function StaffItemEditPage() {
   const params = useParams<{ id?: string | string[] }>();
+  const searchParams = useSearchParams();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const itemId = Number.parseInt(rawId ?? "", 10) || 0;
   const id = itemId;
+  const backToItemSearchHref = useMemo(() => {
+    const query = searchParams.toString();
+    return query ? `/staff/item_search?${query}` : "/staff/item_search";
+  }, [searchParams]);
 
   const [form, setForm] = useState<ItemForm>(() =>
     toForm({
@@ -532,8 +537,8 @@ export default function StaffItemEditPage() {
     <div className="staff-dev-page">
       <div className="staff-dev-card">
         <div className="staff-dev-back-wrapper">
-          <Link href="/staff" className="staff-dev-pill">
-            ← Back to Staff Dev Hub
+          <Link href={backToItemSearchHref} className="staff-dev-pill">
+            ← Back to Item Search
           </Link>
         </div>
 
@@ -896,3 +901,4 @@ export default function StaffItemEditPage() {
     </div>
   );
 }
+

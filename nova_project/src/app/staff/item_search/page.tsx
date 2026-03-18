@@ -39,6 +39,7 @@ const StaffItemSearchPageContent = () => {
   const sortByParam = searchParams.get("sortBy") || "";
   const sortOrderParam = searchParams.get("sortOrder") || "asc";
   const offset = Number(searchParams.get("offset")) || 0;
+  const currentSearchQueryString = searchParams.toString();
 
   const [catalogItems, setCatalogItems] = React.useState<CatalogItem[]>([]);
   const [totalItems, setTotalItems] = React.useState(0);
@@ -725,7 +726,7 @@ const StaffItemSearchPageContent = () => {
 
                       <td className="item-search-page__td">
                         <Link
-                          href={`/staff/item_edit/${item.id}`}
+                          href={`/staff/item_edit/${item.id}${currentSearchQueryString ? `?${currentSearchQueryString}` : ""}`}
                           className="item-search-page__edit-link"
                         >
                           Edit
