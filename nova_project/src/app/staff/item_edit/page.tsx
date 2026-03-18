@@ -264,7 +264,7 @@ function validateForm(f: ItemForm): string | null {
   return null;
 }
 
-export default function StaffItemEditPage() {
+function StaffItemEditPageContent() {
   const params = useParams<{ id?: string | string[] }>();
   const searchParams = useSearchParams();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -302,6 +302,8 @@ export default function StaffItemEditPage() {
   const [updatedAt, setUpdatedAt] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [subcategories, setSubcategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
@@ -470,7 +472,7 @@ export default function StaffItemEditPage() {
   };
 
   async function saveChanges() {
-    if (!isDirty) {
+    if (!isDirty || isSaving || isLoading || !!loadError) {
       console.log("No changes detected. Nothing to save.");
       return;
     }
@@ -482,9 +484,6 @@ export default function StaffItemEditPage() {
       alert(validationError);
       return;
     }
-
-    const currentTimestamp = new Date().toISOString();
-    setUpdatedAt(currentTimestamp);
 
     const payload = {
       sku: prepared.sku,
@@ -506,16 +505,62 @@ export default function StaffItemEditPage() {
       dateAcquired: prepared.dateAcquired,
       reorderLevel: Math.max(0, Math.trunc(Number(prepared.reorderLevel))),
       unitCost: Number(prepared.unitCost),
-      updatedAt: currentTimestamp,
     };
 
-    console.log("Saving payload:", payload);
+    setIsSaving(true);
+    setSaveError(null);
 
-    // TODO: await fetch(`/api/items/${id}`, { method: "PATCH", body: JSON.stringify(payload) })
+    try {
+      const response = await fetch(`/api/catalog?id=${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    // keep UI + dirty state consistent with what you'd persist
-    setForm(prepared);
-    originalRef.current = structuredClone(prepared);
+      if (!response.ok) {
+        let message = `Failed to save item (HTTP ${response.status}).`;
+
+        try {
+          const errorPayload = (await response.json()) as {
+            error?: unknown;
+            details?: unknown;
+          };
+          if (typeof errorPayload?.error === "string") {
+            message = errorPayload.error;
+            if (typeof errorPayload.details === "string") {
+              message = `${message} ${errorPayload.details}`;
+            }
+          }
+        } catch {
+          // Keep fallback message when no JSON payload is available.
+        }
+
+        throw new Error(message);
+      }
+
+      const result = (await response.json()) as CatalogApiResponse;
+      const savedItem = parseCatalogItem(result?.data);
+
+      if (savedItem) {
+        const nextForm = toForm(savedItem);
+        setForm(nextForm);
+        originalRef.current = structuredClone(nextForm);
+        setUpdatedAt((prev) => savedItem.updatedAt ?? prev);
+      } else {
+        // Fallback to local normalized values if the API response body shape changes.
+        setForm(prepared);
+        originalRef.current = structuredClone(prepared);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save changes.";
+      setSaveError(message);
+      alert(message);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   const uploadImage = () => {
@@ -554,6 +599,12 @@ export default function StaffItemEditPage() {
           {loadError && (
             <div className="item-edit-box">
               <strong>Error:</strong> {loadError}
+            </div>
+          )}
+
+          {saveError && (
+            <div className="item-edit-box">
+              <strong>Save error:</strong> {saveError}
             </div>
           )}
 
@@ -890,15 +941,23 @@ export default function StaffItemEditPage() {
             <button
               type="button"
               onClick={saveChanges}
-              className="staff-dev-pill"
-              disabled={isLoading || !!loadError}
+              className={`staff-dev-pill${isDirty ? " staff-dev-pill--ready" : ""}`}
+              disabled={isLoading || !!loadError || isSaving || !isDirty}
             >
-              Save Changes
+              {isSaving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StaffItemEditPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <StaffItemEditPageContent />
+    </React.Suspense>
   );
 }
 

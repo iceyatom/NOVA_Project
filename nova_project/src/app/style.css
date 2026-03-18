@@ -2140,12 +2140,33 @@ body {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
+.staff-dev-pill--ready {
+  background: #ba6f00;
+  border-color: rgba(90, 48, 0, 0.35);
+  box-shadow: 0 0 0 3px rgba(186, 111, 0, 0.2);
+}
+
+.staff-dev-pill--ready:hover {
+  background: #995b00;
+}
+
+button.staff-dev-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .staff-dev-back-wrapper {
   margin-top: 20px;
 }
 
 .staff-dev-back-wrapper .staff-dev-pill {
   background: #1e7f5a;
+}
+
+.staff-dev-back-wrapper .staff-dev-pill--ready {
+  background: #ba6f00;
 }
 
 .staff-dev-title {
