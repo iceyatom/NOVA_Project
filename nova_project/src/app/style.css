@@ -2588,22 +2588,9 @@ body:has(.loginPage) main {
     color: #004000;
   }
 
-  .item-edit-box > div > .item-edit-upload-image-button {
-    padding: 0.25rem 0.5rem;
-    background-color: #059669;
-    color: #ffffff;
-    border-color: #004000;
-    border-radius: 0.25rem;
-    cursor: pointer;
-  }
-
+  .item-edit-box > div > .item-edit-upload-image-button,
   .item-edit-box > div > .item-edit-remove-image-button {
-    padding: 0.25rem 0.5rem;
-    background-color: #059669;
-    color: #ffffff;
-    border-color: #004000;
-    border-radius: 0.25rem;
-    cursor: pointer;
+    text-decoration: none;
   }
 
   .item-edit-decrement-stock-button {

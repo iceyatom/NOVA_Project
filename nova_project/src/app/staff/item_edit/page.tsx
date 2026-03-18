@@ -574,10 +574,6 @@ function StaffItemEditPageContent() {
     setSaveError(null);
   }
 
-  const uploadImage = () => {
-    console.log("Image upload functionality is not implemented yet.");
-  };
-
   const removeImage = () => {
     setForm((prev) => {
       if (selectedImageIndex === null) return prev;
@@ -865,19 +861,18 @@ function StaffItemEditPageContent() {
             <br />
 
             <div>
-              <button
-                type="button"
-                onClick={uploadImage}
-                className="item-edit-upload-image-button"
+              <Link
+                href="/staff/image-upload-demo"
+                className="staff-dev-pill item-edit-upload-image-button"
                 aria-label="Upload new image"
               >
                 Upload Image
-              </button>
+              </Link>
               &nbsp;
               <button
                 type="button"
                 onClick={removeImage}
-                className="item-edit-remove-image-button"
+                className="staff-dev-pill item-edit-remove-image-button"
                 aria-label="Remove selected image"
                 disabled={selectedImageIndex === null}
                 title={
