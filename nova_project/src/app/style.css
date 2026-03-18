@@ -2906,3 +2906,11 @@ body:has(.loginPage) main {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
+
+.item-edit-field-name {
+  color: #000 !important;
+}
+
+.item-edit-field-name--dirty {
+  color: #dc2626 !important;
+}

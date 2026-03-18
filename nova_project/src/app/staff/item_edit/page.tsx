@@ -224,6 +224,8 @@ function sameForm(a: ItemForm, b: ItemForm) {
   );
 }
 
+type NormalizedItemForm = ReturnType<typeof normalizeForCompare>;
+
 function validateForm(f: ItemForm): string | null {
   const currencyToCheck = ["$", "€", "£", "¥"];
   const hasCurrency = (s: string) => currencyToCheck.some((c) => s.includes(c));
@@ -313,6 +315,15 @@ function StaffItemEditPageContent() {
   const originalRef = useRef<ItemForm>(form);
 
   const isDirty = useMemo(() => !sameForm(form, originalRef.current), [form]);
+  const normalizedForm = useMemo(() => normalizeForCompare(form), [form]);
+  const normalizedOriginal = normalizeForCompare(originalRef.current);
+  const isFieldDirty = (field: keyof NormalizedItemForm) =>
+    JSON.stringify(normalizedForm[field]) !==
+    JSON.stringify(normalizedOriginal[field]);
+  const isAnyFieldDirty = (fields: (keyof NormalizedItemForm)[]) =>
+    fields.some((field) => isFieldDirty(field));
+  const fieldNameClass = (dirty: boolean) =>
+    `item-edit-field-name${dirty ? " item-edit-field-name--dirty" : ""}`;
 
   useEffect(() => {
     let mounted = true;
@@ -628,7 +639,7 @@ function StaffItemEditPageContent() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Display</strong>
             <br />
-            <strong>Item Name:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("itemName"))}>Item Name:</strong>{" "}
             <input
               type="text"
               id="itemName"
@@ -637,7 +648,7 @@ function StaffItemEditPageContent() {
               onChange={update("itemName")}
             />
             <br />
-            <strong>SKU:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("sku"))}>SKU:</strong>{" "}
             <input
               type="text"
               id="sku"
@@ -646,7 +657,14 @@ function StaffItemEditPageContent() {
               onChange={update("sku")}
             />
             <br />
-            <strong>Categories:</strong>&nbsp;
+            <strong
+              className={fieldNameClass(
+                isAnyFieldDirty(["category3", "category2", "category1"]),
+              )}
+            >
+              Categories:
+            </strong>
+            &nbsp;
             <select
               id="category3"
               className="item-search-page__select"
@@ -717,7 +735,7 @@ function StaffItemEditPageContent() {
               )}
             </select>
             <br />
-            <strong>Price:</strong> $
+            <strong className={fieldNameClass(isFieldDirty("price"))}>Price:</strong> $
             <input
               type="text"
               id="price"
@@ -730,7 +748,7 @@ function StaffItemEditPageContent() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Logistics</strong>
             <br />
-            <strong>Quantity in Stock:</strong>&nbsp;
+            <strong className={fieldNameClass(isFieldDirty("quantityInStock"))}>Quantity in Stock:</strong>&nbsp;
             <button
               type="button"
               onClick={() => bumpStock(-5)}
@@ -771,7 +789,7 @@ function StaffItemEditPageContent() {
               +5
             </button>
             <br />
-            <strong>Unit of Measure:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("unitOfMeasure"))}>Unit of Measure:</strong>{" "}
             <input
               type="text"
               id="unitOfMeasure"
@@ -781,7 +799,7 @@ function StaffItemEditPageContent() {
               onBlur={blurNA("unitOfMeasure")}
             />
             <br />
-            <strong>Reorder Level:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("reorderLevel"))}>Reorder Level:</strong>{" "}
             <input
               type="text"
               id="reorderLevel"
@@ -790,7 +808,7 @@ function StaffItemEditPageContent() {
               onChange={update("reorderLevel")}
             />
             <br />
-            <strong>Unit Cost:</strong> $
+            <strong className={fieldNameClass(isFieldDirty("unitCost"))}>Unit Cost:</strong> $
             <input
               type="text"
               id="unitCost"
@@ -801,7 +819,11 @@ function StaffItemEditPageContent() {
           </div>
 
           <div className="item-edit-box">
-            <strong className="item-edit-label">Description</strong>
+            <strong
+              className={`item-edit-label ${fieldNameClass(isFieldDirty("description"))}`}
+            >
+              Description
+            </strong>
             <br />
             <textarea
               id="description"
@@ -815,7 +837,7 @@ function StaffItemEditPageContent() {
           <div className="item-edit-box">
             <strong className="item-edit-label">Storage</strong>
             <br />
-            <strong>Storage Location:</strong>
+            <strong className={fieldNameClass(isFieldDirty("storageLocation"))}>Storage Location:</strong>
             <br />
             <textarea
               id="storageLocation"
@@ -825,7 +847,7 @@ function StaffItemEditPageContent() {
               onBlur={blurNA("storageLocation")}
             />
             <br />
-            <strong>Storage Conditions:</strong>
+            <strong className={fieldNameClass(isFieldDirty("storageConditions"))}>Storage Conditions:</strong>
             <br />
             <textarea
               id="storageConditions"
@@ -835,7 +857,7 @@ function StaffItemEditPageContent() {
               onBlur={blurNA("storageConditions")}
             />
             <br />
-            <strong>Date Acquired:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("dateAcquired"))}>Date Acquired:</strong>{" "}
             <input
               type="text"
               id="dateAcquired"
@@ -845,7 +867,7 @@ function StaffItemEditPageContent() {
               onBlur={blurNA("dateAcquired")}
             />
             <br />
-            <strong>Expiration Date:</strong>{" "}
+            <strong className={fieldNameClass(isFieldDirty("expirationDate"))}>Expiration Date:</strong>{" "}
             <input
               type="text"
               id="expirationDate"
@@ -857,7 +879,11 @@ function StaffItemEditPageContent() {
           </div>
 
           <div className="item-edit-box">
-            <strong className="item-edit-label">Images:</strong>
+            <strong
+              className={`item-edit-label ${fieldNameClass(isFieldDirty("imageUrls"))}`}
+            >
+              Images:
+            </strong>
             <br />
 
             <div>
