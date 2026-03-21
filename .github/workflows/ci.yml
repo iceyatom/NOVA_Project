@@ -10,6 +10,9 @@ jobs:
   ci:
     name: Lint, Typecheck & Build
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      DATABASE_URL: mysql://ci:ci@localhost:3306/nilesbio
     defaults:
       run:
         working-directory: nova_project
@@ -39,5 +42,3 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          DATABASE_URL: mysql://ci:ci@localhost:3306/nilesbio
