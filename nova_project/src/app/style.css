@@ -2994,3 +2994,31 @@ body:has(.loginPage) main {
     grid-template-columns: 1fr;
   }
 }
+
+.profile-popup {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 180px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+}
+
+.profile-dropdown-link {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #111827;
+  font-weight: 500;
+  background: #f9fafb;
+}
+
+.profile-dropdown-link:hover {
+  background: #e5e7eb;
+}
