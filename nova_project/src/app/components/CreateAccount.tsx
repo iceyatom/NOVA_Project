@@ -18,13 +18,20 @@ export default function CreateAccountPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const isValidPhone = (value: string) => {
     const digitsOnly = value.replace(/\D/g, "");
     return digitsOnly.length >= 10 && digitsOnly.length <= 15;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // Stricter email validation regex: basic check for user@domain.tld
+  const isValidEmail = (value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const next: Errors = {};
@@ -41,8 +48,8 @@ export default function CreateAccountPage() {
 
     if (!email.trim()) {
       next.email = "Email address is required.";
-    } else if (!email.includes("@")) {
-      next.email = "Please enter a valid email address.";
+    } else if (!isValidEmail(email)) {
+      next.email = "Please enter a valid email address (e.g. user@example.com).";
     }
 
     if (!password) {
@@ -57,19 +64,54 @@ export default function CreateAccountPage() {
 
     if (Object.keys(next).length > 0) {
       setErrors(next);
+      setFeedback(null);
+      setSuccess(false);
       return;
     }
 
     setErrors({});
+    setFeedback(null);
+    setSuccess(false);
 
-    // Frontend only for now
-    console.log({ displayName, phone, email, password });
+    try {
+      const res = await fetch("/api/create_account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName, phone, email, password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFeedback("Account created successfully! You may now sign in.");
+        setSuccess(true);
+        setDisplayName("");
+        setPhone("");
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+      } else {
+        setFeedback(data.error || "Account creation failed.");
+        setSuccess(false);
+      }
+    } catch (err) {
+      setFeedback("An error occurred. Please try again later.");
+      setSuccess(false);
+    }
   };
 
   return (
     <div className="loginPage">
       <section className="loginCard" aria-label="Create Account">
         <h1 className="loginTitle">Create Account</h1>
+
+        {feedback && (
+          <div
+            className={success ? "successText" : "errorText"}
+            style={{ marginBottom: 16 }}
+            role={success ? "status" : "alert"}
+          >
+            {feedback}
+          </div>
+        )}
 
         <form className="loginForm" onSubmit={handleSubmit} noValidate>
           <div className="twoCol">
