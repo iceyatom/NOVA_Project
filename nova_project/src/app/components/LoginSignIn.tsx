@@ -5,7 +5,7 @@ import { useLoginStatus } from "../LoginStatusContext";
 import React, { useState } from "react";
 
 export default function LoginSignIn() {
-  const { loggedIn, setLoggedIn, account, setAccount } = useLoginStatus();
+  const { loggedIn, setLoggedIn, account, setAccount, userRole, setUserRole } = useLoginStatus();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
@@ -49,18 +49,20 @@ export default function LoginSignIn() {
       const data = (await response.json()) as {
         ok?: boolean;
         error?: string;
-        account?: { email?: string; displayName?: string | null };
+        account?: { email?: string; displayName?: string | null; role?: string };
       };
 
       if (!response.ok || !data.ok) {
         setLoggedIn(false);
         setAccount("");
+        setUserRole("");
         setAuthError(data.error ?? "Invalid email or password.");
         return;
       }
 
       setLoggedIn(true);
       setAccount(data.account?.displayName || data.account?.email || username);
+      setUserRole(data.account?.role || "");
     } catch {
       setLoggedIn(false);
       setAccount("");

@@ -47,6 +47,7 @@ export async function POST(request: Request) {
         passwordHash: true,
         status: true,
         deletedAt: true,
+        role: true,
       },
     });
 
@@ -96,7 +97,9 @@ export async function POST(request: Request) {
       account: {
         email: account.email,
         displayName: account.displayName,
+        role: account.role,
       },
+      role: account.role,
     });
   } catch (error) {
     console.error("Login API failed:", error);

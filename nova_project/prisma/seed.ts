@@ -6222,6 +6222,28 @@ async function main() {
       role: "ADMIN",
     },
   });
+
+  // Add staff account
+  await prisma.account.upsert({
+    where: { email: "staff@nilesbio.com" },
+    update: {},
+    create: {
+      email: "staff@nilesbio.com",
+      passwordHash: "password123", // Ideally, this should be hashed
+      role: "STAFF",
+    },
+  });
+
+  // Add customer account
+  await prisma.account.upsert({
+    where: { email: "customer@nilesbio.com" },
+    update: {},
+    create: {
+      email: "customer@nilesbio.com",
+      passwordHash: "password123", // Ideally, this should be hashed
+      role: "CUSTOMER",
+    },
+  });
 }
 
 main()
