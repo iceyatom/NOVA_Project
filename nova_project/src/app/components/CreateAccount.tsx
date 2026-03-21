@@ -18,13 +18,16 @@ export default function CreateAccountPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const isValidPhone = (value: string) => {
     const digitsOnly = value.replace(/\D/g, "");
     return digitsOnly.length >= 10 && digitsOnly.length <= 15;
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const next: Errors = {};
@@ -61,10 +64,47 @@ export default function CreateAccountPage() {
     }
 
     setErrors({});
+    setServerError(null);
+    setIsSubmitting(true);
 
-    // Frontend only for now
-    console.log({ displayName, phone, email, password });
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, displayName, phone }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccess(true);
+      } else if (res.status === 409) {
+        setErrors((p) => ({ ...p, email: data.error }));
+      } else {
+        setServerError(data.error ?? "Something went wrong. Please try again.");
+      }
+    } catch {
+      setServerError("Network error. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (success) {
+    return (
+      <div className="loginPage">
+        <section className="loginCard" aria-label="Account created">
+          <h1 className="loginTitle">Account Created</h1>
+          <p className="authLinksText" style={{ marginBottom: "1rem" }}>
+            Your account has been created successfully.
+          </p>
+          <Link className="authLink" href="/login">
+            Account created! Sign in →
+          </Link>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="loginPage">
@@ -159,8 +199,10 @@ export default function CreateAccountPage() {
             )}
           </label>
 
-          <button className="loginButton" type="submit">
-            Create account
+          {serverError && <p className="errorText">{serverError}</p>}
+
+          <button className="loginButton" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Creating account…" : "Create account"}
           </button>
         </form>
 
