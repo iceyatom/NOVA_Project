@@ -728,6 +728,56 @@ export async function GET(request: NextRequest) {
   );
 }
 
+export async function POST(request: NextRequest) {
+  let payload: CatalogUpdateInput;
+
+  try {
+    const body = (await request.json()) as unknown;
+    payload = parseCatalogUpdatePayload(body);
+  } catch (error: unknown) {
+    const msg =
+      error instanceof Error ? error.message : "Invalid JSON request body.";
+    return errorResponse("Invalid create payload.", msg, 400);
+  }
+
+  const mode = getDataSourceMode();
+
+  if (mode === "lambda") {
+    return errorResponse(
+      "Catalog creates are only supported with Prisma data source.",
+      "Set CATALOG_DATA_SOURCE to prisma or auto with DATABASE_URL configured.",
+      501,
+    );
+  }
+
+  if (!hasPrismaConfig()) {
+    return errorResponse(
+      "DATABASE_URL is required to create catalog items.",
+      undefined,
+      500,
+    );
+  }
+
+  try {
+    const createdItem = await prisma.catalogItem.create({
+      data: payload,
+    });
+
+    return withNoCache(
+      NextResponse.json(
+        {
+          success: true,
+          data: createdItem,
+        },
+        { status: 201 },
+      ),
+    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Unknown Prisma error";
+    return errorResponse("Catalog create failed.", msg, 500);
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   const q = parseCatalogQuery(request);
 
