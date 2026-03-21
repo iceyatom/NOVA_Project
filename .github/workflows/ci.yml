@@ -13,6 +13,7 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       DATABASE_URL: mysql://ci:ci@localhost:3306/nilesbio
+      SHADOW_DATABASE_URL: mysql://ci:ci@localhost:3306/nilesbio_shadow
     defaults:
       run:
         working-directory: nova_project
