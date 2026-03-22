@@ -220,6 +220,34 @@ function shapeResponse(args: {
   };
 }
 
+function hasActivePriceFilter(q: CatalogQuery): boolean {
+  return q.priceRange.min !== null || q.priceRange.max !== null;
+}
+
+function itemMatchesPriceFilter(
+  item: unknown,
+  priceRange: PriceRange,
+): boolean {
+  if (!isRecord(item)) return false;
+  const price = getNumber(item, "price");
+  if (price === null) return false;
+
+  if (priceRange.min !== null && price < priceRange.min) {
+    return false;
+  }
+  if (priceRange.max !== null && price > priceRange.max) {
+    return false;
+  }
+  return true;
+}
+
+function filterItemsByPrice(
+  items: unknown[],
+  priceRange: PriceRange,
+): unknown[] {
+  return items.filter((item) => itemMatchesPriceFilter(item, priceRange));
+}
+
 function normalizeLambdaPayload(
   raw: unknown,
   limit: number,
@@ -396,6 +424,174 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
   );
 
   return withNoCache(response);
+}
+
+function buildLambdaUrl(
+  q: CatalogQuery,
+  options: { limit?: number; offset?: number; includePriceParams?: boolean } = {},
+): string {
+  const upstreamBase = getLambdaBaseUrl();
+
+  if (!upstreamBase) {
+    throw new Error("Lambda base URL is not configured");
+  }
+
+  const normalizedBase = upstreamBase.endsWith("/catalog")
+    ? upstreamBase
+    : `${upstreamBase.replace(/\/$/, "")}/catalog`;
+
+  const upstreamUrl = new URL(normalizedBase);
+
+  if (q.id) {
+    upstreamUrl.searchParams.set("id", String(q.id));
+  } else {
+    upstreamUrl.searchParams.set("limit", String(options.limit ?? q.limit));
+    upstreamUrl.searchParams.set("offset", String(options.offset ?? q.offset));
+  }
+
+  if (q.q) {
+    upstreamUrl.searchParams.set("q", q.q);
+  }
+
+  if (q.categoriesCsv) {
+    upstreamUrl.searchParams.set("categories", q.categoriesCsv);
+  }
+
+  const includePrice = options.includePriceParams ?? true;
+  if (includePrice) {
+    if (q.minPriceRaw) {
+      upstreamUrl.searchParams.set("minPrice", q.minPriceRaw);
+    }
+
+    if (q.maxPriceRaw) {
+      upstreamUrl.searchParams.set("maxPrice", q.maxPriceRaw);
+    }
+
+    if (!q.minPriceRaw && !q.maxPriceRaw && q.priceBucketsCsv) {
+      upstreamUrl.searchParams.set("priceBuckets", q.priceBucketsCsv);
+    }
+  }
+
+  return upstreamUrl.toString();
+}
+
+async function tryLambdaWithServerSidePriceFilter(
+  q: CatalogQuery,
+): Promise<NextResponse> {
+  if (q.id) {
+    // For single item lookup, fetch and apply price filter
+    const url = buildLambdaUrl(q, { includePriceParams: false });
+    const r = await fetch(url, { cache: "no-store" });
+    const text = await r.text();
+
+    let parsed: unknown = null;
+    try {
+      parsed = text ? (JSON.parse(text) as unknown) : null;
+    } catch {
+      const passthrough = new NextResponse(text, {
+        status: r.status,
+        headers: {
+          "Content-Type": r.headers.get("content-type") ?? "text/plain",
+        },
+      });
+      return withNoCache(passthrough);
+    }
+
+    const normalized = normalizeLambdaPayload(parsed, q.limit, q.offset);
+
+    // Apply price filter to single item result
+    if (normalized.success && normalized.data && !Array.isArray(normalized.data)) {
+      if (!itemMatchesPriceFilter(normalized.data, q.priceRange)) {
+        return NextResponse.json(
+          shapeResponse({
+            data: [],
+            totalCount: 0,
+            limit: q.limit,
+            offset: q.offset,
+          }),
+          { status: 200 },
+        );
+      }
+    }
+
+    return withNoCache(NextResponse.json(normalized, { status: r.status }));
+  }
+
+  // For collection queries, fetch all pages and apply server-side filtering
+  const BATCH_SIZE = 100;
+  const allItems: unknown[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const url = buildLambdaUrl(q, {
+        limit: BATCH_SIZE,
+        offset,
+        includePriceParams: false,
+      });
+
+      const r = await fetch(url, { cache: "no-store" });
+      const text = await r.text();
+
+      let parsed: unknown = null;
+      try {
+        parsed = text ? (JSON.parse(text) as unknown) : null;
+      } catch {
+        hasMore = false;
+        break;
+      }
+
+      const normalized = normalizeLambdaPayload(parsed, BATCH_SIZE, offset);
+
+      if (!normalized.success || !Array.isArray(normalized.data)) {
+        hasMore = false;
+        break;
+      }
+
+      if (normalized.data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      allItems.push(...normalized.data);
+
+      // Check if we've fetched all available items
+      if (normalized.data.length < BATCH_SIZE) {
+        hasMore = false;
+      } else {
+        offset += BATCH_SIZE;
+      }
+
+      // Safety limit to prevent infinite loops (max 10 batches = 1000 items)
+      if (allItems.length >= 1000) {
+        hasMore = false;
+      }
+    } catch {
+      hasMore = false;
+    }
+  }
+
+  // Apply server-side price filtering
+  const filteredItems = filterItemsByPrice(allItems, q.priceRange);
+  const totalCount = filteredItems.length;
+
+  // Extract the requested page slice
+  const pageStart = q.offset;
+  const pageEnd = q.offset + q.limit;
+  const paginatedItems = filteredItems.slice(pageStart, pageEnd);
+
+  return withNoCache(
+    NextResponse.json(
+      shapeResponse({
+        data: paginatedItems,
+        totalCount,
+        limit: q.limit,
+        offset: q.offset,
+      }),
+      { status: 200 },
+    ),
+  );
 }
 
 async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
@@ -643,6 +839,10 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+      // Use server-side price filtering if price filter is active
+      if (hasActivePriceFilter(q)) {
+        return await tryLambdaWithServerSidePriceFilter(q);
+      }
       return await tryLambda(q);
     } catch (error: unknown) {
       const msg =
@@ -666,6 +866,10 @@ export async function GET(request: NextRequest) {
 
       if (hasLambdaConfig()) {
         try {
+          // Use server-side price filtering if price filter is active
+          if (hasActivePriceFilter(q)) {
+            return await tryLambdaWithServerSidePriceFilter(q);
+          }
           return await tryLambda(q);
         } catch (lambdaError: unknown) {
           const prismaMsg =
@@ -704,6 +908,10 @@ export async function GET(request: NextRequest) {
 
   if (hasLambdaConfig()) {
     try {
+      // Use server-side price filtering if price filter is active
+      if (hasActivePriceFilter(q)) {
+        return await tryLambdaWithServerSidePriceFilter(q);
+      }
       return await tryLambda(q);
     } catch (error: unknown) {
       const msg =
