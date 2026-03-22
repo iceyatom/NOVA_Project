@@ -353,15 +353,20 @@ function buildPrismaWhere(q: CatalogQuery) {
   }
 
   if (q.priceRange.min !== null || q.priceRange.max !== null) {
-    whereFilters.push({
-      price: {
-        ...(q.priceRange.min !== null ? { gte: q.priceRange.min } : {}),
-        ...(q.priceRange.max !== null ? { lte: q.priceRange.max } : {}),
-      },
-    });
+    const priceFilter: Record<string, unknown> = { price: {} };
+    if (q.priceRange.min !== null) {
+      (priceFilter.price as Record<string, unknown>).gte = q.priceRange.min;
+    }
+    if (q.priceRange.max !== null) {
+      (priceFilter.price as Record<string, unknown>).lte = q.priceRange.max;
+    }
+    whereFilters.push(priceFilter);
+    console.log("[Catalog API] Price filter added:", priceFilter);
   }
 
-  return whereFilters.length > 0 ? { AND: whereFilters } : undefined;
+  const result = whereFilters.length > 0 ? { AND: whereFilters } : undefined;
+  console.log("[Catalog API] Final where clause:", JSON.stringify(result));
+  return result;
 }
 
 async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
@@ -417,6 +422,12 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
       where,
     }),
   ]);
+
+  console.log("[Catalog API] Prisma result:", {
+    totalCount,
+    itemsReturned: catalogItems.length,
+    firstItemPrice: catalogItems[0]?.price,
+  });
 
   const response = NextResponse.json(
     shapeResponse({
@@ -804,6 +815,17 @@ function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
 export async function GET(request: NextRequest) {
   const q = parseCatalogQuery(request);
   const mode = getDataSourceMode();
+
+  // Debug logging for price filter issues
+  console.log("[Catalog API] Query:", {
+    url: request.url,
+    minPriceRaw: q.minPriceRaw,
+    maxPriceRaw: q.maxPriceRaw,
+    priceRange: q.priceRange,
+    mode,
+    hasPrisma: hasPrismaConfig(),
+    hasLambda: hasLambdaConfig(),
+  });
 
   if (mode === "prisma") {
     if (!hasPrismaConfig()) {
