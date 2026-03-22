@@ -376,7 +376,7 @@ const StaffItemSearchPageContent = () => {
       params.set("type", typeParam);
     }
 
-    const trimmedSearchInput = searchInput.trim();
+    const trimmedSearchInput = searchInput.trim().replace(/\s+/g, " ");
 
     if (trimmedSearchInput) {
       params.set("query", trimmedSearchInput);

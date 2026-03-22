@@ -53,9 +53,12 @@ function buildWhere(q: ReturnType<typeof parseQuery>) {
   const and: Record<string, unknown>[] = [];
 
   if (q.query) {
-    and.push({
-      OR: [{ itemName: { contains: q.query } }, { sku: { contains: q.query } }],
-    });
+    const tokens = q.query.split(/\s+/).filter(Boolean);
+    for (const token of tokens) {
+      and.push({
+        OR: [{ itemName: { contains: token } }, { sku: { contains: token } }],
+      });
+    }
   }
 
   if (q.category !== "all") and.push({ category3: q.category });
