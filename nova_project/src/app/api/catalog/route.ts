@@ -353,15 +353,16 @@ function buildPrismaWhere(q: CatalogQuery) {
   }
 
   if (q.priceRange.min !== null || q.priceRange.max !== null) {
-    const priceFilter: Record<string, unknown> = { price: {} };
+    // Build price filter - use strings for Decimal type to ensure proper comparison
+    const priceFilter: Record<string, unknown> = {};
     if (q.priceRange.min !== null) {
-      (priceFilter.price as Record<string, unknown>).gte = q.priceRange.min;
+      priceFilter.gte = q.priceRange.min.toFixed(2);
     }
     if (q.priceRange.max !== null) {
-      (priceFilter.price as Record<string, unknown>).lte = q.priceRange.max;
+      priceFilter.lte = q.priceRange.max.toFixed(2);
     }
-    whereFilters.push(priceFilter);
-    console.log("[Catalog API] Price filter added:", priceFilter);
+    whereFilters.push({ price: priceFilter });
+    console.log("[Catalog API] Price filter added:", { price: priceFilter });
   }
 
   const result = whereFilters.length > 0 ? { AND: whereFilters } : undefined;
