@@ -4,10 +4,31 @@ import { prisma } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const ENABLE_DB_PERF_LOGS = process.env.ENABLE_DB_PERF_LOGS === "true";
+
 const DEFAULT_LIMIT = 20;
 const ALLOWED_LIMITS = new Set([20, 50, 100]);
 const DEFAULT_MIN_PRICE = 0;
 const DEFAULT_MAX_PRICE = 500;
+
+function logPerformance(args: {
+  route: string;
+  dataSourceMode: string;
+  durationMs: number;
+  rowCount: number;
+  limit: number;
+  offset: number;
+  responseSize?: number;
+}) {
+  if (!ENABLE_DB_PERF_LOGS) return;
+
+  const { route, dataSourceMode, durationMs, rowCount, limit, offset, responseSize } = args;
+  console.log(
+    `[DB_PERF] route=${route} dataSource=${dataSourceMode} duration=${durationMs.toFixed(2)}ms ` +
+    `rowCount=${rowCount} limit=${limit} offset=${offset}` +
+    (responseSize !== undefined ? ` responseSize=${responseSize}` : "")
+  );
+}
 const LEGACY_PRICE_BUCKETS = new Map<string, { min?: number; max?: number }>([
   ["under-50", { max: 50 }],
   ["50-99", { min: 50, max: 100 }],
@@ -332,9 +353,23 @@ function buildPrismaWhere(q: CatalogQuery) {
 }
 
 async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
+  const startTime = Date.now();
   const where = buildPrismaWhere(q);
 
-  const select = {
+  // List view: only select fields used by ItemCard component
+  const listSelect = {
+    id: true,
+    itemName: true,
+    category1: true,
+    category2: true,
+    category3: true,
+    description: true,
+    price: true,
+    quantityInStock: true,
+  };
+
+  // Detail view: full item shape for edit/detail experiences
+  const detailSelect = {
     id: true,
     sku: true,
     itemName: true,
@@ -358,7 +393,17 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
   if (q.id) {
     const item = await prisma.catalogItem.findUnique({
       where: { id: q.id },
-      select,
+      select: detailSelect,
+    });
+
+    const durationMs = Date.now() - startTime;
+    logPerformance({
+      route: "/api/catalog",
+      dataSourceMode: "prisma",
+      durationMs,
+      rowCount: item ? 1 : 0,
+      limit: q.limit,
+      offset: q.offset,
     });
 
     const response = NextResponse.json(
@@ -377,7 +422,7 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
   const [totalCount, catalogItems] = await prisma.$transaction([
     prisma.catalogItem.count({ where }),
     prisma.catalogItem.findMany({
-      select,
+      select: listSelect,
       orderBy: { id: "asc" },
       take: q.limit,
       skip: q.offset,
@@ -385,20 +430,30 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     }),
   ]);
 
-  const response = NextResponse.json(
-    shapeResponse({
-      data: catalogItems as unknown[],
-      totalCount,
-      limit: q.limit,
-      offset: q.offset,
-    }),
-    { status: 200 },
-  );
+  const durationMs = Date.now() - startTime;
+  const responseJson = shapeResponse({
+    data: catalogItems as unknown[],
+    totalCount,
+    limit: q.limit,
+    offset: q.offset,
+  });
 
+  logPerformance({
+    route: "/api/catalog",
+    dataSourceMode: "prisma",
+    durationMs,
+    rowCount: catalogItems.length,
+    limit: q.limit,
+    offset: q.offset,
+    responseSize: JSON.stringify(responseJson).length,
+  });
+
+  const response = NextResponse.json(responseJson, { status: 200 });
   return withNoCache(response);
 }
 
 async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
+  const startTime = Date.now();
   const upstreamBase = getLambdaBaseUrl();
 
   if (!upstreamBase) {
@@ -449,6 +504,16 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
   try {
     parsed = text ? (JSON.parse(text) as unknown) : null;
   } catch {
+    const durationMs = Date.now() - startTime;
+    logPerformance({
+      route: "/api/catalog",
+      dataSourceMode: "lambda",
+      durationMs,
+      rowCount: 0,
+      limit: q.limit,
+      offset: q.offset,
+    });
+
     const passthrough = new NextResponse(text, {
       status: r.status,
       headers: {
@@ -459,6 +524,18 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
   }
 
   const normalized = normalizeLambdaPayload(parsed, q.limit, q.offset);
+  const durationMs = Date.now() - startTime;
+
+  logPerformance({
+    route: "/api/catalog",
+    dataSourceMode: "lambda",
+    durationMs,
+    rowCount: Array.isArray(normalized.data) ? (normalized.data as unknown[]).length : normalized.data ? 1 : 0,
+    limit: q.limit,
+    offset: q.offset,
+    responseSize: JSON.stringify(normalized).length,
+  });
+
   const response = NextResponse.json(normalized, { status: r.status });
   return withNoCache(response);
 }
