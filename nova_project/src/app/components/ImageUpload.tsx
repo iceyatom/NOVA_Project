@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 
@@ -42,7 +42,7 @@ export default function ImageUpload({
   onUploadSuccess,
   onUploadError,
   onError,
-  maxSizeBytes = 10 * 1024 * 1024, // 10MB default
+  maxSizeBytes = 10 * 1024 * 1024,
   autoUpload = true,
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -51,12 +51,17 @@ export default function ImageUpload({
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
-    // Reset error state
+  const processFile = (file: File | null) => {
     setError("");
     setUploadStatus("idle");
     setUploadProgress(0);
@@ -68,7 +73,6 @@ export default function ImageUpload({
       return;
     }
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       const errorMsg = "Please select a valid image file.";
       setError(errorMsg);
@@ -76,7 +80,6 @@ export default function ImageUpload({
       return;
     }
 
-    // Validate file size
     if (file.size > maxSizeBytes) {
       const maxSizeMB = (maxSizeBytes / (1024 * 1024)).toFixed(1);
       const errorMsg = `File size exceeds ${maxSizeMB}MB limit.`;
@@ -85,28 +88,33 @@ export default function ImageUpload({
       return;
     }
 
-    // Create preview URL
     const url = URL.createObjectURL(file);
     setSelectedFile(file);
     setPreviewUrl(url);
     onFileSelected?.(file, url);
 
-    // Auto-upload if enabled
     if (autoUpload) {
-      handleUpload(file);
+      void handleUpload(file);
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    processFile(file);
+  };
+
   const handleClear = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+
     setSelectedFile(null);
     setPreviewUrl("");
     setError("");
     setUploadStatus("idle");
     setUploadProgress(0);
     setUploadedFileUrl("");
+    setIsDragging(false);
     onFileCleared?.();
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -119,8 +127,8 @@ export default function ImageUpload({
     setUploadProgress(0);
 
     try {
-      // Step 1: Get presigned URL
       setUploadProgress(10);
+
       const presignedResponse = await fetch("/api/upload/presigned", {
         method: "POST",
         headers: {
@@ -141,7 +149,6 @@ export default function ImageUpload({
       const { presignedUrl, fileUrl, fileKey }: PresignedUrlResponse =
         await presignedResponse.json();
 
-      // Step 2: Upload file directly to S3
       setUploadProgress(30);
 
       const uploadResponse = await fetch(presignedUrl, {
@@ -159,8 +166,6 @@ export default function ImageUpload({
       setUploadProgress(100);
       setUploadStatus("success");
       setUploadedFileUrl(fileUrl);
-
-      // Call success callback
       onUploadSuccess?.(fileUrl, fileKey);
     } catch (err) {
       const errorMsg =
@@ -186,81 +191,306 @@ export default function ImageUpload({
       case "uploading":
         return `Uploading... ${uploadProgress}%`;
       case "success":
-        return "✓ Upload complete";
+        return "Upload complete";
       case "error":
-        return "✗ Upload failed";
+        return "Upload failed";
       default:
-        return "✓ Image received";
+        return "Image ready";
     }
   };
 
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0] ?? null;
+    processFile(file);
+  };
+
+  const dropzoneStyle: React.CSSProperties = {
+    position: "relative",
+    minHeight: "280px",
+    padding: "32px 24px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "16px",
+    textAlign: "center",
+    cursor: "pointer",
+    borderRadius: "24px",
+    background: isDragging
+      ? "rgba(30, 127, 90, 0.08)"
+      : isHovered
+        ? "rgba(30, 127, 90, 0.04)"
+        : "transparent",
+    border: isDragging
+      ? "1px solid rgba(111, 160, 126, 0.95)"
+      : isHovered
+        ? "1px solid rgba(93, 141, 108, 0.7)"
+        : "1px solid rgba(103, 121, 111, 0.35)",
+    boxShadow: isDragging ? "0 0 0 3px rgba(111, 160, 126, 0.12)" : "none",
+    transform: isDragging ? "translateY(-1px)" : "none",
+    transition:
+      "border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+  };
+
   return (
-    <div className="image-upload-container" aria-label={label}>
+    <div
+      aria-label={label}
+      style={{
+        width: "100%",
+        maxWidth: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: "14px",
+      }}
+    >
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         onChange={handleFileChange}
-        className="image-upload-input"
         aria-label="Select image file"
+        style={{ display: "none" }}
       />
 
       {!selectedFile ? (
-        // Default state - upload button/drop zone
-        <div className="image-upload-default">
-          <button
-            type="button"
-            onClick={handleButtonClick}
-            className="image-upload-button"
-            aria-label={uploadButtonText}
+        <div
+          style={dropzoneStyle}
+          onClick={handleButtonClick}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          role="button"
+          tabIndex={0}
+          aria-label={uploadButtonText}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleButtonClick();
+            }
+          }}
+        >
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: "14px",
+              border: "1.5px dashed rgba(99, 129, 112, 0.5)",
+              borderRadius: "18px",
+              pointerEvents: "none",
+            }}
+          />
+
+          <div
+            aria-hidden="true"
+            style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "18px",
+              display: "grid",
+              placeItems: "center",
+              color: "#1f2937",
+              background: "rgba(70, 108, 82, 0.18)",
+              border: "1px solid rgba(102, 142, 116, 0.28)",
+              position: "relative",
+              zIndex: 1,
+            }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="24"
-              height="24"
-              aria-hidden="true"
-              className="image-upload-icon"
+              width="28"
+              height="28"
             >
               <path
-                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                d="M12 16V4M12 4l-4 4M12 4l4 4"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
               <path
-                d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                d="M4 16.5v1.5A2 2 0 0 0 6 20h12a2 2 0 0 0 2-2v-1.5"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
+                strokeLinecap="round"
               />
             </svg>
-            <span>{uploadButtonText}</span>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "1.5rem",
+                fontWeight: 800,
+                color: "#1f2937",
+              }}
+            >
+              Drag and drop an image here
+            </h3>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "1rem",
+                color: "rgba(31, 41, 55, 0.76)",
+              }}
+            >
+              or click to browse files
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleButtonClick();
+            }}
+            style={{
+              position: "relative",
+              zIndex: 1,
+              padding: "12px 18px",
+              borderRadius: "999px",
+              border: "1px solid rgba(107, 148, 119, 0.72)",
+              background: "#1e7f5a",
+              color: "#ffffff",
+              font: "inherit",
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "0 6px 18px rgba(0, 0, 0, 0.16)",
+            }}
+          >
+            {uploadButtonText}
           </button>
-          <p className="image-upload-hint">
+
+          <p
+            style={{
+              margin: 0,
+              fontSize: "0.95rem",
+              color: "rgba(31, 41, 55, 0.72)",
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
             Supports JPG, PNG, GIF, WebP (Max {formatFileSize(maxSizeBytes)})
           </p>
         </div>
       ) : (
-        // Selected state - preview and file info
-        <div className="image-upload-selected">
-          <div className="image-upload-preview-wrapper">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "220px minmax(0, 1fr)",
+            gap: "22px",
+            alignItems: "start",
+            padding: "20px",
+            borderRadius: "24px",
+            background: "transparent",
+            border: "1px solid rgba(103, 121, 111, 0.35)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: "1 / 1",
+              overflow: "hidden",
+              borderRadius: "18px",
+              border: "1px solid rgba(95, 111, 103, 0.4)",
+              background: "#111314",
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewUrl}
               alt="Preview of selected image"
-              className="image-upload-preview"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
             />
           </div>
 
-          <div className="image-upload-info">
-            <div className="image-upload-header">
-              <h3 className="image-upload-status">{getUploadStatusText()}</h3>
+          <div
+            style={{
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "18px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: "16px",
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    margin: "0 0 6px",
+                    fontSize: "0.82rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "rgba(55, 65, 81, 0.72)",
+                  }}
+                >
+                  Selected image
+                </p>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "1.25rem",
+                    fontWeight: 800,
+                    color: "#1f2937",
+                  }}
+                >
+                  {getUploadStatusText()}
+                </h3>
+              </div>
+
               <button
                 type="button"
                 onClick={handleClear}
-                className="image-upload-clear"
                 aria-label="Remove image"
+                style={{
+                  width: "42px",
+                  height: "42px",
+                  padding: 0,
+                  borderRadius: "14px",
+                  border: "1px solid rgba(108, 121, 113, 0.55)",
+                  background: "transparent",
+                  color: "#374151",
+                  display: "grid",
+                  placeItems: "center",
+                  cursor: "pointer",
+                }}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -279,53 +509,158 @@ export default function ImageUpload({
               </button>
             </div>
 
-            <div className="image-upload-metadata">
-              <p className="image-upload-name" title={selectedFile.name}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                minWidth: 0,
+              }}
+            >
+              <p
+                title={selectedFile.name}
+                style={{
+                  margin: 0,
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#111827",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 {selectedFile.name}
               </p>
-              <p className="image-upload-size">
+
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.95rem",
+                  color: "rgba(55, 65, 81, 0.82)",
+                }}
+              >
                 {formatFileSize(selectedFile.size)}
               </p>
+
               {uploadStatus === "uploading" && (
-                <div className="image-upload-progress">
+                <div
+                  style={{
+                    width: "100%",
+                    height: "10px",
+                    overflow: "hidden",
+                    borderRadius: "999px",
+                    background: "rgba(255, 255, 255, 0.07)",
+                    border: "1px solid rgba(90, 104, 97, 0.45)",
+                  }}
+                >
                   <div
-                    className="image-upload-progress-bar"
-                    style={{ width: `${uploadProgress}%` }}
+                    style={{
+                      height: "100%",
+                      width: `${uploadProgress}%`,
+                      borderRadius: "999px",
+                      background: "linear-gradient(90deg, #1e7f5a, #34d399)",
+                      transition: "width 0.2s ease",
+                    }}
                   />
                 </div>
               )}
+
               {uploadStatus === "success" && uploadedFileUrl && (
-                <p className="image-upload-url" title={uploadedFileUrl}>
-                  URL: {uploadedFileUrl.slice(0, 40)}...
+                <p
+                  title={uploadedFileUrl}
+                  style={{
+                    margin: 0,
+                    fontSize: "0.95rem",
+                    color: "rgba(55, 65, 81, 0.82)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  Uploaded URL: {uploadedFileUrl.slice(0, 52)}...
                 </p>
               )}
             </div>
 
-            {!autoUpload && uploadStatus === "idle" && (
-              <button
-                type="button"
-                onClick={() => handleUpload()}
-                className="image-upload-submit"
-              >
-                Upload to S3
-              </button>
-            )}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "12px",
+              }}
+            >
+              {!autoUpload && uploadStatus === "idle" && (
+                <button
+                  type="button"
+                  onClick={() => void handleUpload()}
+                  style={{
+                    padding: "12px 18px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(107, 148, 119, 0.72)",
+                    background: "#1e7f5a",
+                    color: "#ffffff",
+                    font: "inherit",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Upload to S3
+                </button>
+              )}
 
-            {uploadStatus === "error" && (
+              {uploadStatus === "error" && (
+                <button
+                  type="button"
+                  onClick={() => void handleUpload()}
+                  style={{
+                    padding: "12px 18px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(107, 148, 119, 0.72)",
+                    background: "#1e7f5a",
+                    color: "#ffffff",
+                    font: "inherit",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Retry Upload
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => handleUpload()}
-                className="image-upload-retry"
+                onClick={handleButtonClick}
+                style={{
+                  padding: "11px 17px",
+                  borderRadius: "999px",
+                  border: "1px solid rgba(110, 124, 116, 0.45)",
+                  background: "transparent",
+                  color: "#1f2937",
+                  font: "inherit",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
               >
-                Retry Upload
+                Choose Different Image
               </button>
-            )}
+            </div>
           </div>
         </div>
       )}
 
       {error && (
-        <p className="image-upload-error" role="alert">
+        <p
+          role="alert"
+          style={{
+            margin: 0,
+            padding: "12px 14px",
+            borderRadius: "14px",
+            background: "rgba(111, 33, 33, 0.18)",
+            border: "1px solid rgba(189, 88, 88, 0.35)",
+            color: "#f2bbbb",
+            fontSize: "0.95rem",
+          }}
+        >
           {error}
         </p>
       )}

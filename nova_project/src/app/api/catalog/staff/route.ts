@@ -37,7 +37,7 @@ function hasLambdaConfig(): boolean {
 
 function parsePositiveInt(value: string | null, fallback: number): number {
   const parsed = Number.parseInt(value ?? "", 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return parsed;
 }
 
@@ -182,8 +182,12 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
     upstreamUrl.searchParams.set("q", q.query);
   }
 
+  if (q.sortBy) {
+    upstreamUrl.searchParams.set("sortBy", q.sortBy);
+    upstreamUrl.searchParams.set("sortOrder", q.sortOrder);
+  }
+
   // map staff category/subcategory/type onto Lambda categories filter
-  // most specific wins
   const categoryFilters: string[] = [];
   if (q.category !== "all") categoryFilters.push(q.category);
   if (q.subcategory !== "all") categoryFilters.push(q.subcategory);
