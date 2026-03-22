@@ -107,10 +107,22 @@ function getString(value: unknown, key: string): string | null {
   return typeof v === "string" ? v : null;
 }
 
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
 function getNumber(value: unknown, key: string): number | null {
   if (!isRecord(value)) return null;
-  const v = value[key];
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
+  return coerceNumber(value[key]);
 }
 
 function getArray(value: unknown, key: string): unknown[] | null {
