@@ -133,14 +133,19 @@ function normalizePriceRange(
   minPrice: number | null,
   maxPrice: number | null,
 ): PriceRange {
+  // If neither value is provided, return empty range (no filter)
+  if (minPrice === null && maxPrice === null) {
+    return { min: null, max: null };
+  }
+
   const resolvedMin = minPrice ?? DEFAULT_MIN_PRICE;
   const resolvedMax = maxPrice ?? DEFAULT_MAX_PRICE;
   const min = Math.max(DEFAULT_MIN_PRICE, Math.min(resolvedMin, resolvedMax));
   const max = Math.min(DEFAULT_MAX_PRICE, Math.max(resolvedMin, resolvedMax));
 
   return {
-    min: min > DEFAULT_MIN_PRICE ? min : null,
-    max: max < DEFAULT_MAX_PRICE ? max : null,
+    min,
+    max,
   };
 }
 
