@@ -9,6 +9,7 @@ type Errors = {
   email?: string;
   password?: string;
   confirmPassword?: string;
+  role?: string;
 };
 
 export default function CreateAccountPage() {
@@ -17,18 +18,25 @@ export default function CreateAccountPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("CUSTOMER");
   const [errors, setErrors] = useState<Errors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isValidPhone = (value: string) => {
     const digitsOnly = value.replace(/\D/g, "");
     return digitsOnly.length >= 10 && digitsOnly.length <= 15;
   };
 
+  // Stricter email validation regex: basic check for user@domain.tld
+  const isValidEmail = (value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     const next: Errors = {};
 
@@ -44,8 +52,9 @@ export default function CreateAccountPage() {
 
     if (!email.trim()) {
       next.email = "Email address is required.";
-    } else if (!email.includes("@")) {
-      next.email = "Please enter a valid email address.";
+    } else if (!isValidEmail(email)) {
+      next.email =
+        "Please enter a valid email address (e.g. user@example.com).";
     }
 
     if (!password) {
@@ -60,31 +69,39 @@ export default function CreateAccountPage() {
 
     if (Object.keys(next).length > 0) {
       setErrors(next);
+      setFeedback(null);
+      setSuccess(false);
       return;
     }
 
     setErrors({});
-    setServerError(null);
+    setFeedback(null);
+    setSuccess(false);
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch("/api/create_account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, displayName, phone }),
+        body: JSON.stringify({ displayName, phone, email, password, role }),
       });
-
       const data = await res.json();
-
-      if (res.ok) {
+      if (res.ok && data.success) {
+        setFeedback("Account created successfully! You may now sign in.");
         setSuccess(true);
-      } else if (res.status === 409) {
-        setErrors((p) => ({ ...p, email: data.error }));
+        setDisplayName("");
+        setPhone("");
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+        setRole("CUSTOMER");
       } else {
-        setServerError(data.error ?? "Something went wrong. Please try again.");
+        setFeedback(data.error || "Account creation failed.");
+        setSuccess(false);
       }
-    } catch {
-      setServerError("Network error. Please try again.");
+    } catch (err) {
+      setFeedback("An error occurred. Please try again later.");
+      setSuccess(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -111,14 +128,22 @@ export default function CreateAccountPage() {
       <section className="loginCard" aria-label="Create Account">
         <h1 className="loginTitle">Create Account</h1>
 
+        {feedback && (
+          <div
+            className={success ? "successText" : "errorText"}
+            style={{ marginBottom: 16 }}
+            role={success ? "status" : "alert"}
+          >
+            {feedback}
+          </div>
+        )}
+
         <form className="loginForm" onSubmit={handleSubmit} noValidate>
           <div className="twoCol">
             <label className="loginLabel">
               Display Name
               <input
-                className={`loginInput ${
-                  errors.displayName ? "inputError" : ""
-                }`}
+                className={`loginInput ${errors.displayName ? "inputError" : ""}`}
                 type="text"
                 value={displayName}
                 autoComplete="name"
@@ -199,11 +224,32 @@ export default function CreateAccountPage() {
             )}
           </label>
 
-          {serverError && <p className="errorText">{serverError}</p>}
+          <label className="loginLabel">
+            Account Role
+            <select
+              className="loginInput"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="CUSTOMER">Customer</option>
+              <option value="STAFF">Staff</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </label>
 
-          <button className="loginButton" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating account…" : "Create account"}
+          <button className="loginButton" type="submit">
+            Create account
           </button>
+
+          {feedback && (
+            <div
+              className={success ? "successText" : "errorText"}
+              style={{ marginTop: 16 }}
+              role={success ? "status" : "alert"}
+            >
+              {feedback}
+            </div>
+          )}
         </form>
 
         <div className="authLinks" aria-label="Account actions">

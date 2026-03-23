@@ -259,7 +259,9 @@ export async function POST(request: Request) {
       account: {
         email: account.email,
         displayName: account.displayName,
+        role: account.role,
       },
+      role: account.role,
     });
   } catch (error) {
     console.error("[auth/login] route failed", error);

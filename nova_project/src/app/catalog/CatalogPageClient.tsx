@@ -68,11 +68,13 @@ function buildCatalogParams(options: {
     params.set("categories", options.categories.join(","));
   }
 
-  if (options.priceRange.min > DEFAULT_PRICE_RANGE.min) {
-    params.set("minPrice", String(options.priceRange.min));
-  }
+  // Always send price range params if they differ from defaults
+  const hasPriceFilter =
+    options.priceRange.min > DEFAULT_PRICE_RANGE.min ||
+    options.priceRange.max < DEFAULT_PRICE_RANGE.max;
 
-  if (options.priceRange.max < DEFAULT_PRICE_RANGE.max) {
+  if (hasPriceFilter) {
+    params.set("minPrice", String(options.priceRange.min));
     params.set("maxPrice", String(options.priceRange.max));
   }
 
@@ -393,15 +395,16 @@ export default function CatalogPageClient() {
 
       params.delete("priceBuckets");
 
-      if (next.priceRange.min > DEFAULT_PRICE_RANGE.min) {
-        params.set("minPrice", String(next.priceRange.min));
-      } else {
-        params.delete("minPrice");
-      }
+      // Always send both min and max when price filter is active
+      const hasPriceFilter =
+        next.priceRange.min > DEFAULT_PRICE_RANGE.min ||
+        next.priceRange.max < DEFAULT_PRICE_RANGE.max;
 
-      if (next.priceRange.max < DEFAULT_PRICE_RANGE.max) {
+      if (hasPriceFilter) {
+        params.set("minPrice", String(next.priceRange.min));
         params.set("maxPrice", String(next.priceRange.max));
       } else {
+        params.delete("minPrice");
         params.delete("maxPrice");
       }
 

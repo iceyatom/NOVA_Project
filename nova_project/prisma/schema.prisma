@@ -29,6 +29,13 @@ model CatalogItem {
   unitCost          Decimal   @default(0) @db.Decimal(10, 2)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  @@index([category1])
+  @@index([category2])
+  @@index([category3])
+  @@index([price])
+  @@index([updatedAt])
+  @@index([quantityInStock])
 }
 
 model Account {
