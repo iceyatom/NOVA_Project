@@ -125,20 +125,23 @@ function buildPrismaWhere(q: StaffQuery) {
   const and: Record<string, unknown>[] = [];
 
   if (q.query) {
-    and.push({
-      OR: [
-        {
-          itemName: {
-            contains: q.query,
+    const tokens = q.query.split(/\s+/).filter(Boolean);
+    for (const token of tokens) {
+      and.push({
+        OR: [
+          {
+            itemName: {
+              contains: token,
+            },
           },
-        },
-        {
-          sku: {
-            contains: q.query,
+          {
+            sku: {
+              contains: token,
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
+    }
   }
 
   if (q.category !== "all") {
