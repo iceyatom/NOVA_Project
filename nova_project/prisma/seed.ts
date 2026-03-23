@@ -6226,23 +6226,25 @@ async function main() {
   });
 
   // Add staff account
+  const staffPasswordHash = await hashPassword("password123");
   await prisma.account.upsert({
     where: { email: "staff@nilesbio.com" },
     update: {},
     create: {
       email: "staff@nilesbio.com",
-      passwordHash: "password123", // Ideally, this should be hashed
+      passwordHash: staffPasswordHash,
       role: "STAFF",
     },
   });
 
   // Add customer account
+  const customerPasswordHash = await hashPassword("password123");
   await prisma.account.upsert({
     where: { email: "customer@nilesbio.com" },
     update: {},
     create: {
       email: "customer@nilesbio.com",
-      passwordHash: "password123", // Ideally, this should be hashed
+      passwordHash: customerPasswordHash,
       role: "CUSTOMER",
     },
   });
