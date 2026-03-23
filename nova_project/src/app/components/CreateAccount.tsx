@@ -20,6 +20,7 @@ export default function CreateAccountPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [feedback, setFeedback] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isValidPhone = (value: string) => {
     const digitsOnly = value.replace(/\D/g, "");
@@ -33,6 +34,7 @@ export default function CreateAccountPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     const next: Errors = {};
 
@@ -72,6 +74,7 @@ export default function CreateAccountPage() {
     setErrors({});
     setFeedback(null);
     setSuccess(false);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch("/api/create_account", {
@@ -95,6 +98,8 @@ export default function CreateAccountPage() {
     } catch (err) {
       setFeedback("An error occurred. Please try again later.");
       setSuccess(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -217,10 +222,8 @@ export default function CreateAccountPage() {
             )}
           </label>
 
-          {serverError && <p className="errorText">{serverError}</p>}
-
           <button className="loginButton" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating account…" : "Create account"}
+            {isSubmitting ? "Creating account..." : "Create account"}
           </button>
         </form>
 
