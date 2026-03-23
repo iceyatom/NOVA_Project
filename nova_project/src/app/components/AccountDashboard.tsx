@@ -22,17 +22,16 @@ export default function AccountDashboard() {
     <main className="accountDashboardPage">
       <section className="accountDashboardHero">
         <h1>Account Dashboard</h1>
-        <p>
-          Shared workspace is
-          for CUSTOMER, EMPLOYEE, and ADMIN accounts.
-        </p>
+        <p>Shared workspace is for CUSTOMER, EMPLOYEE, and ADMIN accounts.</p>
       </section>
 
       <section className="accountDashboardGrid">
         <div className="accountCard">
           <h2>Profile Overview</h2>
           <p>This section can later display account summary information.</p>
-          <p><strong>Signed in as:</strong> {account || "Account user"}</p>
+          <p>
+            <strong>Signed in as:</strong> {account || "Account user"}
+          </p>
         </div>
 
         <div className="accountCard">
@@ -48,16 +47,12 @@ export default function AccountDashboard() {
 
         <div className="accountCard">
           <h2>Recently Viewed</h2>
-          <p>
-            Placeholder section for recently viewed items.
-          </p>
+          <p>Placeholder section for recently viewed items.</p>
         </div>
 
         <div className="accountCard">
           <h2>Order Requests</h2>
-          <p>
-            Placeholder section for order requests status.
-          </p>
+          <p>Placeholder section for order requests status.</p>
         </div>
       </section>
 
