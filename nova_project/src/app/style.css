@@ -2908,11 +2908,94 @@ body:has(.loginPage) main {
 }
 
 .item-edit-field-name {
-  color: #000 !important;
+  color: #475569 !important;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .item-edit-field-name--dirty {
-  color: #dc2626 !important;
+  color: rgb(192, 96, 0) !important;
+}
+
+.item-edit-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.item-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.item-edit-grid {
+  display: grid;
+  row-gap: 1rem;
+}
+
+.item-edit-grid-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.item-edit-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+.item-edit-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.item-edit-grid-4 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.item-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.item-edit-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  resize: vertical;
+}
+
+.item-edit-selected-images {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.item-edit-status {
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.92rem;
+}
+
+.item-edit-status.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.item-edit-status.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
 }
 
 .accountDashboardPage {
