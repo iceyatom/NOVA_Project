@@ -457,7 +457,11 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
 
 function buildLambdaUrl(
   q: CatalogQuery,
-  options: { limit?: number; offset?: number; includePriceParams?: boolean } = {},
+  options: {
+    limit?: number;
+    offset?: number;
+    includePriceParams?: boolean;
+  } = {},
 ): string {
   const upstreamBase = getLambdaBaseUrl();
 
@@ -529,7 +533,11 @@ async function tryLambdaWithServerSidePriceFilter(
     const normalized = normalizeLambdaPayload(parsed, q.limit, q.offset);
 
     // Apply price filter to single item result
-    if (normalized.success && normalized.data && !Array.isArray(normalized.data)) {
+    if (
+      normalized.success &&
+      normalized.data &&
+      !Array.isArray(normalized.data)
+    ) {
       if (!itemMatchesPriceFilter(normalized.data, q.priceRange)) {
         return NextResponse.json(
           shapeResponse({
