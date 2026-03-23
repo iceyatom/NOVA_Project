@@ -24,7 +24,14 @@ export function LoginStatusProvider({
   const [userRole, setUserRole] = useState("");
   return (
     <LoginStatusContext.Provider
-      value={{ loggedIn, setLoggedIn, account, setAccount, userRole, setUserRole }}
+      value={{
+        loggedIn,
+        setLoggedIn,
+        account,
+        setAccount,
+        userRole,
+        setUserRole,
+      }}
     >
       {children}
     </LoginStatusContext.Provider>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -134,7 +133,8 @@ export default function Header() {
               onMouseLeave={() => {
                 hoverState.current.icon = false;
                 closeTimer.current = setTimeout(() => {
-                  if (!hoverState.current.icon && !hoverState.current.popup) setShowProfile(false);
+                  if (!hoverState.current.icon && !hoverState.current.popup)
+                    setShowProfile(false);
                 }, 120);
               }}
               onFocus={() => setShowProfile(true)}
@@ -183,7 +183,8 @@ export default function Header() {
                   onMouseLeave={() => {
                     hoverState.current.popup = false;
                     closeTimer.current = setTimeout(() => {
-                      if (!hoverState.current.icon && !hoverState.current.popup) setShowProfile(false);
+                      if (!hoverState.current.icon && !hoverState.current.popup)
+                        setShowProfile(false);
                     }, 120);
                   }}
                 >
@@ -201,7 +202,10 @@ export default function Header() {
                       {(userRole === "STAFF" || userRole === "ADMIN") && (
                         <div style={{ marginTop: 12 }}>
                           <Link href="/staff/dashboard">
-                            <button className="loginButton" style={{ width: "100%" }}>
+                            <button
+                              className="loginButton"
+                              style={{ width: "100%" }}
+                            >
                               Staff Dashboard
                             </button>
                           </Link>

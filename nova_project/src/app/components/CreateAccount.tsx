@@ -53,7 +53,8 @@ export default function CreateAccountPage() {
     if (!email.trim()) {
       next.email = "Email address is required.";
     } else if (!isValidEmail(email)) {
-      next.email = "Please enter a valid email address (e.g. user@example.com).";
+      next.email =
+        "Please enter a valid email address (e.g. user@example.com).";
     }
 
     if (!password) {
@@ -236,21 +237,19 @@ export default function CreateAccountPage() {
             </select>
           </label>
 
-
-
           <button className="loginButton" type="submit">
             Create account
           </button>
 
-        {feedback && (
-          <div
-            className={success ? "successText" : "errorText"}
-            style={{ marginTop: 16 }}
-            role={success ? "status" : "alert"}
-          >
-            {feedback}
-          </div>
-        )}
+          {feedback && (
+            <div
+              className={success ? "successText" : "errorText"}
+              style={{ marginTop: 16 }}
+              role={success ? "status" : "alert"}
+            >
+              {feedback}
+            </div>
+          )}
         </form>
 
         <div className="authLinks" aria-label="Account actions">
