@@ -98,6 +98,22 @@ export default function CreateAccountPage() {
     }
   };
 
+  if (success) {
+    return (
+      <div className="loginPage">
+        <section className="loginCard" aria-label="Account created">
+          <h1 className="loginTitle">Account Created</h1>
+          <p className="authLinksText" style={{ marginBottom: "1rem" }}>
+            Your account has been created successfully.
+          </p>
+          <Link className="authLink" href="/login">
+            Account created! Sign in →
+          </Link>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="loginPage">
       <section className="loginCard" aria-label="Create Account">
@@ -201,8 +217,10 @@ export default function CreateAccountPage() {
             )}
           </label>
 
-          <button className="loginButton" type="submit">
-            Create account
+          {serverError && <p className="errorText">{serverError}</p>}
+
+          <button className="loginButton" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Creating account…" : "Create account"}
           </button>
         </form>
 
