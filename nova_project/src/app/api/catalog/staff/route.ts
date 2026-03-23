@@ -20,11 +20,19 @@ function logPerformance(args: {
 }) {
   if (!ENABLE_DB_PERF_LOGS) return;
 
-  const { route, dataSourceMode, durationMs, rowCount, limit, offset, responseSize } = args;
+  const {
+    route,
+    dataSourceMode,
+    durationMs,
+    rowCount,
+    limit,
+    offset,
+    responseSize,
+  } = args;
   console.log(
     `[DB_PERF] route=${route} dataSource=${dataSourceMode} duration=${durationMs.toFixed(2)}ms ` +
-    `rowCount=${rowCount} limit=${limit} offset=${offset}` +
-    (responseSize !== undefined ? ` responseSize=${responseSize}` : "")
+      `rowCount=${rowCount} limit=${limit} offset=${offset}` +
+      (responseSize !== undefined ? ` responseSize=${responseSize}` : ""),
   );
 }
 
@@ -90,7 +98,7 @@ function parseStaffQuery(request: NextRequest): StaffQuery {
   const pageSizeRaw = sp.get("pageSize");
   const pageSize = Math.min(
     pageSizeRaw === "all" ? 1000 : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT),
-    MAX_PAGE_SIZE
+    MAX_PAGE_SIZE,
   );
 
   const offset = parsePositiveInt(sp.get("offset"), 0);
@@ -292,7 +300,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
     parsed &&
     typeof parsed === "object" &&
     typeof (parsed as Record<string, unknown>).totalCount === "number"
-      ? (parsed as Record<string, unknown>).totalCount as number
+      ? ((parsed as Record<string, unknown>).totalCount as number)
       : data.length;
 
   const durationMs = Date.now() - startTime;

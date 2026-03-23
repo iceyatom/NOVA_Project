@@ -22,11 +22,19 @@ function logPerformance(args: {
 }) {
   if (!ENABLE_DB_PERF_LOGS) return;
 
-  const { route, dataSourceMode, durationMs, rowCount, limit, offset, responseSize } = args;
+  const {
+    route,
+    dataSourceMode,
+    durationMs,
+    rowCount,
+    limit,
+    offset,
+    responseSize,
+  } = args;
   console.log(
     `[DB_PERF] route=${route} dataSource=${dataSourceMode} duration=${durationMs.toFixed(2)}ms ` +
-    `rowCount=${rowCount} limit=${limit} offset=${offset}` +
-    (responseSize !== undefined ? ` responseSize=${responseSize}` : "")
+      `rowCount=${rowCount} limit=${limit} offset=${offset}` +
+      (responseSize !== undefined ? ` responseSize=${responseSize}` : ""),
   );
 }
 const LEGACY_PRICE_BUCKETS = new Map<string, { min?: number; max?: number }>([
@@ -530,7 +538,11 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
     route: "/api/catalog",
     dataSourceMode: "lambda",
     durationMs,
-    rowCount: Array.isArray(normalized.data) ? (normalized.data as unknown[]).length : normalized.data ? 1 : 0,
+    rowCount: Array.isArray(normalized.data)
+      ? (normalized.data as unknown[]).length
+      : normalized.data
+        ? 1
+        : 0,
     limit: q.limit,
     offset: q.offset,
     responseSize: JSON.stringify(normalized).length,
