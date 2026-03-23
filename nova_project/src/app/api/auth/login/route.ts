@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyPassword } from "@/lib/auth/passwordHash";
+import { hashPassword, verifyPassword } from "@/lib/auth/passwordHash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +50,10 @@ function errorResponse(
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function isLikelyBcryptHash(value: string): boolean {
+  return /^\$2[aby]\$\d{2}\$/.test(value);
 }
 
 function safeFailedAttempts(value: unknown): number {
@@ -117,6 +121,7 @@ export async function POST(request: Request) {
         id: true,
         email: true,
         displayName: true,
+        role: true,
         passwordHash: true,
         status: true,
         deletedAt: true,
@@ -158,9 +163,16 @@ export async function POST(request: Request) {
     }
 
     let passwordOk = false;
+    let shouldUpgradeLegacyPasswordHash = false;
 
     try {
-      passwordOk = await verifyPassword(password, account.passwordHash);
+      if (isLikelyBcryptHash(account.passwordHash)) {
+        passwordOk = await verifyPassword(password, account.passwordHash);
+      } else {
+        // Temporary compatibility for legacy rows where plaintext was stored.
+        passwordOk = password === account.passwordHash;
+        shouldUpgradeLegacyPasswordHash = passwordOk;
+      }
     } catch (error) {
       console.error("[auth/login] password verification failed unexpectedly", {
         accountId: account.id,
@@ -240,9 +252,14 @@ export async function POST(request: Request) {
       return errorResponse("Invalid email or password.", 401);
     }
 
+    const nextPasswordHash = shouldUpgradeLegacyPasswordHash
+      ? await hashPassword(password)
+      : undefined;
+
     await prisma.account.update({
       where: { id: account.id },
       data: {
+        ...(nextPasswordHash ? { passwordHash: nextPasswordHash } : {}),
         lastLoginAt: new Date(),
         failedLoginAttempts: 0,
         lockoutUntil: null,

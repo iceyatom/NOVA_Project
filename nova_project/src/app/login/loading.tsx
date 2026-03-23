@@ -7,7 +7,12 @@ const ACCENT = "#50C878";
 export default function LoginLoading() {
   return (
     <div style={styles.container}>
-      <div role="status" aria-live="polite" aria-atomic="true" style={styles.wrapper}>
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        style={styles.wrapper}
+      >
         <div style={styles.spinner} aria-hidden="true" />
         <span style={styles.srOnly}>Authenticating…</span>
       </div>

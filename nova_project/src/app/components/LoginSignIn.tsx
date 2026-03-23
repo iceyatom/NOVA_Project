@@ -89,9 +89,7 @@ export default function LoginSignIn() {
     const interval = window.setInterval(() => {
       if (Date.now() >= lockoutUntil) {
         if (normalizedEmail && normalizedEmail.includes("@")) {
-          window.localStorage.removeItem(
-            getLockoutStorageKey(normalizedEmail),
-          );
+          window.localStorage.removeItem(getLockoutStorageKey(normalizedEmail));
         }
         setLockoutUntil(null);
       }
