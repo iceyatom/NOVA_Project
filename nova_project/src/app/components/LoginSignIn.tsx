@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLoginStatus } from "../LoginStatusContext";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginSignIn() {
   const { loggedIn, setLoggedIn, account, setAccount, userRole, setUserRole } = useLoginStatus();
@@ -93,6 +94,7 @@ export default function LoginSignIn() {
           />
           {errors.email && <p className="errorText">{errors.email}</p>}
         </label>
+
         <label className="loginLabel">
           Password
           <input
@@ -110,7 +112,9 @@ export default function LoginSignIn() {
           />
           {errors.password && <p className="errorText">{errors.password}</p>}
         </label>
+
         {authError && <p className="errorText">{authError}</p>}
+
         <button
           className="loginButton"
           type="submit"
@@ -119,6 +123,7 @@ export default function LoginSignIn() {
         >
           {isSubmitting ? "Logging in..." : "Log in"}
         </button>
+
         {loggedIn && (
           <button
             className="loginButton"
@@ -130,6 +135,7 @@ export default function LoginSignIn() {
               setUsername("");
               setPassword("");
               setAuthError("");
+              router.push("/login");
             }}
           >
             Log out
@@ -143,6 +149,7 @@ export default function LoginSignIn() {
           Create Account
         </Link>
       </div>
+
       <div
         style={{ marginTop: "2rem", color: loggedIn ? "#059669" : "#32486b" }}
       >

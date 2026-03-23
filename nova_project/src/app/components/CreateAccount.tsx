@@ -22,14 +22,21 @@ export default function CreateAccountPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [feedback, setFeedback] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isValidPhone = (value: string) => {
     const digitsOnly = value.replace(/\D/g, "");
     return digitsOnly.length >= 10 && digitsOnly.length <= 15;
   };
 
+  // Stricter email validation regex: basic check for user@domain.tld
+  const isValidEmail = (value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     const next: Errors = {};
 
@@ -45,7 +52,7 @@ export default function CreateAccountPage() {
 
     if (!email.trim()) {
       next.email = "Email address is required.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email)) {
+    } else if (!isValidEmail(email)) {
       next.email = "Please enter a valid email address (e.g. user@example.com).";
     }
 
@@ -69,6 +76,7 @@ export default function CreateAccountPage() {
     setErrors({});
     setFeedback(null);
     setSuccess(false);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch("/api/create_account", {
@@ -90,17 +98,44 @@ export default function CreateAccountPage() {
         setFeedback(data.error || "Account creation failed.");
         setSuccess(false);
       }
-    } catch {
+    } catch (err) {
       setFeedback("An error occurred. Please try again later.");
       setSuccess(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  if (success) {
+    return (
+      <div className="loginPage">
+        <section className="loginCard" aria-label="Account created">
+          <h1 className="loginTitle">Account Created</h1>
+          <p className="authLinksText" style={{ marginBottom: "1rem" }}>
+            Your account has been created successfully.
+          </p>
+          <Link className="authLink" href="/login">
+            Account created! Sign in →
+          </Link>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="loginPage">
       <section className="loginCard" aria-label="Create Account">
         <h1 className="loginTitle">Create Account</h1>
 
+        {feedback && (
+          <div
+            className={success ? "successText" : "errorText"}
+            style={{ marginBottom: 16 }}
+            role={success ? "status" : "alert"}
+          >
+            {feedback}
+          </div>
+        )}
 
         <form className="loginForm" onSubmit={handleSubmit} noValidate>
           <div className="twoCol">
