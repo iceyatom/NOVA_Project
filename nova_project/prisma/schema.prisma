@@ -4,8 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
   // keep this only if you will run prisma migrate
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
@@ -14,7 +14,7 @@ model CatalogItem {
   id                Int       @id @default(autoincrement())
   sku               String?
   itemName          String
-  price             Decimal   @db.Decimal(10, 2) @default(0)
+  price             Decimal   @default(0) @db.Decimal(10, 2)
   category3         String?
   category2         String?
   category1         String?
@@ -26,24 +26,27 @@ model CatalogItem {
   expirationDate    DateTime?
   dateAcquired      DateTime?
   reorderLevel      Int       @default(0)
-  unitCost          Decimal   @db.Decimal(10, 2) @default(0)
+  unitCost          Decimal   @default(0) @db.Decimal(10, 2)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
 
 model Account {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  passwordHash  String
-  status        String    @default("active")
-  role          String
-  displayName   String?
-  phone         String?
-  notes         String?
+  id           Int     @id @default(autoincrement())
+  email        String  @unique
+  passwordHash String
+  status       String  @default("active")
+  role         String
+  displayName  String?
+  phone        String?
+  notes        String?
 
-  lastLoginAt   DateTime?
-  deletedAt     DateTime?
+  lastLoginAt DateTime?
+  deletedAt   DateTime?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  failedLoginAttempts Int       @default(0)
+  lockoutUntil        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
