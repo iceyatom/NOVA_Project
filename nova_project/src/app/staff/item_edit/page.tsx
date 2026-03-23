@@ -86,7 +86,9 @@ function parseCatalogItem(data: unknown): Item | null {
     category2: getNullableString(raw.category2),
     category1: getNullableString(raw.category1),
     description: getNullableString(raw.description),
-    imageUrls: getNullableString(raw.imageUrls)?.split(",") ?? ["/FillerImage.webp"],
+    imageUrls: getNullableString(raw.imageUrls)?.split(",") ?? [
+      "/FillerImage.webp",
+    ],
     quantityInStock: getNullableNumber(raw.quantityInStock),
     unitOfMeasure: getNullableString(raw.unitOfMeasure),
     storageLocation: getNullableString(raw.storageLocation),
@@ -225,34 +227,27 @@ function validateForm(f: ItemForm): string | null {
   const currencyToCheck = ["$", "€", "£", "¥"];
   const hasCurrency = (s: string) => currencyToCheck.some((c) => s.includes(c));
 
-  if (!f.itemName.trim()) 
-    return "Item Name cannot be empty.";
-  if (!f.sku.trim()) 
-    return "SKU cannot be empty.";
+  if (!f.itemName.trim()) return "Item Name cannot be empty.";
+  if (!f.sku.trim()) return "SKU cannot be empty.";
 
   if (hasCurrency(f.price))
     return "Price must be a number (no currency signs).";
   if (f.price.trim() === "" || Number.isNaN(Number(f.price)))
     return "Price must be a valid number.";
-  if (Number(f.price) < 0) 
-    return "Price cannot be negative.";
+  if (Number(f.price) < 0) return "Price cannot be negative.";
   if ((f.price.split(".")[1] ?? "").length > 2)
     return "Price must have at most 2 decimal places.";
 
-  if (!f.category3.trim()) 
-    return "Category 3 cannot be empty.";
-  if (!f.category2.trim()) 
-    return "Category 2 cannot be empty.";
-  if (!f.category1.trim()) 
-    return "Category 1 cannot be empty.";
+  if (!f.category3.trim()) return "Category 3 cannot be empty.";
+  if (!f.category2.trim()) return "Category 2 cannot be empty.";
+  if (!f.category1.trim()) return "Category 1 cannot be empty.";
 
   if (
     f.quantityInStock.trim() === "" ||
     Number.isNaN(Number(f.quantityInStock))
   )
     return "Quantity in stock must be a valid number.";
-  if (Number(f.quantityInStock) < 0) 
-    return "Quantity cannot be negative.";
+  if (Number(f.quantityInStock) < 0) return "Quantity cannot be negative.";
 
   if (f.reorderLevel.trim() === "" || Number.isNaN(Number(f.reorderLevel)))
     return "Reorder level must be a valid number.";
@@ -261,8 +256,7 @@ function validateForm(f: ItemForm): string | null {
     return "Unit cost must be a number (no currency signs).";
   if (f.unitCost.trim() === "" || Number.isNaN(Number(f.unitCost)))
     return "Unit cost must be a valid number.";
-  if (Number(f.unitCost) < 0) 
-    return "Unit cost cannot be negative.";
+  if (Number(f.unitCost) < 0) return "Unit cost cannot be negative.";
   if ((f.unitCost.split(".")[1] ?? "").length > 2)
     return "Unit cost must have at most 2 decimal places.";
 
@@ -310,7 +304,9 @@ function StaffItemEditPageContent() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [subcategories, setSubcategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null,);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null,
+  );
 
   const originalRef = useRef<ItemForm>(form);
 
@@ -600,8 +596,8 @@ function StaffItemEditPageContent() {
     <div>
       <div className="staffTitle">Edit Catalog Item</div>
       <div className="staffSubtitle">
-        Edit existing item form using inventory management styling. Created date and
-        updated date are generated automatically.
+        Edit existing item form using inventory management styling. Created date
+        and updated date are generated automatically.
       </div>
 
       <div className="staffGrid">
@@ -610,7 +606,9 @@ function StaffItemEditPageContent() {
             <div className="item-edit-grid">
               <div className="item-edit-grid-1">
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("itemName"))}>Item Name *</span>
+                  <span className={fieldNameClass(isFieldDirty("itemName"))}>
+                    Item Name *
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="text"
@@ -620,7 +618,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("sku"))}>SKU</span>
+                  <span className={fieldNameClass(isFieldDirty("sku"))}>
+                    SKU
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="text"
@@ -630,7 +630,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("price"))}>Price *</span>
+                  <span className={fieldNameClass(isFieldDirty("price"))}>
+                    Price *
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="text"
@@ -642,7 +644,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("unitCost"))}>Unit Cost *</span>
+                  <span className={fieldNameClass(isFieldDirty("unitCost"))}>
+                    Unit Cost *
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="text"
@@ -655,7 +659,13 @@ function StaffItemEditPageContent() {
 
                 <label className="item-edit-field">
                   <div>
-                    <span className={fieldNameClass(isFieldDirty("quantityInStock"))}>Quantity In Stock *</span>
+                    <span
+                      className={fieldNameClass(
+                        isFieldDirty("quantityInStock"),
+                      )}
+                    >
+                      Quantity In Stock *
+                    </span>
                     <input
                       className="item-search-page__search-input"
                       type="number"
@@ -668,7 +678,11 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("reorderLevel"))}>Reorder Level *</span>
+                  <span
+                    className={fieldNameClass(isFieldDirty("reorderLevel"))}
+                  >
+                    Reorder Level *
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="number"
@@ -682,7 +696,9 @@ function StaffItemEditPageContent() {
 
               <div className="item-edit-grid-2">
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("category3"))}>Category *</span>
+                  <span className={fieldNameClass(isFieldDirty("category3"))}>
+                    Category *
+                  </span>
                   <select
                     className="item-search-page__select"
                     value={form.category3}
@@ -705,7 +721,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("category2"))}>Subcategory *</span>
+                  <span className={fieldNameClass(isFieldDirty("category2"))}>
+                    Subcategory *
+                  </span>
                   <select
                     className="item-search-page__select"
                     value={form.category2}
@@ -727,7 +745,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("category1"))}>Type *</span>
+                  <span className={fieldNameClass(isFieldDirty("category1"))}>
+                    Type *
+                  </span>
                   <select
                     className="item-search-page__select"
                     value={form.category1}
@@ -750,7 +770,11 @@ function StaffItemEditPageContent() {
 
               <div className="item-edit-grid-3">
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("unitOfMeasure"))}>Unit Of Measure</span>
+                  <span
+                    className={fieldNameClass(isFieldDirty("unitOfMeasure"))}
+                  >
+                    Unit Of Measure
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="text"
@@ -761,7 +785,11 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("storageLocation"))}>Storage Location</span>
+                  <span
+                    className={fieldNameClass(isFieldDirty("storageLocation"))}
+                  >
+                    Storage Location
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="text"
@@ -772,21 +800,29 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("dateAcquired"))}>Date Acquired</span>
+                  <span
+                    className={fieldNameClass(isFieldDirty("dateAcquired"))}
+                  >
+                    Date Acquired
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="date"
-                    value={form.dateAcquired.split('T')[0]}
+                    value={form.dateAcquired.split("T")[0]}
                     onChange={update("dateAcquired")}
                   />
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("expirationDate"))}>Expiration Date</span>
+                  <span
+                    className={fieldNameClass(isFieldDirty("expirationDate"))}
+                  >
+                    Expiration Date
+                  </span>
                   <input
                     className="item-search-page__search-input"
                     type="date"
-                    value={form.expirationDate.split('T')[0]}
+                    value={form.expirationDate.split("T")[0]}
                     onChange={update("expirationDate")}
                   />
                 </label>
@@ -795,7 +831,9 @@ function StaffItemEditPageContent() {
 
             <div className="item-edit-grid-4">
               <label className="item-edit-field">
-                <span className={fieldNameClass(isFieldDirty("description"))}>Description</span>
+                <span className={fieldNameClass(isFieldDirty("description"))}>
+                  Description
+                </span>
                 <textarea
                   className="item-edit-textarea"
                   value={form.description}
@@ -805,7 +843,11 @@ function StaffItemEditPageContent() {
               </label>
 
               <label className="item-edit-field">
-                <span className={fieldNameClass(isFieldDirty("storageConditions"))}>Storage Conditions</span>
+                <span
+                  className={fieldNameClass(isFieldDirty("storageConditions"))}
+                >
+                  Storage Conditions
+                </span>
                 <textarea
                   className="item-edit-textarea"
                   value={form.storageConditions}
@@ -902,11 +944,12 @@ function StaffItemEditPageContent() {
                 )}
               </label>
 
-              {saveError && <div className="item-edit-status error">{saveError}</div>}
+              {saveError && (
+                <div className="item-edit-status error">{saveError}</div>
+              )}
               {successMessage && (
                 <div className="item-edit-status success">{successMessage}</div>
               )}
-
             </div>
 
             <div className="item-edit-actions">

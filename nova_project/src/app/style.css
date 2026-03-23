@@ -2975,7 +2975,7 @@ body:has(.loginPage) main {
   resize: vertical;
 }
 
-.item-edit-selected-images { 
+.item-edit-selected-images {
   margin-top: 8px;
   font-size: 0.9rem;
 }
