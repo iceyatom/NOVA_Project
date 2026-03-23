@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useLoginStatus } from "../LoginStatusContext";
 
@@ -10,11 +10,33 @@ import { useLoginStatus } from "../LoginStatusContext";
 export default function Header() {
   const [open, setOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  // Track if mouse is over either icon or popup
+  const hoverState = useRef({ icon: false, popup: false });
+  const closeTimer = useRef<NodeJS.Timeout | null>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
   const pathname = usePathname();
-  const { loggedIn, account } = useLoginStatus();
+  const { loggedIn, account, userRole } = useLoginStatus();
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname?.startsWith(href));
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
+        setShowProfile(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <header>
@@ -49,40 +71,72 @@ export default function Header() {
 
         {/* Primary Navigation */}
         <ul id="topbar-links" className={`links ${open ? "open" : ""}`}>
-          {/* ...existing nav links... */}
           <li>
-            <Link className="navlink" href="/" aria-current="page">
+            <Link
+              className={`navlink ${isActive("/") ? "active" : ""}`}
+              href="/"
+            >
               Home
             </Link>
           </li>
+
           <li>
-            <Link className="navlink" href="/catalog" aria-current="page">
+            <Link
+              className={`navlink ${isActive("/catalog") ? "active" : ""}`}
+              href="/catalog"
+            >
               Catalog
             </Link>
           </li>
+
           <li>
-            <Link className="navlink" href="/contact" aria-current="page">
+            <Link
+              className={`navlink ${isActive("/contact") ? "active" : ""}`}
+              href="/contact"
+            >
               Contact
             </Link>
           </li>
+
           <li>
-            <Link className="navlink" href="/about" aria-current="page">
+            <Link
+              className={`navlink ${isActive("/about") ? "active" : ""}`}
+              href="/about"
+            >
               About
             </Link>
           </li>
-          <li>
-            <Link className="navlink" href="/login" aria-current="page">
-              Login
-            </Link>
-          </li>
+
+          {!loggedIn && (
+            <li>
+              <Link
+                className={`navlink ${isActive("/login") ? "active" : ""}`}
+                href="/login"
+              >
+                Login
+              </Link>
+            </li>
+          )}
+
           {/* Profile/account icon */}
           <li>
             <div
+              ref={profileRef}
               className="profile-icon-container"
               tabIndex={0}
               aria-label={loggedIn ? "Account" : "Not logged in"}
-              onMouseEnter={() => setShowProfile(true)}
-              onMouseLeave={() => setShowProfile(false)}
+              onMouseEnter={() => {
+                hoverState.current.icon = true;
+                setShowProfile(true);
+                if (closeTimer.current) clearTimeout(closeTimer.current);
+              }}
+              onMouseLeave={() => {
+                hoverState.current.icon = false;
+                closeTimer.current = setTimeout(() => {
+                  if (!hoverState.current.icon && !hoverState.current.popup)
+                    setShowProfile(false);
+                }, 120);
+              }}
               onFocus={() => setShowProfile(true)}
               onBlur={() => setShowProfile(false)}
               style={{
@@ -98,6 +152,7 @@ export default function Header() {
                 alt={loggedIn ? "Account (logged in)" : "Not logged in"}
                 width={32}
                 height={32}
+                onClick={() => setShowProfile((prev) => !prev)}
                 style={
                   loggedIn
                     ? {
@@ -114,14 +169,48 @@ export default function Header() {
                 }
                 aria-hidden="true"
               />
+
               {showProfile && (
-                <div className="profile-popup" role="dialog" aria-modal="false">
+                <div
+                  className="profile-popup"
+                  role="dialog"
+                  aria-modal="false"
+                  onMouseEnter={() => {
+                    hoverState.current.popup = true;
+                    setShowProfile(true);
+                    if (closeTimer.current) clearTimeout(closeTimer.current);
+                  }}
+                  onMouseLeave={() => {
+                    hoverState.current.popup = false;
+                    closeTimer.current = setTimeout(() => {
+                      if (!hoverState.current.icon && !hoverState.current.popup)
+                        setShowProfile(false);
+                    }, 120);
+                  }}
+                >
                   {loggedIn ? (
                     <div>
                       <div>
                         <strong>{account || "User"}</strong>
                       </div>
                       <div>{account || "No email"}</div>
+                      <div style={{ marginTop: 8 }}>
+                        <span style={{ fontSize: "0.95em", color: "#059669" }}>
+                          Role: {userRole ? userRole.toUpperCase() : "CUSTOMER"}
+                        </span>
+                      </div>
+                      {(userRole === "STAFF" || userRole === "ADMIN") && (
+                        <div style={{ marginTop: 12 }}>
+                          <Link href="/staff/dashboard">
+                            <button
+                              className="loginButton"
+                              style={{ width: "100%" }}
+                            >
+                              Staff Dashboard
+                            </button>
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div>

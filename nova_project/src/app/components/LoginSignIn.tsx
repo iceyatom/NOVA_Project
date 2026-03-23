@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useLoginStatus } from "../LoginStatusContext";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginSignIn() {
-  const { loggedIn, setLoggedIn, account, setAccount } = useLoginStatus();
+  const { loggedIn, setLoggedIn, account, setAccount, userRole, setUserRole } =
+    useLoginStatus();
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
@@ -49,18 +52,24 @@ export default function LoginSignIn() {
       const data = (await response.json()) as {
         ok?: boolean;
         error?: string;
-        account?: { email?: string; displayName?: string | null };
+        account?: {
+          email?: string;
+          displayName?: string | null;
+          role?: string;
+        };
       };
 
       if (!response.ok || !data.ok) {
         setLoggedIn(false);
         setAccount("");
+        setUserRole("");
         setAuthError(data.error ?? "Invalid email or password.");
         return;
       }
 
       setLoggedIn(true);
       setAccount(data.account?.displayName || data.account?.email || username);
+      setUserRole(data.account?.role || "");
     } catch {
       setLoggedIn(false);
       setAccount("");
@@ -91,6 +100,7 @@ export default function LoginSignIn() {
           />
           {errors.email && <p className="errorText">{errors.email}</p>}
         </label>
+
         <label className="loginLabel">
           Password
           <input
@@ -108,7 +118,9 @@ export default function LoginSignIn() {
           />
           {errors.password && <p className="errorText">{errors.password}</p>}
         </label>
+
         {authError && <p className="errorText">{authError}</p>}
+
         <button
           className="loginButton"
           type="submit"
@@ -117,6 +129,7 @@ export default function LoginSignIn() {
         >
           {isSubmitting ? "Logging in..." : "Log in"}
         </button>
+
         {loggedIn && (
           <button
             className="loginButton"
@@ -128,6 +141,7 @@ export default function LoginSignIn() {
               setUsername("");
               setPassword("");
               setAuthError("");
+              router.push("/login");
             }}
           >
             Log out
@@ -141,6 +155,7 @@ export default function LoginSignIn() {
           Create Account
         </Link>
       </div>
+
       <div
         style={{ marginTop: "2rem", color: loggedIn ? "#059669" : "#32486b" }}
       >

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { hashPassword, verifyPassword } from "@/lib/auth/passwordHash";
+import { verifyPassword } from "@/lib/auth/passwordHash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +47,7 @@ export async function POST(request: Request) {
         passwordHash: true,
         status: true,
         deletedAt: true,
+        role: true,
       },
     });
 
@@ -69,16 +70,6 @@ export async function POST(request: Request) {
       passwordOk = false;
     }
 
-    // Backward compatibility for legacy plaintext records in passwordHash.
-    if (!passwordOk && password === account.passwordHash) {
-      passwordOk = true;
-      const upgradedHash = await hashPassword(password);
-      await prisma.account.update({
-        where: { id: account.id },
-        data: { passwordHash: upgradedHash },
-      });
-    }
-
     if (!passwordOk) {
       return NextResponse.json(
         { ok: false, error: "Invalid email or password." },
@@ -96,7 +87,9 @@ export async function POST(request: Request) {
       account: {
         email: account.email,
         displayName: account.displayName,
+        role: account.role,
       },
+      role: account.role,
     });
   } catch (error) {
     console.error("Login API failed:", error);
