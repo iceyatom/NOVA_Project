@@ -47,18 +47,18 @@ const StaffItemSearchPageContent = () => {
   const [types, setTypes] = React.useState<string[]>([]);
   const [searchInput, setSearchInput] = React.useState(searchQueryParam);
 
+  // Cache for subcategory and type selections to avoid redundant API calls
+  const subcategoriesCache = React.useRef<Map<string, string[]>>(new Map());
+  const typesCache = React.useRef<Map<string, string[]>>(new Map());
+
   React.useEffect(() => {
     setSearchInput(searchQueryParam);
   }, [searchQueryParam]);
 
   React.useEffect(() => {
     const fetchItems = async () => {
-      const effectivePageSize =
-        pageSizeParam === "all"
-          ? Math.max(totalItems, 1)
-          : Number(pageSizeParam) || 20;
       const params = new URLSearchParams({
-        pageSize: String(effectivePageSize),
+        pageSize: String(pageSizeParam),
         offset: String(offset),
       });
 
@@ -84,15 +84,22 @@ const StaffItemSearchPageContent = () => {
       }
 
       const response = await fetch(`/api/catalog/staff?${params.toString()}`);
-      const items = await response.json();
-      setCatalogItems(items);
+      const result = await response.json();
+
+      // Handle both old array format and new paginated object format
+      if (Array.isArray(result)) {
+        setCatalogItems(result);
+        // Old format: need separate count request
+      } else if (result.success && result.data) {
+        setCatalogItems(result.data);
+        setTotalItems(result.totalCount || 0);
+      }
     };
 
     fetchItems();
   }, [
     pageSizeParam,
     offset,
-    totalItems,
     categoryParam,
     subcategoryParam,
     typeParam,
@@ -102,39 +109,16 @@ const StaffItemSearchPageContent = () => {
   ]);
 
   React.useEffect(() => {
-    const fetchTotalItems = async () => {
-      const params = new URLSearchParams();
-
-      if (categoryParam !== "all") {
-        params.set("category", categoryParam);
-      }
-
-      if (subcategoryParam !== "all") {
-        params.set("subcategory", subcategoryParam);
-      }
-
-      if (typeParam !== "all") {
-        params.set("type", typeParam);
-      }
-
-      if (searchQueryParam) {
-        params.set("query", searchQueryParam);
-      }
-
-      const response = await fetch(
-        `/api/catalog/staff/count?${params.toString()}`,
-      );
-      const { count } = await response.json();
-      setTotalItems(count);
-    };
-
-    fetchTotalItems();
-  }, [categoryParam, subcategoryParam, typeParam, searchQueryParam]);
-
-  React.useEffect(() => {
     const fetchSubcategories = async () => {
       if (categoryParam === "all") {
         setSubcategories([]);
+        return;
+      }
+
+      // Check cache first
+      const cacheKey = categoryParam;
+      if (subcategoriesCache.current.has(cacheKey)) {
+        setSubcategories(subcategoriesCache.current.get(cacheKey)!);
         return;
       }
 
@@ -142,6 +126,9 @@ const StaffItemSearchPageContent = () => {
         `/api/catalog/staff/subcategories?category=${encodeURIComponent(categoryParam)}`,
       );
       const { subcategories: nextSubcategories } = await response.json();
+
+      // Cache the result
+      subcategoriesCache.current.set(cacheKey, nextSubcategories);
       setSubcategories(nextSubcategories);
     };
 
@@ -155,6 +142,13 @@ const StaffItemSearchPageContent = () => {
         return;
       }
 
+      // Check cache first
+      const cacheKey = `${categoryParam}|${subcategoryParam}`;
+      if (typesCache.current.has(cacheKey)) {
+        setTypes(typesCache.current.get(cacheKey)!);
+        return;
+      }
+
       const params = new URLSearchParams({
         category: categoryParam,
         subcategory: subcategoryParam,
@@ -164,6 +158,9 @@ const StaffItemSearchPageContent = () => {
         `/api/catalog/staff/types?${params.toString()}`,
       );
       const { types: nextTypes } = await response.json();
+
+      // Cache the result
+      typesCache.current.set(cacheKey, nextTypes);
       setTypes(nextTypes);
     };
 
@@ -376,7 +373,7 @@ const StaffItemSearchPageContent = () => {
       params.set("type", typeParam);
     }
 
-    const trimmedSearchInput = searchInput.trim();
+    const trimmedSearchInput = searchInput.trim().replace(/\s+/g, " ");
 
     if (trimmedSearchInput) {
       params.set("query", trimmedSearchInput);
@@ -418,10 +415,7 @@ const StaffItemSearchPageContent = () => {
     router.push(`/staff/item_search?${params.toString()}`);
   };
 
-  const pageSize =
-    pageSizeParam === "all"
-      ? Math.max(totalItems, 1)
-      : Number(pageSizeParam) || 20;
+  const pageSize = Number(pageSizeParam) || 20;
   const totalPages = Math.ceil(totalItems / pageSize);
   const currentPage = Math.floor(offset / pageSize) + 1;
   const maxOffset = Math.max(0, (totalPages - 1) * pageSize);
@@ -572,7 +566,6 @@ const StaffItemSearchPageContent = () => {
                 <option value="20">20 per page</option>
                 <option value="50">50 per page</option>
                 <option value="100">100 per page</option>
-                <option value="all">All</option>
               </select>
 
               <button

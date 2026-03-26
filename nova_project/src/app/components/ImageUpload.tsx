@@ -228,7 +228,11 @@ export default function ImageUpload({
     textAlign: "center",
     cursor: "pointer",
     borderRadius: "24px",
-    background: isDragging ? "#1e2521" : isHovered ? "#1d2122" : "#191c1d",
+    background: isDragging
+      ? "rgba(30, 127, 90, 0.08)"
+      : isHovered
+        ? "rgba(30, 127, 90, 0.04)"
+        : "transparent",
     border: isDragging
       ? "1px solid rgba(111, 160, 126, 0.95)"
       : isHovered
@@ -245,7 +249,7 @@ export default function ImageUpload({
       aria-label={label}
       style={{
         width: "100%",
-        maxWidth: "760px",
+        maxWidth: "100%",
         display: "flex",
         flexDirection: "column",
         gap: "14px",
@@ -298,7 +302,7 @@ export default function ImageUpload({
               borderRadius: "18px",
               display: "grid",
               placeItems: "center",
-              color: "#d8ded8",
+              color: "#1f2937",
               background: "rgba(70, 108, 82, 0.18)",
               border: "1px solid rgba(102, 142, 116, 0.28)",
               position: "relative",
@@ -343,7 +347,7 @@ export default function ImageUpload({
                 margin: 0,
                 fontSize: "1.5rem",
                 fontWeight: 800,
-                color: "#ebe3d5",
+                color: "#1f2937",
               }}
             >
               Drag and drop an image here
@@ -352,7 +356,7 @@ export default function ImageUpload({
               style={{
                 margin: 0,
                 fontSize: "1rem",
-                color: "rgba(231, 223, 210, 0.76)",
+                color: "rgba(31, 41, 55, 0.76)",
               }}
             >
               or click to browse files
@@ -386,7 +390,7 @@ export default function ImageUpload({
             style={{
               margin: 0,
               fontSize: "0.95rem",
-              color: "rgba(231, 223, 210, 0.65)",
+              color: "rgba(31, 41, 55, 0.72)",
               position: "relative",
               zIndex: 1,
             }}
@@ -403,7 +407,7 @@ export default function ImageUpload({
             alignItems: "start",
             padding: "20px",
             borderRadius: "24px",
-            background: "#191c1d",
+            background: "transparent",
             border: "1px solid rgba(103, 121, 111, 0.35)",
           }}
         >
@@ -454,7 +458,7 @@ export default function ImageUpload({
                     fontWeight: 700,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
-                    color: "rgba(195, 184, 164, 0.72)",
+                    color: "rgba(55, 65, 81, 0.72)",
                   }}
                 >
                   Selected image
@@ -464,7 +468,7 @@ export default function ImageUpload({
                     margin: 0,
                     fontSize: "1.25rem",
                     fontWeight: 800,
-                    color: "#ebe3d5",
+                    color: "#1f2937",
                   }}
                 >
                   {getUploadStatusText()}
@@ -482,7 +486,7 @@ export default function ImageUpload({
                   borderRadius: "14px",
                   border: "1px solid rgba(108, 121, 113, 0.55)",
                   background: "transparent",
-                  color: "#e7decd",
+                  color: "#374151",
                   display: "grid",
                   placeItems: "center",
                   cursor: "pointer",
@@ -519,7 +523,7 @@ export default function ImageUpload({
                   margin: 0,
                   fontSize: "1rem",
                   fontWeight: 700,
-                  color: "#ebe3d5",
+                  color: "#111827",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -532,7 +536,7 @@ export default function ImageUpload({
                 style={{
                   margin: 0,
                   fontSize: "0.95rem",
-                  color: "rgba(231, 223, 210, 0.68)",
+                  color: "rgba(55, 65, 81, 0.82)",
                 }}
               >
                 {formatFileSize(selectedFile.size)}
@@ -567,7 +571,7 @@ export default function ImageUpload({
                   style={{
                     margin: 0,
                     fontSize: "0.95rem",
-                    color: "rgba(231, 223, 210, 0.68)",
+                    color: "rgba(55, 65, 81, 0.82)",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -631,7 +635,7 @@ export default function ImageUpload({
                   borderRadius: "999px",
                   border: "1px solid rgba(110, 124, 116, 0.45)",
                   background: "transparent",
-                  color: "#e8dfd0",
+                  color: "#1f2937",
                   font: "inherit",
                   fontWeight: 700,
                   cursor: "pointer",

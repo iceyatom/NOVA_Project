@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+*.test.*
+*.spec.*
 
 # next.js
 /.next/
@@ -52,3 +54,8 @@ next-env.d.ts
 # Prisma Migrations
 prisma/migrations/
 /src/generated/prisma
+
+# Ignore all hidden files/folders (dot-prefixed)
+.*
+!.gitignore
+

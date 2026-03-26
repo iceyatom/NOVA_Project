@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const ENABLE_DB_PERF_LOGS = process.env.ENABLE_DB_PERF_LOGS === "true";
+
 const DEFAULT_LIMIT = 20;
 const ALLOWED_LIMITS = new Set([20, 50, 100]);
 const DEFAULT_MIN_PRICE = 0;
@@ -107,10 +109,22 @@ function getString(value: unknown, key: string): string | null {
   return typeof v === "string" ? v : null;
 }
 
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
 function getNumber(value: unknown, key: string): number | null {
   if (!isRecord(value)) return null;
-  const v = value[key];
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
+  return coerceNumber(value[key]);
 }
 
 function getArray(value: unknown, key: string): unknown[] | null {
@@ -133,14 +147,19 @@ function normalizePriceRange(
   minPrice: number | null,
   maxPrice: number | null,
 ): PriceRange {
+  // If neither value is provided, return empty range (no filter)
+  if (minPrice === null && maxPrice === null) {
+    return { min: null, max: null };
+  }
+
   const resolvedMin = minPrice ?? DEFAULT_MIN_PRICE;
   const resolvedMax = maxPrice ?? DEFAULT_MAX_PRICE;
   const min = Math.max(DEFAULT_MIN_PRICE, Math.min(resolvedMin, resolvedMax));
   const max = Math.min(DEFAULT_MAX_PRICE, Math.max(resolvedMin, resolvedMax));
 
   return {
-    min: min > DEFAULT_MIN_PRICE ? min : null,
-    max: max < DEFAULT_MAX_PRICE ? max : null,
+    min,
+    max,
   };
 }
 
@@ -218,6 +237,34 @@ function shapeResponse(args: {
     limit: args.limit,
     offset: args.offset,
   };
+}
+
+function hasActivePriceFilter(q: CatalogQuery): boolean {
+  return q.priceRange.min !== null || q.priceRange.max !== null;
+}
+
+function itemMatchesPriceFilter(
+  item: unknown,
+  priceRange: PriceRange,
+): boolean {
+  if (!isRecord(item)) return false;
+  const price = getNumber(item, "price");
+  if (price === null) return false;
+
+  if (priceRange.min !== null && price < priceRange.min) {
+    return false;
+  }
+  if (priceRange.max !== null && price > priceRange.max) {
+    return false;
+  }
+  return true;
+}
+
+function filterItemsByPrice(
+  items: unknown[],
+  priceRange: PriceRange,
+): unknown[] {
+  return items.filter((item) => itemMatchesPriceFilter(item, priceRange));
 }
 
 function normalizeLambdaPayload(
@@ -320,21 +367,41 @@ function buildPrismaWhere(q: CatalogQuery) {
   }
 
   if (q.priceRange.min !== null || q.priceRange.max !== null) {
-    whereFilters.push({
-      price: {
-        ...(q.priceRange.min !== null ? { gte: q.priceRange.min } : {}),
-        ...(q.priceRange.max !== null ? { lte: q.priceRange.max } : {}),
-      },
-    });
+    // Build price filter - use strings for Decimal type to ensure proper comparison
+    const priceFilter: Record<string, unknown> = {};
+    if (q.priceRange.min !== null) {
+      priceFilter.gte = q.priceRange.min.toFixed(2);
+    }
+    if (q.priceRange.max !== null) {
+      priceFilter.lte = q.priceRange.max.toFixed(2);
+    }
+    whereFilters.push({ price: priceFilter });
+    console.log("[Catalog API] Price filter added:", { price: priceFilter });
   }
 
-  return whereFilters.length > 0 ? { AND: whereFilters } : undefined;
+  const result = whereFilters.length > 0 ? { AND: whereFilters } : undefined;
+  console.log("[Catalog API] Final where clause:", JSON.stringify(result));
+  return result;
 }
 
 async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
+  const startTime = Date.now();
   const where = buildPrismaWhere(q);
 
-  const select = {
+  // List view: only select fields used by ItemCard component
+  const listSelect = {
+    id: true,
+    itemName: true,
+    category1: true,
+    category2: true,
+    category3: true,
+    description: true,
+    price: true,
+    quantityInStock: true,
+  };
+
+  // Detail view: full item shape for edit/detail experiences
+  const detailSelect = {
     id: true,
     sku: true,
     itemName: true,
@@ -358,7 +425,17 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
   if (q.id) {
     const item = await prisma.catalogItem.findUnique({
       where: { id: q.id },
-      select,
+      select: detailSelect,
+    });
+
+    const durationMs = Date.now() - startTime;
+    logPerformance({
+      route: "/api/catalog",
+      dataSourceMode: "prisma",
+      durationMs,
+      rowCount: item ? 1 : 0,
+      limit: q.limit,
+      offset: q.offset,
     });
 
     const response = NextResponse.json(
@@ -377,7 +454,7 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
   const [totalCount, catalogItems] = await prisma.$transaction([
     prisma.catalogItem.count({ where }),
     prisma.catalogItem.findMany({
-      select,
+      select: listSelect,
       orderBy: { id: "asc" },
       take: q.limit,
       skip: q.offset,
@@ -385,20 +462,206 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     }),
   ]);
 
-  const response = NextResponse.json(
-    shapeResponse({
-      data: catalogItems as unknown[],
-      totalCount,
-      limit: q.limit,
-      offset: q.offset,
-    }),
-    { status: 200 },
-  );
+  const durationMs = Date.now() - startTime;
+  const responseJson = shapeResponse({
+    data: catalogItems as unknown[],
+    totalCount,
+    limit: q.limit,
+    offset: q.offset,
+  });
 
+  logPerformance({
+    route: "/api/catalog",
+    dataSourceMode: "prisma",
+    durationMs,
+    rowCount: catalogItems.length,
+    limit: q.limit,
+    offset: q.offset,
+    responseSize: JSON.stringify(responseJson).length,
+  });
+
+  const response = NextResponse.json(responseJson, { status: 200 });
   return withNoCache(response);
 }
 
+function buildLambdaUrl(
+  q: CatalogQuery,
+  options: {
+    limit?: number;
+    offset?: number;
+    includePriceParams?: boolean;
+  } = {},
+): string {
+  const upstreamBase = getLambdaBaseUrl();
+
+  if (!upstreamBase) {
+    throw new Error("Lambda base URL is not configured");
+  }
+
+  const normalizedBase = upstreamBase.endsWith("/catalog")
+    ? upstreamBase
+    : `${upstreamBase.replace(/\/$/, "")}/catalog`;
+
+  const upstreamUrl = new URL(normalizedBase);
+
+  if (q.id) {
+    upstreamUrl.searchParams.set("id", String(q.id));
+  } else {
+    upstreamUrl.searchParams.set("limit", String(options.limit ?? q.limit));
+    upstreamUrl.searchParams.set("offset", String(options.offset ?? q.offset));
+  }
+
+  if (q.q) {
+    upstreamUrl.searchParams.set("q", q.q);
+  }
+
+  if (q.categoriesCsv) {
+    upstreamUrl.searchParams.set("categories", q.categoriesCsv);
+  }
+
+  const includePrice = options.includePriceParams ?? true;
+  if (includePrice) {
+    if (q.minPriceRaw) {
+      upstreamUrl.searchParams.set("minPrice", q.minPriceRaw);
+    }
+
+    if (q.maxPriceRaw) {
+      upstreamUrl.searchParams.set("maxPrice", q.maxPriceRaw);
+    }
+
+    if (!q.minPriceRaw && !q.maxPriceRaw && q.priceBucketsCsv) {
+      upstreamUrl.searchParams.set("priceBuckets", q.priceBucketsCsv);
+    }
+  }
+
+  return upstreamUrl.toString();
+}
+
+async function tryLambdaWithServerSidePriceFilter(
+  q: CatalogQuery,
+): Promise<NextResponse> {
+  if (q.id) {
+    // For single item lookup, fetch and apply price filter
+    const url = buildLambdaUrl(q, { includePriceParams: false });
+    const r = await fetch(url, { cache: "no-store" });
+    const text = await r.text();
+
+    let parsed: unknown = null;
+    try {
+      parsed = text ? (JSON.parse(text) as unknown) : null;
+    } catch {
+      const passthrough = new NextResponse(text, {
+        status: r.status,
+        headers: {
+          "Content-Type": r.headers.get("content-type") ?? "text/plain",
+        },
+      });
+      return withNoCache(passthrough);
+    }
+
+    const normalized = normalizeLambdaPayload(parsed, q.limit, q.offset);
+
+    // Apply price filter to single item result
+    if (
+      normalized.success &&
+      normalized.data &&
+      !Array.isArray(normalized.data)
+    ) {
+      if (!itemMatchesPriceFilter(normalized.data, q.priceRange)) {
+        return NextResponse.json(
+          shapeResponse({
+            data: [],
+            totalCount: 0,
+            limit: q.limit,
+            offset: q.offset,
+          }),
+          { status: 200 },
+        );
+      }
+    }
+
+    return withNoCache(NextResponse.json(normalized, { status: r.status }));
+  }
+
+  // For collection queries, fetch all pages and apply server-side filtering
+  const BATCH_SIZE = 100;
+  const allItems: unknown[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const url = buildLambdaUrl(q, {
+        limit: BATCH_SIZE,
+        offset,
+        includePriceParams: false,
+      });
+
+      const r = await fetch(url, { cache: "no-store" });
+      const text = await r.text();
+
+      let parsed: unknown = null;
+      try {
+        parsed = text ? (JSON.parse(text) as unknown) : null;
+      } catch {
+        hasMore = false;
+        break;
+      }
+
+      const normalized = normalizeLambdaPayload(parsed, BATCH_SIZE, offset);
+
+      if (!normalized.success || !Array.isArray(normalized.data)) {
+        hasMore = false;
+        break;
+      }
+
+      if (normalized.data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      allItems.push(...normalized.data);
+
+      // Check if we've fetched all available items
+      if (normalized.data.length < BATCH_SIZE) {
+        hasMore = false;
+      } else {
+        offset += BATCH_SIZE;
+      }
+
+      // Safety limit to prevent infinite loops (max 10 batches = 1000 items)
+      if (allItems.length >= 1000) {
+        hasMore = false;
+      }
+    } catch {
+      hasMore = false;
+    }
+  }
+
+  // Apply server-side price filtering
+  const filteredItems = filterItemsByPrice(allItems, q.priceRange);
+  const totalCount = filteredItems.length;
+
+  // Extract the requested page slice
+  const pageStart = q.offset;
+  const pageEnd = q.offset + q.limit;
+  const paginatedItems = filteredItems.slice(pageStart, pageEnd);
+
+  return withNoCache(
+    NextResponse.json(
+      shapeResponse({
+        data: paginatedItems,
+        totalCount,
+        limit: q.limit,
+        offset: q.offset,
+      }),
+      { status: 200 },
+    ),
+  );
+}
+
 async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
+  const startTime = Date.now();
   const upstreamBase = getLambdaBaseUrl();
 
   if (!upstreamBase) {
@@ -449,6 +712,16 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
   try {
     parsed = text ? (JSON.parse(text) as unknown) : null;
   } catch {
+    const durationMs = Date.now() - startTime;
+    logPerformance({
+      route: "/api/catalog",
+      dataSourceMode: "lambda",
+      durationMs,
+      rowCount: 0,
+      limit: q.limit,
+      offset: q.offset,
+    });
+
     const passthrough = new NextResponse(text, {
       status: r.status,
       headers: {
@@ -459,6 +732,22 @@ async function tryLambda(q: CatalogQuery): Promise<NextResponse> {
   }
 
   const normalized = normalizeLambdaPayload(parsed, q.limit, q.offset);
+  const durationMs = Date.now() - startTime;
+
+  logPerformance({
+    route: "/api/catalog",
+    dataSourceMode: "lambda",
+    durationMs,
+    rowCount: Array.isArray(normalized.data)
+      ? (normalized.data as unknown[]).length
+      : normalized.data
+        ? 1
+        : 0,
+    limit: q.limit,
+    offset: q.offset,
+    responseSize: JSON.stringify(normalized).length,
+  });
+
   const response = NextResponse.json(normalized, { status: r.status });
   return withNoCache(response);
 }
@@ -604,6 +893,17 @@ export async function GET(request: NextRequest) {
   const q = parseCatalogQuery(request);
   const mode = getDataSourceMode();
 
+  // Debug logging for price filter issues
+  console.log("[Catalog API] Query:", {
+    url: request.url,
+    minPriceRaw: q.minPriceRaw,
+    maxPriceRaw: q.maxPriceRaw,
+    priceRange: q.priceRange,
+    mode,
+    hasPrisma: hasPrismaConfig(),
+    hasLambda: hasLambdaConfig(),
+  });
+
   if (mode === "prisma") {
     if (!hasPrismaConfig()) {
       return errorResponse(
@@ -643,6 +943,10 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+      // Use server-side price filtering if price filter is active
+      if (hasActivePriceFilter(q)) {
+        return await tryLambdaWithServerSidePriceFilter(q);
+      }
       return await tryLambda(q);
     } catch (error: unknown) {
       const msg =
@@ -666,6 +970,10 @@ export async function GET(request: NextRequest) {
 
       if (hasLambdaConfig()) {
         try {
+          // Use server-side price filtering if price filter is active
+          if (hasActivePriceFilter(q)) {
+            return await tryLambdaWithServerSidePriceFilter(q);
+          }
           return await tryLambda(q);
         } catch (lambdaError: unknown) {
           const prismaMsg =
@@ -704,6 +1012,10 @@ export async function GET(request: NextRequest) {
 
   if (hasLambdaConfig()) {
     try {
+      // Use server-side price filtering if price filter is active
+      if (hasActivePriceFilter(q)) {
+        return await tryLambdaWithServerSidePriceFilter(q);
+      }
       return await tryLambda(q);
     } catch (error: unknown) {
       const msg =
@@ -726,6 +1038,56 @@ export async function GET(request: NextRequest) {
     q.limit,
     q.offset,
   );
+}
+
+export async function POST(request: NextRequest) {
+  let payload: CatalogUpdateInput;
+
+  try {
+    const body = (await request.json()) as unknown;
+    payload = parseCatalogUpdatePayload(body);
+  } catch (error: unknown) {
+    const msg =
+      error instanceof Error ? error.message : "Invalid JSON request body.";
+    return errorResponse("Invalid create payload.", msg, 400);
+  }
+
+  const mode = getDataSourceMode();
+
+  if (mode === "lambda") {
+    return errorResponse(
+      "Catalog creates are only supported with Prisma data source.",
+      "Set CATALOG_DATA_SOURCE to prisma or auto with DATABASE_URL configured.",
+      501,
+    );
+  }
+
+  if (!hasPrismaConfig()) {
+    return errorResponse(
+      "DATABASE_URL is required to create catalog items.",
+      undefined,
+      500,
+    );
+  }
+
+  try {
+    const createdItem = await prisma.catalogItem.create({
+      data: payload,
+    });
+
+    return withNoCache(
+      NextResponse.json(
+        {
+          success: true,
+          data: createdItem,
+        },
+        { status: 201 },
+      ),
+    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Unknown Prisma error";
+    return errorResponse("Catalog create failed.", msg, 500);
+  }
 }
 
 export async function PATCH(request: NextRequest) {

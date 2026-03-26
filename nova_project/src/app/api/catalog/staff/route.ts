@@ -4,7 +4,37 @@ import { prisma } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const ENABLE_DB_PERF_LOGS = process.env.ENABLE_DB_PERF_LOGS === "true";
+
 const DEFAULT_LIMIT = 20;
+const MAX_PAGE_SIZE = 100;
+
+function logPerformance(args: {
+  route: string;
+  dataSourceMode: string;
+  durationMs: number;
+  rowCount: number;
+  limit: number;
+  offset: number;
+  responseSize?: number;
+}) {
+  if (!ENABLE_DB_PERF_LOGS) return;
+
+  const {
+    route,
+    dataSourceMode,
+    durationMs,
+    rowCount,
+    limit,
+    offset,
+    responseSize,
+  } = args;
+  console.log(
+    `[DB_PERF] route=${route} dataSource=${dataSourceMode} duration=${durationMs.toFixed(2)}ms ` +
+      `rowCount=${rowCount} limit=${limit} offset=${offset}` +
+      (responseSize !== undefined ? ` responseSize=${responseSize}` : ""),
+  );
+}
 
 type DataSourceMode = "auto" | "prisma" | "lambda";
 
@@ -37,7 +67,7 @@ function hasLambdaConfig(): boolean {
 
 function parsePositiveInt(value: string | null, fallback: number): number {
   const parsed = Number.parseInt(value ?? "", 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return parsed;
 }
 
@@ -66,8 +96,10 @@ function parseStaffQuery(request: NextRequest): StaffQuery {
   const sp = new URL(request.url).searchParams;
 
   const pageSizeRaw = sp.get("pageSize");
-  const pageSize =
-    pageSizeRaw === "all" ? 1000 : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT);
+  const pageSize = Math.min(
+    pageSizeRaw === "all" ? 1000 : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT),
+    MAX_PAGE_SIZE,
+  );
 
   const offset = parsePositiveInt(sp.get("offset"), 0);
   const category = sp.get("category") || "all";
@@ -93,20 +125,23 @@ function buildPrismaWhere(q: StaffQuery) {
   const and: Record<string, unknown>[] = [];
 
   if (q.query) {
-    and.push({
-      OR: [
-        {
-          itemName: {
-            contains: q.query,
+    const tokens = q.query.split(/\s+/).filter(Boolean);
+    for (const token of tokens) {
+      and.push({
+        OR: [
+          {
+            itemName: {
+              contains: token,
+            },
           },
-        },
-        {
-          sku: {
-            contains: q.query,
+          {
+            sku: {
+              contains: token,
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
+    }
   }
 
   if (q.category !== "all") {
@@ -144,20 +179,56 @@ function buildPrismaOrderBy(q: StaffQuery) {
 }
 
 async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
+  const startTime = Date.now();
   const where = buildPrismaWhere(q);
   const orderBy = buildPrismaOrderBy(q);
 
-  const items = await prisma.catalogItem.findMany({
-    where,
-    orderBy,
-    skip: q.offset,
-    take: q.limit,
+  // Narrow select for staff inventory list view
+  const staffListSelect = {
+    id: true,
+    sku: true,
+    itemName: true,
+    category1: true,
+    quantityInStock: true,
+    price: true,
+    updatedAt: true,
+  };
+
+  const [totalCount, items] = await prisma.$transaction([
+    prisma.catalogItem.count({ where }),
+    prisma.catalogItem.findMany({
+      where,
+      orderBy,
+      skip: q.offset,
+      take: q.limit,
+      select: staffListSelect,
+    }),
+  ]);
+
+  const durationMs = Date.now() - startTime;
+  const responseData = {
+    success: true,
+    data: items,
+    totalCount,
+    limit: q.limit,
+    offset: q.offset,
+  };
+
+  logPerformance({
+    route: "/api/catalog/staff",
+    dataSourceMode: "prisma",
+    durationMs,
+    rowCount: items.length,
+    limit: q.limit,
+    offset: q.offset,
+    responseSize: JSON.stringify(responseData).length,
   });
 
-  return withNoCache(NextResponse.json(items, { status: 200 }));
+  return withNoCache(NextResponse.json(responseData, { status: 200 }));
 }
 
 async function tryLambda(q: StaffQuery): Promise<NextResponse> {
+  const startTime = Date.now();
   const upstreamBase = getLambdaBaseUrl();
 
   if (!upstreamBase) {
@@ -182,8 +253,12 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
     upstreamUrl.searchParams.set("q", q.query);
   }
 
+  if (q.sortBy) {
+    upstreamUrl.searchParams.set("sortBy", q.sortBy);
+    upstreamUrl.searchParams.set("sortOrder", q.sortOrder);
+  }
+
   // map staff category/subcategory/type onto Lambda categories filter
-  // most specific wins
   const categoryFilters: string[] = [];
   if (q.category !== "all") categoryFilters.push(q.category);
   if (q.subcategory !== "all") categoryFilters.push(q.subcategory);
@@ -201,6 +276,16 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
   try {
     parsed = text ? JSON.parse(text) : null;
   } catch {
+    const durationMs = Date.now() - startTime;
+    logPerformance({
+      route: "/api/catalog/staff",
+      dataSourceMode: "lambda",
+      durationMs,
+      rowCount: 0,
+      limit: q.limit,
+      offset: q.offset,
+    });
+
     return withNoCache(
       new NextResponse(text, {
         status: r.status,
@@ -218,7 +303,33 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
       ? ((parsed as Record<string, unknown>).data as unknown[])
       : [];
 
-  return withNoCache(NextResponse.json(data, { status: r.status }));
+  const totalCount =
+    parsed &&
+    typeof parsed === "object" &&
+    typeof (parsed as Record<string, unknown>).totalCount === "number"
+      ? ((parsed as Record<string, unknown>).totalCount as number)
+      : data.length;
+
+  const durationMs = Date.now() - startTime;
+  const responseData = {
+    success: true,
+    data,
+    totalCount,
+    limit: q.limit,
+    offset: q.offset,
+  };
+
+  logPerformance({
+    route: "/api/catalog/staff",
+    dataSourceMode: "lambda",
+    durationMs,
+    rowCount: data.length,
+    limit: q.limit,
+    offset: q.offset,
+    responseSize: JSON.stringify(responseData).length,
+  });
+
+  return withNoCache(NextResponse.json(responseData, { status: r.status }));
 }
 
 function errorResponse(message: string, details?: string, status = 500) {

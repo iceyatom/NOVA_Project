@@ -1,5 +1,6 @@
 // prisma/seed.ts
 import { PrismaClient } from "../node_modules/.prisma/client";
+import { hashPassword } from "../src/lib/auth/passwordHash";
 const prisma = new PrismaClient();
 
 async function main() {
@@ -6213,13 +6214,38 @@ async function main() {
   }
 
   // Add admin account
+  const adminPasswordHash = await hashPassword("password123");
   await prisma.account.upsert({
     where: { email: "admin@nilesbio.com" },
     update: {},
     create: {
       email: "admin@nilesbio.com",
-      passwordHash: "password123", // Ideally, this should be hashed
+      passwordHash: adminPasswordHash,
       role: "ADMIN",
+    },
+  });
+
+  // Add staff account
+  const staffPasswordHash = await hashPassword("password123");
+  await prisma.account.upsert({
+    where: { email: "staff@nilesbio.com" },
+    update: {},
+    create: {
+      email: "staff@nilesbio.com",
+      passwordHash: staffPasswordHash,
+      role: "STAFF",
+    },
+  });
+
+  // Add customer account
+  const customerPasswordHash = await hashPassword("password123");
+  await prisma.account.upsert({
+    where: { email: "customer@nilesbio.com" },
+    update: {},
+    create: {
+      email: "customer@nilesbio.com",
+      passwordHash: customerPasswordHash,
+      role: "CUSTOMER",
     },
   });
 }

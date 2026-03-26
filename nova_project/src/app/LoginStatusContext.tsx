@@ -6,6 +6,8 @@ const LoginStatusContext = createContext({
   setLoggedIn: (v: boolean) => {},
   account: "",
   setAccount: (v: string) => {},
+  userRole: "",
+  setUserRole: (v: string) => {},
 });
 
 export function useLoginStatus() {
@@ -19,9 +21,17 @@ export function LoginStatusProvider({
 }) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [account, setAccount] = useState("");
+  const [userRole, setUserRole] = useState("");
   return (
     <LoginStatusContext.Provider
-      value={{ loggedIn, setLoggedIn, account, setAccount }}
+      value={{
+        loggedIn,
+        setLoggedIn,
+        account,
+        setAccount,
+        userRole,
+        setUserRole,
+      }}
     >
       {children}
     </LoginStatusContext.Provider>
