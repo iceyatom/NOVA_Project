@@ -6,6 +6,33 @@ export const dynamic = "force-dynamic";
 
 const ENABLE_DB_PERF_LOGS = process.env.ENABLE_DB_PERF_LOGS === "true";
 
+function logPerformance(args: {
+  route: string;
+  dataSourceMode: string;
+  durationMs: number;
+  rowCount: number;
+  limit: number;
+  offset: number;
+  responseSize?: number;
+}) {
+  if (!ENABLE_DB_PERF_LOGS) return;
+
+  const {
+    route,
+    dataSourceMode,
+    durationMs,
+    rowCount,
+    limit,
+    offset,
+    responseSize,
+  } = args;
+  console.log(
+    `[DB_PERF] route=${route} dataSource=${dataSourceMode} duration=${durationMs.toFixed(2)}ms ` +
+      `rowCount=${rowCount} limit=${limit} offset=${offset}` +
+      (responseSize !== undefined ? ` responseSize=${responseSize}` : ""),
+  );
+}
+
 const DEFAULT_LIMIT = 20;
 const ALLOWED_LIMITS = new Set([20, 50, 100]);
 const DEFAULT_MIN_PRICE = 0;
