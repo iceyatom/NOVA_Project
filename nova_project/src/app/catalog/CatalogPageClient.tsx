@@ -41,12 +41,12 @@ type PriceRange = {
 
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
-const DEFAULT_PRICE_RANGE: PriceRange = { min: 0, max: 500 };
+const DEFAULT_PRICE_RANGE: PriceRange = { min: 0, max: 800 };
 const LEGACY_PRICE_BUCKETS: Record<string, PriceRange> = {
   "under-50": { min: 0, max: 50 },
   "50-99": { min: 50, max: 100 },
   "100-249": { min: 100, max: 250 },
-  "250-plus": { min: 250, max: 500 },
+  "250-plus": { min: 250, max: 800 },
 };
 
 function buildCatalogParams(options: {

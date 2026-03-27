@@ -6,11 +6,6 @@ export const dynamic = "force-dynamic";
 
 const ENABLE_DB_PERF_LOGS = process.env.ENABLE_DB_PERF_LOGS === "true";
 
-const DEFAULT_LIMIT = 20;
-const ALLOWED_LIMITS = new Set([20, 50, 100]);
-const DEFAULT_MIN_PRICE = 0;
-const DEFAULT_MAX_PRICE = 500;
-
 function logPerformance(args: {
   route: string;
   dataSourceMode: string;
@@ -37,6 +32,11 @@ function logPerformance(args: {
       (responseSize !== undefined ? ` responseSize=${responseSize}` : ""),
   );
 }
+
+const DEFAULT_LIMIT = 20;
+const ALLOWED_LIMITS = new Set([20, 50, 100]);
+const DEFAULT_MIN_PRICE = 0;
+const DEFAULT_MAX_PRICE = 800;
 const LEGACY_PRICE_BUCKETS = new Map<string, { min?: number; max?: number }>([
   ["under-50", { max: 50 }],
   ["50-99", { min: 50, max: 100 }],

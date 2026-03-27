@@ -29,8 +29,13 @@ const CATEGORIES = [
 ];
 
 const MIN_PRICE = 0;
-const MAX_PRICE = 500;
+const MAX_PRICE = 800;
 const PRICE_STEP = 5;
+
+function normalizeForCompare(values: string[]) {
+  const normalized = values.map((v) => v.trim()).filter(Boolean);
+  return Array.from(new Set(normalized)).sort().join("|");
+}
 
 export default function Filters({
   className = "",
@@ -72,19 +77,24 @@ export default function Filters({
       ? selectedCategories.filter((v) => v !== val)
       : [...selectedCategories, val];
     setSelectedCategories(next);
-    emitChange({
-      categories: next,
-      priceRange: { min: customMin, max: customMax },
-    });
   };
 
   const clearAll = () => {
+    const cleared = {
+      categories: [],
+      priceRange: { min: MIN_PRICE, max: MAX_PRICE },
+    };
+
     setSelectedCategories([]);
     setCustomMin(MIN_PRICE);
     setCustomMax(MAX_PRICE);
+    emitChange(cleared);
+  };
+
+  const applyFilters = () => {
     emitChange({
-      categories: [],
-      priceRange: { min: MIN_PRICE, max: MAX_PRICE },
+      categories: selectedCategories,
+      priceRange: { min: customMin, max: customMax },
     });
   };
 
@@ -92,23 +102,21 @@ export default function Filters({
     const snappedValue = Math.round(value / PRICE_STEP) * PRICE_STEP;
     const nextMin = Math.min(snappedValue, customMax - PRICE_STEP);
     setCustomMin(nextMin);
-    emitChange({
-      categories: selectedCategories,
-      priceRange: { min: nextMin, max: customMax },
-    });
   };
 
   const handleMaxChange = (value: number) => {
     const snappedValue = Math.round(value / PRICE_STEP) * PRICE_STEP;
     const nextMax = Math.max(snappedValue, customMin + PRICE_STEP);
     setCustomMax(nextMax);
-    emitChange({
-      categories: selectedCategories,
-      priceRange: { min: customMin, max: nextMax },
-    });
   };
 
   const isPriceFilterActive = customMin > MIN_PRICE || customMax < MAX_PRICE;
+
+  const hasPendingChanges =
+    normalizeForCompare(selectedCategories) !==
+      normalizeForCompare(selectedCategoriesProp) ||
+    customMin !== selectedPriceRangeProp.min ||
+    customMax !== selectedPriceRangeProp.max;
 
   return (
     <section className={`filters ${className}`} aria-label="Catalog filters">
@@ -209,9 +217,21 @@ export default function Filters({
               .join("; ")}
       </div>
 
-      <button type="button" className="filters__clear" onClick={clearAll}>
-        Clear Filters
-      </button>
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="filters__clear"
+          onClick={applyFilters}
+          disabled={!hasPendingChanges}
+          aria-disabled={!hasPendingChanges}
+        >
+          Apply Filters
+        </button>
+
+        <button type="button" className="filters__clear" onClick={clearAll}>
+          Clear Filters
+        </button>
+      </div>
     </section>
   );
 }
