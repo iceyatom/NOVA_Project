@@ -33,11 +33,11 @@ export const contactContent: ContactContent = {
   addressLines: ["9296 Elder Creek Road", "Sacramento, CA 95829"],
 
   phoneLabel: "Phone",
-  phoneDisplay: "(916) 720-1814",
-  phoneHref: "+19167201814",
+  phoneDisplay: "(916) 386-2665",
+  phoneHref: "+19163862665",
 
   emailLabel: "Email",
-  email: "nilesbio.monty@gmail.com",
+  email: "ted@nilesbio.com",
 
   hoursLabel: "Business Hours",
   hours: [
