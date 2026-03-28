@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLoginStatus } from "../LoginStatusContext";
 import LoginLoading from "../login/loading";
@@ -40,6 +41,7 @@ function formatLockoutTime(msRemaining: number): string {
 }
 
 export default function LoginSignIn() {
+  const router = useRouter();
   const { loggedIn, setLoggedIn, account, setAccount } = useLoginStatus();
 
   const [username, setUsername] = useState("");
@@ -173,6 +175,7 @@ export default function LoginSignIn() {
       setLoggedIn(true);
       setAccount(data.account?.displayName || data.account?.email || username);
       setAuthError("");
+      router.push("/account");
     } catch {
       await delayPromise;
       setLoggedIn(false);
