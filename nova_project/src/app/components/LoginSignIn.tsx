@@ -11,9 +11,11 @@ type LoginResponse = {
   error?: string;
   locked?: boolean;
   lockoutUntil?: string;
+  role?: string;
   account?: {
     email?: string;
     displayName?: string | null;
+    role?: string;
   };
 };
 
@@ -42,7 +44,8 @@ function formatLockoutTime(msRemaining: number): string {
 
 export default function LoginSignIn() {
   const router = useRouter();
-  const { loggedIn, setLoggedIn, account, setAccount } = useLoginStatus();
+  const { loggedIn, setLoggedIn, account, setAccount, setUserRole } =
+    useLoginStatus();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -151,6 +154,7 @@ export default function LoginSignIn() {
       if (!response.ok || !data.ok) {
         setLoggedIn(false);
         setAccount("");
+        setUserRole("");
 
         if (data.locked && data.lockoutUntil) {
           const lockoutTimestamp = new Date(data.lockoutUntil).getTime();
@@ -174,12 +178,14 @@ export default function LoginSignIn() {
       setLockoutUntil(null);
       setLoggedIn(true);
       setAccount(data.account?.displayName || data.account?.email || username);
+      setUserRole(data.role || data.account?.role || "");
       setAuthError("");
       router.push("/account");
     } catch {
       await delayPromise;
       setLoggedIn(false);
       setAccount("");
+      setUserRole("");
       setAuthError("Unable to login right now. Please try again.");
     } finally {
       activeRequestRef.current = false;
@@ -285,6 +291,7 @@ export default function LoginSignIn() {
             onClick={() => {
               setLoggedIn(false);
               setAccount("");
+              setUserRole("");
               setUsername("");
               setPassword("");
               setShowPassword(false);

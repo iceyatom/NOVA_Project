@@ -3137,8 +3137,7 @@ body:has(.loginPage) main {
   width: 100%;
   align-items: center;
   justify-content: center;
-  margin-top: 10px;
-  padding: 2px 10px;
+  padding: 6px 6px;
   border-radius: 12px;
   text-decoration: none;
   color: #ffffff;
@@ -3161,6 +3160,29 @@ body:has(.loginPage) main {
 .profile-dropdown-link:focus-visible {
   outline: 2px solid var(--brand-focus);
   outline-offset: 2px;
+}
+
+.profile-logout-button {
+  background: #dc2626;
+  border-color: rgba(127, 29, 29, 0.35);
+}
+
+.profile-logout-button:hover {
+  background: #b91c1c;
+}
+
+.profile-logout-button:focus-visible {
+  outline-color: #ef4444;
+}
+
+.profile-popup-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.profile-popup-role {
+  margin-top: 10px;
 }
 
 .item-create-form {

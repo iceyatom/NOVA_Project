@@ -5,7 +5,8 @@ import { useLoginStatus } from "../LoginStatusContext";
 
 export default function AccountDashboard() {
   const router = useRouter();
-  const { loggedIn, setLoggedIn, account, setAccount } = useLoginStatus();
+  const { loggedIn, setLoggedIn, account, setAccount, setUserRole } =
+    useLoginStatus();
 
   if (!loggedIn) {
     router.push("/login");
@@ -15,6 +16,7 @@ export default function AccountDashboard() {
   const handleLogout = () => {
     setLoggedIn(false);
     setAccount("");
+    setUserRole("");
     router.push("/login");
   };
 
