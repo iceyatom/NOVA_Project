@@ -13,21 +13,6 @@ type FilterPanelProps = {
   onChange?: (next: { categories: string[]; priceRange: PriceRange }) => void;
 };
 
-const CATEGORIES = [
-  "Laboratory Supplies",
-  "Live Algae Specimens",
-  "Live Bacteria & Fungi Specimens",
-  "Live Invertebrates",
-  "Live Plant Specimens",
-  "Live Protozoa Specimens",
-  "Live Vertebrates",
-  "Microbiological Supplies",
-  "Microscopes",
-  "Owl Pellets",
-  "Preserved Invertebrates",
-  "Preserved Vertebrates",
-];
-
 const MIN_PRICE = 0;
 const MAX_PRICE = 800;
 const PRICE_STEP = 5;
@@ -55,6 +40,7 @@ export default function Filters({
   const [customMax, setCustomMax] = React.useState<number>(
     selectedPriceRangeProp.max,
   );
+  const [categoryOptions, setCategoryOptions] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     setSelectedCategories(selectedCategoriesProp);
@@ -64,6 +50,43 @@ export default function Filters({
     setCustomMin(selectedPriceRangeProp.min);
     setCustomMax(selectedPriceRangeProp.max);
   }, [selectedPriceRangeProp]);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+
+    const loadCategoryOptions = async () => {
+      try {
+        const response = await fetch("/api/catalog/categories", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Category options request failed (${response.status})`,
+          );
+        }
+
+        const payload = (await response.json()) as {
+          categories?: unknown;
+        };
+        const nextOptions = Array.isArray(payload?.categories)
+          ? payload.categories.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+
+        setCategoryOptions(nextOptions);
+      } catch {
+        if (!controller.signal.aborted) {
+          setCategoryOptions([]);
+        }
+      }
+    };
+
+    void loadCategoryOptions();
+    return () => controller.abort();
+  }, []);
 
   const emitChange = React.useCallback(
     (next: { categories: string[]; priceRange: PriceRange }) => {
@@ -117,13 +140,24 @@ export default function Filters({
       normalizeForCompare(selectedCategoriesProp) ||
     customMin !== selectedPriceRangeProp.min ||
     customMax !== selectedPriceRangeProp.max;
+  const categoriesToRender = React.useMemo(() => {
+    const options = [...categoryOptions];
+
+    for (const selected of selectedCategories) {
+      if (selected && !options.includes(selected)) {
+        options.push(selected);
+      }
+    }
+
+    return options;
+  }, [categoryOptions, selectedCategories]);
 
   return (
     <section className={`filters ${className}`} aria-label="Catalog filters">
       <fieldset className="filter-group">
         <legend className="filter-group__legend">Categories</legend>
         <ul className="filter-list">
-          {CATEGORIES.map((cat) => {
+          {categoriesToRender.map((cat) => {
             const id = `cat-${cat.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}`;
             const checked = selectedCategories.includes(cat);
             return (
