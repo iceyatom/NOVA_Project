@@ -386,9 +386,9 @@ function buildPrismaWhere(q: CatalogQuery) {
   if (q.categories.length > 0) {
     whereFilters.push({
       OR: [
-        { category1: { in: q.categories } },
-        { category2: { in: q.categories } },
-        { category3: { in: q.categories } },
+        { category1Ref: { is: { name: { in: q.categories } } } },
+        { category2Ref: { is: { name: { in: q.categories } } } },
+        { category3Ref: { is: { name: { in: q.categories } } } },
       ],
     });
   }
@@ -419,9 +419,15 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
   const listSelect = {
     id: true,
     itemName: true,
-    category1: true,
-    category2: true,
-    category3: true,
+    category1Ref: {
+      select: { name: true },
+    },
+    category2Ref: {
+      select: { name: true },
+    },
+    category3Ref: {
+      select: { name: true },
+    },
     description: true,
     price: true,
     quantityInStock: true,
@@ -433,9 +439,15 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     sku: true,
     itemName: true,
     price: true,
-    category1: true,
-    category2: true,
-    category3: true,
+    category1Ref: {
+      select: { name: true },
+    },
+    category2Ref: {
+      select: { name: true },
+    },
+    category3Ref: {
+      select: { name: true },
+    },
     description: true,
     quantityInStock: true,
     unitOfMeasure: true,
@@ -448,6 +460,23 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     createdAt: true,
     updatedAt: true,
   };
+
+  function withCategoryNames<
+    T extends {
+      category1Ref?: { name: string } | null;
+      category2Ref?: { name: string } | null;
+      category3Ref?: { name: string } | null;
+    },
+  >(item: T) {
+    const { category1Ref, category2Ref, category3Ref, ...rest } = item;
+
+    return {
+      ...rest,
+      category1: category1Ref?.name ?? null,
+      category2: category2Ref?.name ?? null,
+      category3: category3Ref?.name ?? null,
+    };
+  }
 
   if (q.id) {
     const item = await prisma.catalogItem.findUnique({
@@ -467,7 +496,7 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
 
     const response = NextResponse.json(
       shapeResponse({
-        data: item,
+        data: item ? withCategoryNames(item) : null,
         totalCount: item ? 1 : 0,
         limit: q.limit,
         offset: q.offset,
@@ -490,8 +519,11 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
   ]);
 
   const durationMs = Date.now() - startTime;
+  const catalogItemsWithCategoryNames = catalogItems.map((item) =>
+    withCategoryNames(item),
+  );
   const responseJson = shapeResponse({
-    data: catalogItems as unknown[],
+    data: catalogItemsWithCategoryNames as unknown[],
     totalCount,
     limit: q.limit,
     offset: q.offset,
