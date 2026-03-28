@@ -194,6 +194,9 @@ export default function Header() {
                         <strong>{account || "User"}</strong>
                       </div>
                       <div>{account || "No email"}</div>
+                      <Link className="profile-dropdown-link" href="/account">
+                        Account Dashboard
+                      </Link>
                       <div style={{ marginTop: 8 }}>
                         <span style={{ fontSize: "0.95em", color: "#059669" }}>
                           Role: {userRole ? userRole.toUpperCase() : "CUSTOMER"}
