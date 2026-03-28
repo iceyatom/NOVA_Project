@@ -17,13 +17,22 @@ export default function Header() {
 
   const pathname = usePathname();
   const router = useRouter();
-  const { loggedIn, account, userRole, setLoggedIn, setAccount, setUserRole } =
-    useLoginStatus();
+  const {
+    loggedIn,
+    account,
+    accountEmail,
+    userRole,
+    setLoggedIn,
+    setAccount,
+    setAccountEmail,
+    setUserRole,
+  } = useLoginStatus();
   const normalizedRole = userRole ? userRole.toUpperCase() : "";
 
   const handleLogout = () => {
     setLoggedIn(false);
     setAccount("");
+    setAccountEmail("");
     setUserRole("");
     setShowProfile(false);
     router.push("/login");
@@ -204,7 +213,7 @@ export default function Header() {
                       <div>
                         <strong>{account || "User"}</strong>
                       </div>
-                      <div>{account || "No email"}</div>
+                      <div>{accountEmail || "No email"}</div>
                       <div className="profile-popup-actions">
                         <Link className="profile-dropdown-link" href="/account">
                           Account Dashboard

@@ -44,8 +44,14 @@ function formatLockoutTime(msRemaining: number): string {
 
 export default function LoginSignIn() {
   const router = useRouter();
-  const { loggedIn, setLoggedIn, account, setAccount, setUserRole } =
-    useLoginStatus();
+  const {
+    loggedIn,
+    setLoggedIn,
+    account,
+    setAccount,
+    setAccountEmail,
+    setUserRole,
+  } = useLoginStatus();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -154,6 +160,7 @@ export default function LoginSignIn() {
       if (!response.ok || !data.ok) {
         setLoggedIn(false);
         setAccount("");
+        setAccountEmail("");
         setUserRole("");
 
         if (data.locked && data.lockoutUntil) {
@@ -178,6 +185,7 @@ export default function LoginSignIn() {
       setLockoutUntil(null);
       setLoggedIn(true);
       setAccount(data.account?.displayName || data.account?.email || username);
+      setAccountEmail(data.account?.email || email);
       setUserRole(data.role || data.account?.role || "");
       setAuthError("");
       router.push("/account");
@@ -185,6 +193,7 @@ export default function LoginSignIn() {
       await delayPromise;
       setLoggedIn(false);
       setAccount("");
+      setAccountEmail("");
       setUserRole("");
       setAuthError("Unable to login right now. Please try again.");
     } finally {
@@ -291,6 +300,7 @@ export default function LoginSignIn() {
             onClick={() => {
               setLoggedIn(false);
               setAccount("");
+              setAccountEmail("");
               setUserRole("");
               setUsername("");
               setPassword("");

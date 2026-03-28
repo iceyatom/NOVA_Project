@@ -1,7 +1,13 @@
+"use client";
+
+import { useLoginStatus } from "../../LoginStatusContext";
+
 export default function StaffDashboardHome() {
+  const { account } = useLoginStatus();
+
   return (
     <div>
-      <div className="staffTitle">Welcome, Employee Name</div>
+      <div className="staffTitle">Welcome, {account || "Employee"}</div>
       <div className="staffSubtitle">
         This is the staff dashboard foundation. Panels below are placeholders
         for inventory summaries and future widgets.
