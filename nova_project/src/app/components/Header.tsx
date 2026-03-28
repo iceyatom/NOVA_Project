@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLoginStatus } from "../LoginStatusContext";
 
 /* Header: brand on left, nav on right */
@@ -16,7 +16,27 @@ export default function Header() {
   const profileRef = useRef<HTMLDivElement>(null);
 
   const pathname = usePathname();
-  const { loggedIn, account, userRole } = useLoginStatus();
+  const router = useRouter();
+  const {
+    loggedIn,
+    account,
+    accountEmail,
+    userRole,
+    setLoggedIn,
+    setAccount,
+    setAccountEmail,
+    setUserRole,
+  } = useLoginStatus();
+  const normalizedRole = userRole ? userRole.toUpperCase() : "";
+
+  const handleLogout = () => {
+    setLoggedIn(false);
+    setAccount("");
+    setAccountEmail("");
+    setUserRole("");
+    setShowProfile(false);
+    router.push("/login");
+  };
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname?.startsWith(href));
@@ -193,24 +213,33 @@ export default function Header() {
                       <div>
                         <strong>{account || "User"}</strong>
                       </div>
-                      <div>{account || "No email"}</div>
-                      <div style={{ marginTop: 8 }}>
+                      <div>{accountEmail || "No email"}</div>
+                      <div className="profile-popup-actions">
+                        <Link className="profile-dropdown-link" href="/account">
+                          Account Dashboard
+                        </Link>
+                        {(normalizedRole === "STAFF" ||
+                          normalizedRole === "ADMIN") && (
+                          <Link
+                            className="profile-dropdown-link"
+                            href="/staff/dashboard"
+                          >
+                            Staff Dashboard
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          className="profile-dropdown-link profile-logout-button"
+                          onClick={handleLogout}
+                        >
+                          Log out
+                        </button>
+                      </div>
+                      <div className="profile-popup-role">
                         <span style={{ fontSize: "0.95em", color: "#059669" }}>
-                          Role: {userRole ? userRole.toUpperCase() : "CUSTOMER"}
+                          Role: {normalizedRole || "CUSTOMER"}
                         </span>
                       </div>
-                      {(userRole === "STAFF" || userRole === "ADMIN") && (
-                        <div style={{ marginTop: 12 }}>
-                          <Link href="/staff/dashboard">
-                            <button
-                              className="loginButton"
-                              style={{ width: "100%" }}
-                            >
-                              Staff Dashboard
-                            </button>
-                          </Link>
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <div>

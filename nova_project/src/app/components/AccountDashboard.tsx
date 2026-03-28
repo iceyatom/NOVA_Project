@@ -5,7 +5,14 @@ import { useLoginStatus } from "../LoginStatusContext";
 
 export default function AccountDashboard() {
   const router = useRouter();
-  const { loggedIn, setLoggedIn, account, setAccount } = useLoginStatus();
+  const {
+    loggedIn,
+    setLoggedIn,
+    account,
+    setAccount,
+    setAccountEmail,
+    setUserRole,
+  } = useLoginStatus();
 
   if (!loggedIn) {
     router.push("/login");
@@ -15,13 +22,15 @@ export default function AccountDashboard() {
   const handleLogout = () => {
     setLoggedIn(false);
     setAccount("");
+    setAccountEmail("");
+    setUserRole("");
     router.push("/login");
   };
 
   return (
     <main className="accountDashboardPage">
       <section className="accountDashboardHero">
-        <h1>Account Dashboard</h1>
+        <h1>Welcome, {account || "Account User"}</h1>
         <p>Shared workspace is for CUSTOMER, EMPLOYEE, and ADMIN accounts.</p>
       </section>
 

@@ -2261,6 +2261,47 @@ body:has(.loginPage) main {
   font-size: 18px;
 }
 
+.passwordInputWrap {
+  position: relative;
+}
+
+.passwordInput {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.passwordToggle svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.passwordToggle svg circle {
+  fill: none;
+}
+
+.passwordToggle:hover {
+  color: #111827;
+}
+
 .loginInput:focus {
   outline: none;
   border-color: var(--brand-focus);
@@ -3092,18 +3133,56 @@ body:has(.loginPage) main {
 }
 
 .profile-dropdown-link {
-  display: block;
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 6px;
+  border-radius: 12px;
   text-decoration: none;
-  color: #111827;
-  font-weight: 500;
-  background: #f9fafb;
+  color: #ffffff;
+  font-weight: 600;
+  background: #1e7f5a;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  text-align: center;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
 .profile-dropdown-link:hover {
-  background: #e5e7eb;
+  background: #176446;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.profile-dropdown-link:focus-visible {
+  outline: 2px solid var(--brand-focus);
+  outline-offset: 2px;
+}
+
+.profile-logout-button {
+  background: #dc2626;
+  border-color: rgba(127, 29, 29, 0.35);
+}
+
+.profile-logout-button:hover {
+  background: #b91c1c;
+}
+
+.profile-logout-button:focus-visible {
+  outline-color: #ef4444;
+}
+
+.profile-popup-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.profile-popup-role {
+  margin-top: 10px;
 }
 
 .item-create-form {

@@ -6220,6 +6220,7 @@ async function main() {
     update: {},
     create: {
       email: "admin@nilesbio.com",
+      displayName: "Admin User",
       passwordHash: adminPasswordHash,
       role: "ADMIN",
     },
@@ -6232,6 +6233,7 @@ async function main() {
     update: {},
     create: {
       email: "staff@nilesbio.com",
+      displayName: "Staff User",
       passwordHash: staffPasswordHash,
       role: "STAFF",
     },
@@ -6244,6 +6246,7 @@ async function main() {
     update: {},
     create: {
       email: "customer@nilesbio.com",
+      displayName: "Customer User",
       passwordHash: customerPasswordHash,
       role: "CUSTOMER",
     },
