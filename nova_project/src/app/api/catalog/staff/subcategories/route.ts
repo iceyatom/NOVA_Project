@@ -9,25 +9,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ subcategories: [] });
   }
 
-  const items = await prisma.catalogItem.findMany({
+  const items = await prisma.category2.findMany({
     where: {
-      category3: category,
-      category2: {
-        not: null,
+      category3: {
+        name: category,
       },
     },
-    distinct: ["category2"],
     select: {
-      category2: true,
+      name: true,
     },
     orderBy: {
-      category2: "asc",
+      name: "asc",
     },
   });
 
   return NextResponse.json({
-    subcategories: items
-      .map((item) => item.category2)
-      .filter((subcategory): subcategory is string => Boolean(subcategory)),
+    subcategories: items.map((item) => item.name),
   });
 }

@@ -4,6 +4,1122 @@ import { hashPassword } from "../src/lib/auth/passwordHash";
 const prisma = new PrismaClient();
 
 async function main() {
+  const category3Items = [
+    { name: "Laboratory Supplies" },
+    { name: "Live Algae Specimens" },
+    { name: "Live Bacteria & Fungi Specimens" },
+    { name: "Live Invertebrates" },
+    { name: "Live Plant Specimens" },
+    { name: "Live Protozoa Specimens" },
+    { name: "Live Vertebrates" },
+    { name: "Microbiological Supplies" },
+    { name: "Microscopes" },
+    { name: "Owl Pellets" },
+    { name: "Preserved Invertebrates" },
+    { name: "Preserved Vertebrates" },
+  ];
+
+  for (const category of category3Items) {
+    await prisma.category3.create({ data: category });
+  }
+
+  const category2Items = [
+    { name: "Dissecting Supplies", category3Name: "Laboratory Supplies" },
+    { name: "Microscopy Supplies", category3Name: "Laboratory Supplies" },
+    { name: "Blue-Green Algae", category3Name: "Live Algae Specimens" },
+    { name: "Diatoms", category3Name: "Live Algae Specimens" },
+    { name: "Dinoflagellates", category3Name: "Live Algae Specimens" },
+    { name: "Green Algae", category3Name: "Live Algae Specimens" },
+    { name: "Special Sets", category3Name: "Live Algae Specimens" },
+    { name: "Bacteria", category3Name: "Live Bacteria & Fungi Specimens" },
+    { name: "Fungi", category3Name: "Live Bacteria & Fungi Specimens" },
+    { name: "Mold", category3Name: "Live Bacteria & Fungi Specimens" },
+    { name: "Annelids", category3Name: "Live Invertebrates" },
+    {
+      name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    { name: "Arthropods-Insects", category3Name: "Live Invertebrates" },
+    { name: "Cnidarians-Hydra", category3Name: "Live Invertebrates" },
+    { name: "Echinoderms", category3Name: "Live Invertebrates" },
+    { name: "Molluscs", category3Name: "Live Invertebrates" },
+    { name: "Nematoda/Vinegar Eels", category3Name: "Live Invertebrates" },
+    {
+      name: "Platyhelminthes-Planaria",
+      category3Name: "Live Invertebrates",
+    },
+    { name: "Rotifers", category3Name: "Live Invertebrates" },
+    { name: "Ferns", category3Name: "Live Plant Specimens" },
+    { name: "Flowering Plants", category3Name: "Live Plant Specimens" },
+    { name: "Horsetails", category3Name: "Live Plant Specimens" },
+    { name: "Liverworts", category3Name: "Live Plant Specimens" },
+    { name: "Mosses", category3Name: "Live Plant Specimens" },
+    {
+      name: "Amoeboids (Sarcodina)",
+      category3Name: "Live Protozoa Specimens",
+    },
+    { name: "Ciliates", category3Name: "Live Protozoa Specimens" },
+    { name: "Flagellates", category3Name: "Live Protozoa Specimens" },
+    { name: "Special Sets", category3Name: "Live Protozoa Specimens" },
+    { name: "Amphibians", category3Name: "Live Vertebrates" },
+    { name: "Birds", category3Name: "Live Vertebrates" },
+    { name: "Fish", category3Name: "Live Vertebrates" },
+    { name: "Reptiles", category3Name: "Live Vertebrates" },
+    { name: "Blood Products", category3Name: "Microbiological Supplies" },
+    { name: "Media", category3Name: "Microbiological Supplies" },
+    { name: "L.W. Scientific", category3Name: "Microscopes" },
+    { name: "Premiere", category3Name: "Microscopes" },
+    {
+      name: "Economy Grade Owl Pellets",
+      category3Name: "Owl Pellets",
+    },
+    {
+      name: "Premium Quality Owl Pellets",
+      category3Name: "Owl Pellets",
+    },
+    { name: "Annelids", category3Name: "Preserved Invertebrates" },
+    { name: "Arthropods", category3Name: "Preserved Invertebrates" },
+    { name: "Chordata", category3Name: "Preserved Invertebrates" },
+    { name: "Cnidarians", category3Name: "Preserved Invertebrates" },
+    { name: "Ctenophora", category3Name: "Preserved Invertebrates" },
+    { name: "Echinoderms", category3Name: "Preserved Invertebrates" },
+    { name: "Molluscs", category3Name: "Preserved Invertebrates" },
+    { name: "Nematodes", category3Name: "Preserved Invertebrates" },
+    { name: "Platyhelminthes", category3Name: "Preserved Invertebrates" },
+    {
+      name: "Porifera (Sponges)",
+      category3Name: "Preserved Invertebrates",
+    },
+    { name: "Agnatha", category3Name: "Preserved Vertebrates" },
+    { name: "Amphibians", category3Name: "Preserved Vertebrates" },
+    { name: "Birds", category3Name: "Preserved Vertebrates" },
+    {
+      name: "Chondrichthyes (Sharks)",
+      category3Name: "Preserved Vertebrates",
+    },
+    { name: "Mammal Organs", category3Name: "Preserved Vertebrates" },
+    { name: "Mammals", category3Name: "Preserved Vertebrates" },
+    {
+      name: "Osteichthyes (Fish)",
+      category3Name: "Preserved Vertebrates",
+    },
+    { name: "Reptiles", category3Name: "Preserved Vertebrates" },
+  ];
+
+  for (const category of category2Items) {
+    const parentCategory3 = await prisma.category3.findUnique({
+      where: { name: category.category3Name },
+      select: { id: true },
+    });
+
+    if (!parentCategory3) {
+      throw new Error(
+        `Category3 '${category.category3Name}' not found for Category2 '${category.name}'.`,
+      );
+    }
+
+    await prisma.category2.create({
+      data: {
+        name: category.name,
+        category3Id: parentCategory3.id,
+      },
+    });
+  }
+
+  const category1Items = [
+    {
+      name: "Dissecting Kits",
+      category2Name: "Dissecting Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Dissecting Trays",
+      category2Name: "Dissecting Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Forceps",
+      category2Name: "Dissecting Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Probes",
+      category2Name: "Dissecting Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Scalpels",
+      category2Name: "Dissecting Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Scissors",
+      category2Name: "Dissecting Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Teasing Needles",
+      category2Name: "Dissecting Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Concave Slides",
+      category2Name: "Microscopy Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Coverglass",
+      category2Name: "Microscopy Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Coverslips",
+      category2Name: "Microscopy Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Lens Paper",
+      category2Name: "Microscopy Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Microscope Slides",
+      category2Name: "Microscopy Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Multi-Wipes",
+      category2Name: "Microscopy Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Plastic Microscope Slides",
+      category2Name: "Microscopy Supplies",
+      category3Name: "Laboratory Supplies",
+    },
+    {
+      name: "Anabaena",
+      category2Name: "Blue-Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Gloeocapsa",
+      category2Name: "Blue-Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Nostoc",
+      category2Name: "Blue-Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Oscillatoria",
+      category2Name: "Blue-Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Diatoms",
+      category2Name: "Diatoms",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Peridinium",
+      category2Name: "Dinoflagellates",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Chara",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Chlorella",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Closterium",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Desmids",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Hydrodictyon",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Nitella",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Oedogonium",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Pandorina",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Scenedesmus",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Spirogyra",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Ulothrix",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Volvox",
+      category2Name: "Green Algae",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Mixed Algae",
+      category2Name: "Special Sets",
+      category3Name: "Live Algae Specimens",
+    },
+    {
+      name: "Bacteria Cultures",
+      category2Name: "Bacteria",
+      category3Name: "Live Bacteria & Fungi Specimens",
+    },
+    {
+      name: "Fungi Culture",
+      category2Name: "Fungi",
+      category3Name: "Live Bacteria & Fungi Specimens",
+    },
+    {
+      name: "Physarum",
+      category2Name: "Mold",
+      category3Name: "Live Bacteria & Fungi Specimens",
+    },
+    {
+      name: "Slime Mold",
+      category2Name: "Mold",
+      category3Name: "Live Bacteria & Fungi Specimens",
+    },
+    {
+      name: "Earthworms",
+      category2Name: "Annelids",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Leeches",
+      category2Name: "Annelids",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Redworms",
+      category2Name: "Annelids",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Tubifex Worms",
+      category2Name: "Annelids",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Brine Shrimp Eggs",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Copepods",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Crayfish",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Daphnia",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Fiddler Crabs",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Gammarus (Amphipods)",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Mixed Crustacea",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Mixed Isopods",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Ostracods",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Pillbugs",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Sowbugs",
+      category2Name: "Arthropods-Crustacea",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Ants",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Aquatic Insect Larvae",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Bess Beetles",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Butterfly Kits",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Centipedes (Live)",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Crickets",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Damselfly Nymphs",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Darkling Beetles",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Dragonfly Nymphs",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Aquatic Insect Food",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Ladybugs",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Mantis Egg Sac",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Mealworms",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Milkweed Bugs",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Millipedes",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Mosquito Larvae & Pupa",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Silkworms",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Silkworm Food",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Termites",
+      category2Name: "Arthropods-Insects",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Hydra Brown",
+      category2Name: "Cnidarians-Hydra",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Hydra Green",
+      category2Name: "Cnidarians-Hydra",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Hydra with Food",
+      category2Name: "Cnidarians-Hydra",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Sea Urchins (Live)",
+      category2Name: "Echinoderms",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Banana Slugs",
+      category2Name: "Molluscs",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Land Snails (Live)",
+      category2Name: "Molluscs",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Pond Snails",
+      category2Name: "Molluscs",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Ramshorn Snail",
+      category2Name: "Molluscs",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Vinegar Eel",
+      category2Name: "Nematoda/Vinegar Eels",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Planaria Brown",
+      category2Name: "Platyhelminthes-Planaria",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Rotifers",
+      category2Name: "Rotifers",
+      category3Name: "Live Invertebrates",
+    },
+    {
+      name: "Azolla",
+      category2Name: "Ferns",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Fern Fronds",
+      category2Name: "Ferns",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Ferns Sp. Complete Plant",
+      category2Name: "Ferns",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Brassica Speed Seeds",
+      category2Name: "Flowering Plants",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Cabomba Plants",
+      category2Name: "Flowering Plants",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Elodea (Anacharis)",
+      category2Name: "Flowering Plants",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Hornwort (Ceratophyllum)",
+      category2Name: "Flowering Plants",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Lemna (Duckweed)",
+      category2Name: "Flowering Plants",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Parrot Feather",
+      category2Name: "Flowering Plants",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Wolffia (Duckweed)",
+      category2Name: "Flowering Plants",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Equisetum",
+      category2Name: "Horsetails",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Marchantia",
+      category2Name: "Liverworts",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Riccia - Aquatic Liverwort (Crystalwort)",
+      category2Name: "Liverworts",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Moss Fruiting Section",
+      category2Name: "Mosses",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Moss Vegetative Section",
+      category2Name: "Mosses",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Polytrichum",
+      category2Name: "Mosses",
+      category3Name: "Live Plant Specimens",
+    },
+    {
+      name: "Actinosphaerium",
+      category2Name: "Amoeboids (Sarcodina)",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Amoeba Proteus",
+      category2Name: "Amoeboids (Sarcodina)",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Arcella",
+      category2Name: "Amoeboids (Sarcodina)",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Blepharisma",
+      category2Name: "Ciliates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Didinium",
+      category2Name: "Ciliates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Euplotes",
+      category2Name: "Ciliates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Paramecium Caudatum",
+      category2Name: "Ciliates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Spirostomum",
+      category2Name: "Ciliates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Stalked Ciliates",
+      category2Name: "Ciliates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Stentor",
+      category2Name: "Ciliates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Chilomonas",
+      category2Name: "Flagellates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Chlamydomonas",
+      category2Name: "Flagellates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Eudorina",
+      category2Name: "Flagellates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Euglena",
+      category2Name: "Flagellates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Peranema",
+      category2Name: "Flagellates",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Mixed Pond Life",
+      category2Name: "Special Sets",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Mixed Protozoa",
+      category2Name: "Special Sets",
+      category3Name: "Live Protozoa Specimens",
+    },
+    {
+      name: "Bullfrogs (Live)",
+      category2Name: "Amphibians",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Dwarf Aquatic Frog",
+      category2Name: "Amphibians",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Frog Eggs",
+      category2Name: "Amphibians",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Grassfrogs (Live)",
+      category2Name: "Amphibians",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Tadpoles (Various Sizes)",
+      category2Name: "Amphibians",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Chicken Eggs Fertile",
+      category2Name: "Birds",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Gambusia",
+      category2Name: "Fish",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Goldfish",
+      category2Name: "Fish",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Guppies",
+      category2Name: "Fish",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Slider Turtles",
+      category2Name: "Reptiles",
+      category3Name: "Live Vertebrates",
+    },
+    {
+      name: "Sheep Blood",
+      category2Name: "Blood Products",
+      category3Name: "Microbiological Supplies",
+    },
+    {
+      name: "Agar Plates",
+      category2Name: "Media",
+      category3Name: "Microbiological Supplies",
+    },
+    {
+      name: "Nutrient Agar Powder",
+      category2Name: "Media",
+      category3Name: "Microbiological Supplies",
+    },
+    {
+      name: "TSA Agar Powder",
+      category2Name: "Media",
+      category3Name: "Microbiological Supplies",
+    },
+    {
+      name: "Revelation III",
+      category2Name: "L.W. Scientific",
+      category3Name: "Microscopes",
+    },
+    {
+      name: "NBMS Series",
+      category2Name: "Premiere",
+      category3Name: "Microscopes",
+    },
+    {
+      name: "Economy Grade",
+      category2Name: "Economy Grade Owl Pellets",
+      category3Name: "Owl Pellets",
+    },
+    {
+      name: "Premium Quality",
+      category2Name: "Premium Quality Owl Pellets",
+      category3Name: "Owl Pellets",
+    },
+    {
+      name: "Leech (Preserved)",
+      category2Name: "Annelids",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Lumbricus",
+      category2Name: "Annelids",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Nereis (Clam Worm)",
+      category2Name: "Annelids",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Centipedes (Preserved)",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Cockroaches",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Crayfish",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Fiddler Crab",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Gooseneck Barnacles",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Horseshoe Crab (Limulus)",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Millipede (Preserved)",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Romalea (Lubber Grasshopper)",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Scorpions",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Spiders",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Ticks",
+      category2Name: "Arthropods",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Lancelets (Amphioxus)",
+      category2Name: "Chordata",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Anthozoa",
+      category2Name: "Cnidarians",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Hydrozoa",
+      category2Name: "Cnidarians",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Scyphozoa",
+      category2Name: "Cnidarians",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Pleurobranchia Sea Walnut",
+      category2Name: "Ctenophora",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Brittle Star",
+      category2Name: "Echinoderms",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Sand Dollar",
+      category2Name: "Echinoderms",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Sea Cucumbers",
+      category2Name: "Echinoderms",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Sea Stars",
+      category2Name: "Echinoderms",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Sea Urchins (Preserved)",
+      category2Name: "Echinoderms",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Chiton",
+      category2Name: "Molluscs",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Land Snails (Preserved)",
+      category2Name: "Molluscs",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Mussels",
+      category2Name: "Molluscs",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Squid",
+      category2Name: "Molluscs",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Ascaris Lumbricoides",
+      category2Name: "Nematodes",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Cestoda",
+      category2Name: "Platyhelminthes",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Trematodes",
+      category2Name: "Platyhelminthes",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Turbellaria",
+      category2Name: "Platyhelminthes",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Grantia",
+      category2Name: "Porifera (Sponges)",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Chalina (Finger Sponge)",
+      category2Name: "Porifera (Sponges)",
+      category3Name: "Preserved Invertebrates",
+    },
+    {
+      name: "Lamprey",
+      category2Name: "Agnatha",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Amphiuma (Congo Eel)",
+      category2Name: "Amphibians",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Bullfrogs (Preserved)",
+      category2Name: "Amphibians",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Grassfrogs",
+      category2Name: "Amphibians",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Necturus",
+      category2Name: "Amphibians",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Pigeons",
+      category2Name: "Birds",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Sharks",
+      category2Name: "Chondrichthyes (Sharks)",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Skate Plain",
+      category2Name: "Chondrichthyes (Sharks)",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Stingray Plain",
+      category2Name: "Chondrichthyes (Sharks)",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Cow Eyes",
+      category2Name: "Mammal Organs",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Pig Hearts",
+      category2Name: "Mammal Organs",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Pig Kidneys",
+      category2Name: "Mammal Organs",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Sheep Brains",
+      category2Name: "Mammal Organs",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Sheep Eyes",
+      category2Name: "Mammal Organs",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Sheep Hearts",
+      category2Name: "Mammal Organs",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Sheep Kidneys",
+      category2Name: "Mammal Organs",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Sheep Pluck",
+      category2Name: "Mammal Organs",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Cats",
+      category2Name: "Mammals",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Fetal Pigs",
+      category2Name: "Mammals",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Rats",
+      category2Name: "Mammals",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Amia (Bowfin)",
+      category2Name: "Osteichthyes (Fish)",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Perch",
+      category2Name: "Osteichthyes (Fish)",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Snakes",
+      category2Name: "Reptiles",
+      category3Name: "Preserved Vertebrates",
+    },
+    {
+      name: "Turtles",
+      category2Name: "Reptiles",
+      category3Name: "Preserved Vertebrates",
+    },
+  ];
+
+  for (const category of category1Items) {
+    const parentCategory3 = await prisma.category3.findUnique({
+      where: { name: category.category3Name },
+      select: { id: true },
+    });
+
+    if (!parentCategory3) {
+      throw new Error(
+        `Category3 '${category.category3Name}' not found for Category1 '${category.name}'.`,
+      );
+    }
+
+    const parentCategory2 = await prisma.category2.findUnique({
+      where: {
+        category3Id_name: {
+          category3Id: parentCategory3.id,
+          name: category.category2Name,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!parentCategory2) {
+      throw new Error(
+        `Category2 '${category.category2Name}' under Category3 '${category.category3Name}' not found for Category1 '${category.name}'.`,
+      );
+    }
+
+    await prisma.category1.create({
+      data: {
+        name: category.name,
+        category2Id: parentCategory2.id,
+      },
+    });
+  }
+
   const items = [
     {
       sku: "DISSE1-9 KIT",
@@ -6209,8 +7325,64 @@ async function main() {
     },
   ];
 
+  const category3Lookup = new Map(
+    (
+      await prisma.category3.findMany({
+        select: { id: true, name: true },
+      })
+    ).map((c) => [c.name, c.id]),
+  );
+
+  const category2Lookup = new Map(
+    (
+      await prisma.category2.findMany({
+        select: { id: true, name: true, category3Id: true },
+      })
+    ).map((c) => [`${c.category3Id}|||${c.name}`, c.id]),
+  );
+
+  const category1Lookup = new Map(
+    (
+      await prisma.category1.findMany({
+        select: { id: true, name: true, category2Id: true },
+      })
+    ).map((c) => [`${c.category2Id}|||${c.name}`, c.id]),
+  );
+
   for (const item of items) {
-    await prisma.catalogItem.create({ data: item });
+    const category3Id = category3Lookup.get(item.category3);
+    if (!category3Id) {
+      throw new Error(
+        `Category3 '${item.category3}' not found for catalog item '${item.itemName}'.`,
+      );
+    }
+
+    const category2Id = category2Lookup.get(
+      `${category3Id}|||${item.category2}`,
+    );
+    if (!category2Id) {
+      throw new Error(
+        `Category2 '${item.category2}' under Category3 '${item.category3}' not found for catalog item '${item.itemName}'.`,
+      );
+    }
+
+    const category1Id = category1Lookup.get(
+      `${category2Id}|||${item.category1}`,
+    );
+    if (!category1Id) {
+      throw new Error(
+        `Category1 '${item.category1}' under Category2 '${item.category2}' not found for catalog item '${item.itemName}'.`,
+      );
+    }
+
+    await prisma.catalogItem.create({
+      data: {
+        ...item,
+        category3: category3Id,
+        category2: category2Id,
+        category1: category1Id,
+      },
+    });
   }
 
   // Add admin account

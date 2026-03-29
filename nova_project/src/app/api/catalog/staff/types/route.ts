@@ -10,26 +10,24 @@ export async function GET(req: Request) {
     return NextResponse.json({ types: [] });
   }
 
-  const items = await prisma.catalogItem.findMany({
+  const items = await prisma.category1.findMany({
     where: {
-      category3: category,
-      category2: subcategory,
-      category1: {
-        not: null,
+      category2: {
+        name: subcategory,
+        category3: {
+          name: category,
+        },
       },
     },
-    distinct: ["category1"],
     select: {
-      category1: true,
+      name: true,
     },
     orderBy: {
-      category1: "asc",
+      name: "asc",
     },
   });
 
   return NextResponse.json({
-    types: items
-      .map((item) => item.category1)
-      .filter((type): type is string => Boolean(type)),
+    types: items.map((item) => item.name),
   });
 }

@@ -15,9 +15,9 @@ model CatalogItem {
   sku               String?
   itemName          String
   price             Decimal   @default(0) @db.Decimal(10, 2)
-  category3         String?
-  category2         String?
-  category1         String?
+  category3         Int?
+  category2         Int?
+  category1         Int?
   description       String?   @db.Text
   quantityInStock   Int       @default(0)
   unitOfMeasure     String?
@@ -30,12 +30,49 @@ model CatalogItem {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  category3Ref Category3? @relation("CatalogItemCategory3", fields: [category3], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  category2Ref Category2? @relation("CatalogItemCategory2", fields: [category2], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  category1Ref Category1? @relation("CatalogItemCategory1", fields: [category1], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
   @@index([category1])
   @@index([category2])
   @@index([category3])
   @@index([price])
   @@index([updatedAt])
   @@index([quantityInStock])
+}
+
+model Category3 {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  category2s   Category2[]
+  catalogItems CatalogItem[] @relation("CatalogItemCategory3")
+}
+
+model Category2 {
+  id          Int    @id @default(autoincrement())
+  name        String
+  category3Id Int
+
+  category3    Category3     @relation(fields: [category3Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category1s   Category1[]
+  catalogItems CatalogItem[] @relation("CatalogItemCategory2")
+
+  @@unique([category3Id, name])
+  @@index([category3Id])
+}
+
+model Category1 {
+  id          Int    @id @default(autoincrement())
+  name        String
+  category2Id Int
+
+  category2    Category2     @relation(fields: [category2Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  catalogItems CatalogItem[] @relation("CatalogItemCategory1")
+
+  @@unique([category2Id, name])
+  @@index([category2Id])
 }
 
 model Account {

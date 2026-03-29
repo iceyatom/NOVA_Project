@@ -82,7 +82,7 @@ function withNoCache(resp: NextResponse) {
 }
 
 type StaffQuery = {
-  limit: number;
+  limit: number | null;
   offset: number;
   category: string;
   subcategory: string;
@@ -92,14 +92,26 @@ type StaffQuery = {
   sortOrder: "asc" | "desc";
 };
 
+type StaffListItem = {
+  id: number;
+  sku: string | null;
+  itemName: string;
+  quantityInStock: number;
+  price: unknown;
+  updatedAt: Date;
+  category1Ref: { name: string } | null;
+  category2Ref: { name: string } | null;
+  category3Ref: { name: string } | null;
+};
+
 function parseStaffQuery(request: NextRequest): StaffQuery {
   const sp = new URL(request.url).searchParams;
 
   const pageSizeRaw = sp.get("pageSize");
-  const pageSize = Math.min(
-    pageSizeRaw === "all" ? 1000 : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT),
-    MAX_PAGE_SIZE,
-  );
+  const pageSize =
+    pageSizeRaw === "all"
+      ? null
+      : Math.min(parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT), MAX_PAGE_SIZE);
 
   const offset = parsePositiveInt(sp.get("offset"), 0);
   const category = sp.get("category") || "all";
@@ -145,15 +157,15 @@ function buildPrismaWhere(q: StaffQuery) {
   }
 
   if (q.category !== "all") {
-    and.push({ category3: q.category });
+    and.push({ category3Ref: { is: { name: q.category } } });
   }
 
   if (q.subcategory !== "all") {
-    and.push({ category2: q.subcategory });
+    and.push({ category2Ref: { is: { name: q.subcategory } } });
   }
 
   if (q.type !== "all") {
-    and.push({ category1: q.type });
+    and.push({ category1Ref: { is: { name: q.type } } });
   }
 
   return and.length > 0 ? { AND: and } : undefined;
@@ -166,7 +178,7 @@ function buildPrismaOrderBy(q: StaffQuery) {
     case "name":
       return { itemName: q.sortOrder };
     case "category":
-      return { category1: q.sortOrder };
+      return { category3Ref: { name: q.sortOrder } };
     case "stock":
       return { quantityInStock: q.sortOrder };
     case "price":
@@ -188,10 +200,24 @@ async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
     id: true,
     sku: true,
     itemName: true,
-    category1: true,
     quantityInStock: true,
     price: true,
     updatedAt: true,
+    category1Ref: {
+      select: {
+        name: true,
+      },
+    },
+    category2Ref: {
+      select: {
+        name: true,
+      },
+    },
+    category3Ref: {
+      select: {
+        name: true,
+      },
+    },
   };
 
   const [totalCount, items] = await prisma.$transaction([
@@ -200,17 +226,29 @@ async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
       where,
       orderBy,
       skip: q.offset,
-      take: q.limit,
+      take: q.limit ?? undefined,
       select: staffListSelect,
     }),
   ]);
 
+  const normalizedItems = (items as StaffListItem[]).map((item) => ({
+    id: item.id,
+    sku: item.sku,
+    itemName: item.itemName,
+    category1: item.category1Ref?.name ?? null,
+    category2: item.category2Ref?.name ?? null,
+    category3: item.category3Ref?.name ?? null,
+    quantityInStock: item.quantityInStock,
+    price: item.price,
+    updatedAt: item.updatedAt,
+  }));
+
   const durationMs = Date.now() - startTime;
   const responseData = {
     success: true,
-    data: items,
+    data: normalizedItems,
     totalCount,
-    limit: q.limit,
+    limit: q.limit ?? totalCount,
     offset: q.offset,
   };
 
@@ -218,8 +256,8 @@ async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
     route: "/api/catalog/staff",
     dataSourceMode: "prisma",
     durationMs,
-    rowCount: items.length,
-    limit: q.limit,
+    rowCount: normalizedItems.length,
+    limit: q.limit ?? totalCount,
     offset: q.offset,
     responseSize: JSON.stringify(responseData).length,
   });
@@ -246,7 +284,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
 
   const upstreamUrl = new URL(normalizedBase);
 
-  upstreamUrl.searchParams.set("limit", String(q.limit));
+  upstreamUrl.searchParams.set("limit", String(q.limit ?? 1000));
   upstreamUrl.searchParams.set("offset", String(q.offset));
 
   if (q.query) {
@@ -282,7 +320,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
       dataSourceMode: "lambda",
       durationMs,
       rowCount: 0,
-      limit: q.limit,
+      limit: q.limit ?? 1000,
       offset: q.offset,
     });
 
@@ -315,7 +353,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
     success: true,
     data,
     totalCount,
-    limit: q.limit,
+    limit: q.limit ?? totalCount,
     offset: q.offset,
   };
 
@@ -324,7 +362,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
     dataSourceMode: "lambda",
     durationMs,
     rowCount: data.length,
-    limit: q.limit,
+    limit: q.limit ?? 1000,
     offset: q.offset,
     responseSize: JSON.stringify(responseData).length,
   });
