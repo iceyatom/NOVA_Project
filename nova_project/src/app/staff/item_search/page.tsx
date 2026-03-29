@@ -1,10 +1,9 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { CatalogItem } from "@prisma/client";
 import { useRouter, useSearchParams } from "next/navigation";
 
-const CATEGORY_OPTIONS = [
+const FALLBACK_CATEGORY_OPTIONS = [
   "Laboratory Supplies",
   "Live Algae Specimens",
   "Live Bacteria & Fungi Specimens",
@@ -27,6 +26,64 @@ type SortColumn =
   | "stock"
   | "lastModified";
 
+type StaffCatalogItem = {
+  id: number;
+  sku: string | null;
+  itemName: string;
+  category1: string | null;
+  category2: string | null;
+  category3: string | null;
+  quantityInStock: number;
+  price: number | string;
+  updatedAt: string | Date;
+};
+
+type StaffCatalogResponse = {
+  success?: boolean;
+  data?: unknown;
+  totalCount?: unknown;
+};
+
+function parseCatalogItems(payload: unknown): StaffCatalogItem[] {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  return payload
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const item = entry as Record<string, unknown>;
+      const id = Number(item.id);
+
+      if (!Number.isFinite(id)) {
+        return null;
+      }
+
+      return {
+        id,
+        sku: typeof item.sku === "string" ? item.sku : null,
+        itemName: typeof item.itemName === "string" ? item.itemName : "",
+        category1: typeof item.category1 === "string" ? item.category1 : null,
+        category2: typeof item.category2 === "string" ? item.category2 : null,
+        category3: typeof item.category3 === "string" ? item.category3 : null,
+        quantityInStock:
+          typeof item.quantityInStock === "number" ? item.quantityInStock : 0,
+        price:
+          typeof item.price === "number" || typeof item.price === "string"
+            ? item.price
+            : 0,
+        updatedAt:
+          typeof item.updatedAt === "string" || item.updatedAt instanceof Date
+            ? item.updatedAt
+            : "",
+      } satisfies StaffCatalogItem;
+    })
+    .filter((item): item is StaffCatalogItem => item !== null);
+}
+
 const StaffItemSearchPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,7 +98,12 @@ const StaffItemSearchPageContent = () => {
   const offset = Number(searchParams.get("offset")) || 0;
   const currentSearchQueryString = searchParams.toString();
 
-  const [catalogItems, setCatalogItems] = React.useState<CatalogItem[]>([]);
+  const [catalogItems, setCatalogItems] = React.useState<StaffCatalogItem[]>(
+    [],
+  );
+  const [categories, setCategories] = React.useState<string[]>(
+    FALLBACK_CATEGORY_OPTIONS,
+  );
   const [totalItems, setTotalItems] = React.useState(0);
   const [subcategories, setSubcategories] = React.useState<string[]>([]);
   const [types, setTypes] = React.useState<string[]>([]);
@@ -54,6 +116,42 @@ const StaffItemSearchPageContent = () => {
   React.useEffect(() => {
     setSearchInput(searchQueryParam);
   }, [searchQueryParam]);
+
+  React.useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch("/api/catalog/categories", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          setCategories(FALLBACK_CATEGORY_OPTIONS);
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          categories?: unknown;
+          success?: boolean;
+        };
+
+        const nextCategories = Array.isArray(payload?.categories)
+          ? payload.categories.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+
+        setCategories(
+          nextCategories.length > 0
+            ? nextCategories
+            : FALLBACK_CATEGORY_OPTIONS,
+        );
+      } catch {
+        setCategories(FALLBACK_CATEGORY_OPTIONS);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   React.useEffect(() => {
     const fetchItems = async () => {
@@ -84,15 +182,25 @@ const StaffItemSearchPageContent = () => {
       }
 
       const response = await fetch(`/api/catalog/staff?${params.toString()}`);
-      const result = await response.json();
+      const result = (await response.json()) as StaffCatalogResponse | unknown;
 
       // Handle both old array format and new paginated object format
       if (Array.isArray(result)) {
-        setCatalogItems(result);
+        const parsedItems = parseCatalogItems(result);
+        setCatalogItems(parsedItems);
+        setTotalItems(parsedItems.length);
         // Old format: need separate count request
-      } else if (result.success && result.data) {
-        setCatalogItems(result.data);
-        setTotalItems(result.totalCount || 0);
+      } else if (
+        result &&
+        typeof result === "object" &&
+        (result as StaffCatalogResponse).success &&
+        (result as StaffCatalogResponse).data
+      ) {
+        const responsePayload = result as StaffCatalogResponse;
+        setCatalogItems(parseCatalogItems(responsePayload.data));
+
+        const nextTotalCount = Number(responsePayload.totalCount);
+        setTotalItems(Number.isFinite(nextTotalCount) ? nextTotalCount : 0);
       }
     };
 
@@ -521,7 +629,7 @@ const StaffItemSearchPageContent = () => {
                 value={categoryParam}
               >
                 <option value="all">Category: All</option>
-                {CATEGORY_OPTIONS.map((category) => (
+                {categories.map((category) => (
                   <option key={category} value={category}>
                     {category}
                   </option>

@@ -51,6 +51,7 @@ export default function Filters({
     setCustomMax(selectedPriceRangeProp.max);
   }, [selectedPriceRangeProp]);
 
+  // Dynamically populates the category filter options from the catalog API.
   React.useEffect(() => {
     const controller = new AbortController();
 
