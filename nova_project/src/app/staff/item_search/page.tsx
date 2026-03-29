@@ -3,21 +3,6 @@ import React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-const FALLBACK_CATEGORY_OPTIONS = [
-  "Laboratory Supplies",
-  "Live Algae Specimens",
-  "Live Bacteria & Fungi Specimens",
-  "Live Invertebrates",
-  "Live Plant Specimens",
-  "Live Protozoa Specimens",
-  "Live Vertebrates",
-  "Microbiological Supplies",
-  "Microscopes",
-  "Owl Pellets",
-  "Preserved Invertebrates",
-  "Preserved Vertebrates",
-];
-
 type SortColumn =
   | "sku"
   | "name"
@@ -101,9 +86,7 @@ const StaffItemSearchPageContent = () => {
   const [catalogItems, setCatalogItems] = React.useState<StaffCatalogItem[]>(
     [],
   );
-  const [categories, setCategories] = React.useState<string[]>(
-    FALLBACK_CATEGORY_OPTIONS,
-  );
+  const [categories, setCategories] = React.useState<string[]>([]);
   const [totalItems, setTotalItems] = React.useState(0);
   const [subcategories, setSubcategories] = React.useState<string[]>([]);
   const [types, setTypes] = React.useState<string[]>([]);
@@ -125,7 +108,7 @@ const StaffItemSearchPageContent = () => {
         });
 
         if (!response.ok) {
-          setCategories(FALLBACK_CATEGORY_OPTIONS);
+          setCategories([]);
           return;
         }
 
@@ -140,13 +123,9 @@ const StaffItemSearchPageContent = () => {
             )
           : [];
 
-        setCategories(
-          nextCategories.length > 0
-            ? nextCategories
-            : FALLBACK_CATEGORY_OPTIONS,
-        );
+        setCategories(nextCategories);
       } catch {
-        setCategories(FALLBACK_CATEGORY_OPTIONS);
+        setCategories([]);
       }
     };
 
@@ -523,7 +502,10 @@ const StaffItemSearchPageContent = () => {
     router.push(`/staff/item_search?${params.toString()}`);
   };
 
-  const pageSize = Number(pageSizeParam) || 20;
+  const pageSize =
+    pageSizeParam === "all"
+      ? Math.max(totalItems || catalogItems.length || 1, 1)
+      : Number(pageSizeParam) || 20;
   const totalPages = Math.ceil(totalItems / pageSize);
   const currentPage = Math.floor(offset / pageSize) + 1;
   const maxOffset = Math.max(0, (totalPages - 1) * pageSize);
@@ -674,6 +656,7 @@ const StaffItemSearchPageContent = () => {
                 <option value="20">20 per page</option>
                 <option value="50">50 per page</option>
                 <option value="100">100 per page</option>
+                <option value="all">All</option>
               </select>
 
               <button

@@ -4,21 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 
-const CATEGORY_OPTIONS = [
-  "Laboratory Supplies",
-  "Live Algae Specimens",
-  "Live Bacteria & Fungi Specimens",
-  "Live Invertebrates",
-  "Live Plant Specimens",
-  "Live Protozoa Specimens",
-  "Live Vertebrates",
-  "Microbiological Supplies",
-  "Microscopes",
-  "Owl Pellets",
-  "Preserved Invertebrates",
-  "Preserved Vertebrates",
-];
-
 type CreateItemForm = {
   sku: string;
   itemName: string;
@@ -84,6 +69,7 @@ type CreateApiResponse = {
 
 export default function StaffItemCreatePage() {
   const [form, setForm] = useState<CreateItemForm>(INITIAL_FORM);
+  const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
@@ -93,6 +79,36 @@ export default function StaffItemCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Dynamically loads top-level categories from the category3 table API.
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch("/api/catalog/categories", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          setCategories([]);
+          return;
+        }
+
+        const payload = (await response.json()) as { categories?: unknown };
+        const nextCategories = Array.isArray(payload?.categories)
+          ? payload.categories.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+
+        setCategories(nextCategories);
+      } catch {
+        setCategories([]);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Dynamically loads subcategories based on the selected top-level category.
   useEffect(() => {
     const fetchSubcategories = async () => {
       if (!form.category3.trim()) {
@@ -126,6 +142,7 @@ export default function StaffItemCreatePage() {
     fetchSubcategories();
   }, [form.category3]);
 
+  // Dynamically loads types based on the selected category + subcategory.
   useEffect(() => {
     const fetchTypes = async () => {
       if (!form.category3.trim() || !form.category2.trim()) {
@@ -384,7 +401,7 @@ export default function StaffItemCreatePage() {
                   }
                 >
                   <option value="">Select category</option>
-                  {CATEGORY_OPTIONS.map((category) => (
+                  {categories.map((category) => (
                     <option key={category} value={category}>
                       {category}
                     </option>

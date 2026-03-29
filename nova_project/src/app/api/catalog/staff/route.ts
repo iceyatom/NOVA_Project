@@ -82,7 +82,7 @@ function withNoCache(resp: NextResponse) {
 }
 
 type StaffQuery = {
-  limit: number;
+  limit: number | null;
   offset: number;
   category: string;
   subcategory: string;
@@ -108,10 +108,10 @@ function parseStaffQuery(request: NextRequest): StaffQuery {
   const sp = new URL(request.url).searchParams;
 
   const pageSizeRaw = sp.get("pageSize");
-  const pageSize = Math.min(
-    pageSizeRaw === "all" ? 1000 : parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT),
-    MAX_PAGE_SIZE,
-  );
+  const pageSize =
+    pageSizeRaw === "all"
+      ? null
+      : Math.min(parsePositiveInt(pageSizeRaw, DEFAULT_LIMIT), MAX_PAGE_SIZE);
 
   const offset = parsePositiveInt(sp.get("offset"), 0);
   const category = sp.get("category") || "all";
@@ -226,7 +226,7 @@ async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
       where,
       orderBy,
       skip: q.offset,
-      take: q.limit,
+      take: q.limit ?? undefined,
       select: staffListSelect,
     }),
   ]);
@@ -248,7 +248,7 @@ async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
     success: true,
     data: normalizedItems,
     totalCount,
-    limit: q.limit,
+    limit: q.limit ?? totalCount,
     offset: q.offset,
   };
 
@@ -257,7 +257,7 @@ async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
     dataSourceMode: "prisma",
     durationMs,
     rowCount: normalizedItems.length,
-    limit: q.limit,
+    limit: q.limit ?? totalCount,
     offset: q.offset,
     responseSize: JSON.stringify(responseData).length,
   });
@@ -284,7 +284,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
 
   const upstreamUrl = new URL(normalizedBase);
 
-  upstreamUrl.searchParams.set("limit", String(q.limit));
+  upstreamUrl.searchParams.set("limit", String(q.limit ?? 1000));
   upstreamUrl.searchParams.set("offset", String(q.offset));
 
   if (q.query) {
@@ -320,7 +320,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
       dataSourceMode: "lambda",
       durationMs,
       rowCount: 0,
-      limit: q.limit,
+      limit: q.limit ?? 1000,
       offset: q.offset,
     });
 
@@ -353,7 +353,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
     success: true,
     data,
     totalCount,
-    limit: q.limit,
+    limit: q.limit ?? totalCount,
     offset: q.offset,
   };
 
@@ -362,7 +362,7 @@ async function tryLambda(q: StaffQuery): Promise<NextResponse> {
     dataSourceMode: "lambda",
     durationMs,
     rowCount: data.length,
-    limit: q.limit,
+    limit: q.limit ?? 1000,
     offset: q.offset,
     responseSize: JSON.stringify(responseData).length,
   });

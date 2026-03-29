@@ -853,6 +853,8 @@ type CatalogUpdateInput = {
   unitCost: number;
 };
 
+class CatalogPayloadValidationError extends Error {}
+
 function normalizeOptionalString(
   value: unknown,
   fieldName: string,
@@ -945,6 +947,107 @@ function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
     dateAcquired: normalizeNullableDate(raw.dateAcquired, "dateAcquired"),
     reorderLevel: normalizeNonNegativeInteger(raw.reorderLevel, "reorderLevel"),
     unitCost: normalizeNonNegativeNumber(raw.unitCost, "unitCost"),
+  };
+}
+
+type ResolvedCategoryIds = {
+  category1: number | null;
+  category2: number | null;
+  category3: number | null;
+};
+
+async function resolveCategoryIds(
+  payload: Pick<CatalogUpdateInput, "category1" | "category2" | "category3">,
+): Promise<ResolvedCategoryIds> {
+  if (!payload.category3 && (payload.category2 || payload.category1)) {
+    throw new CatalogPayloadValidationError(
+      "category3 is required when category2/category1 is provided.",
+    );
+  }
+
+  if (!payload.category2 && payload.category1) {
+    throw new CatalogPayloadValidationError(
+      "category2 is required when category1 is provided.",
+    );
+  }
+
+  if (!payload.category3) {
+    return { category1: null, category2: null, category3: null };
+  }
+
+  const category3 = await prisma.category3.findUnique({
+    where: { name: payload.category3 },
+    select: { id: true },
+  });
+
+  if (!category3) {
+    throw new CatalogPayloadValidationError(
+      `Unknown category3: ${payload.category3}.`,
+    );
+  }
+
+  if (!payload.category2) {
+    return { category1: null, category2: null, category3: category3.id };
+  }
+
+  const category2 = await prisma.category2.findFirst({
+    where: {
+      name: payload.category2,
+      category3Id: category3.id,
+    },
+    select: { id: true },
+  });
+
+  if (!category2) {
+    throw new CatalogPayloadValidationError(
+      `Unknown category2 "${payload.category2}" under category3 "${payload.category3}".`,
+    );
+  }
+
+  if (!payload.category1) {
+    return { category1: null, category2: category2.id, category3: category3.id };
+  }
+
+  const category1 = await prisma.category1.findFirst({
+    where: {
+      name: payload.category1,
+      category2Id: category2.id,
+    },
+    select: { id: true },
+  });
+
+  if (!category1) {
+    throw new CatalogPayloadValidationError(
+      `Unknown category1 "${payload.category1}" under category2 "${payload.category2}".`,
+    );
+  }
+
+  return {
+    category1: category1.id,
+    category2: category2.id,
+    category3: category3.id,
+  };
+}
+
+async function buildCatalogMutationData(payload: CatalogUpdateInput) {
+  const categoryIds = await resolveCategoryIds(payload);
+
+  return {
+    sku: payload.sku,
+    itemName: payload.itemName,
+    price: payload.price,
+    category1: categoryIds.category1,
+    category2: categoryIds.category2,
+    category3: categoryIds.category3,
+    description: payload.description,
+    quantityInStock: payload.quantityInStock,
+    unitOfMeasure: payload.unitOfMeasure,
+    storageLocation: payload.storageLocation,
+    storageConditions: payload.storageConditions,
+    expirationDate: payload.expirationDate,
+    dateAcquired: payload.dateAcquired,
+    reorderLevel: payload.reorderLevel,
+    unitCost: payload.unitCost,
   };
 }
 
@@ -1130,8 +1233,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const createData = await buildCatalogMutationData(payload);
     const createdItem = await prisma.catalogItem.create({
-      data: payload,
+      data: createData,
     });
 
     return withNoCache(
@@ -1144,6 +1248,10 @@ export async function POST(request: NextRequest) {
       ),
     );
   } catch (error: unknown) {
+    if (error instanceof CatalogPayloadValidationError) {
+      return errorResponse("Invalid create payload.", error.message, 400);
+    }
+
     const msg = error instanceof Error ? error.message : "Unknown Prisma error";
     return errorResponse("Catalog create failed.", msg, 500);
   }
@@ -1190,9 +1298,10 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
+    const updateData = await buildCatalogMutationData(payload);
     const updatedItem = await prisma.catalogItem.update({
       where: { id: q.id },
-      data: payload,
+      data: updateData,
     });
 
     return withNoCache(
@@ -1205,6 +1314,10 @@ export async function PATCH(request: NextRequest) {
       ),
     );
   } catch (error: unknown) {
+    if (error instanceof CatalogPayloadValidationError) {
+      return errorResponse("Invalid update payload.", error.message, 400);
+    }
+
     const code =
       typeof error === "object" &&
       error !== null &&
