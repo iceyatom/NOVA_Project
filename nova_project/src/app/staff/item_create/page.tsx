@@ -100,49 +100,22 @@ function DropdownWithNew({
   }, []);
 
   return (
-    <div ref={dropdownRef} style={{ position: "relative" }}>
+    <div ref={dropdownRef} className="item-dropdown">
       <button
         type="button"
-        className="item-search-page__select"
+        className="item-search-page__select item-dropdown__trigger"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        style={{
-          width: "100%",
-          minHeight: "38px",
-          textAlign: "left",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer",
-          font: "inherit",
-          boxSizing: "border-box",
-        }}
       >
         <span
-          style={{
-            opacity: value ? 1 : 0.7,
-            whiteSpace: "normal",
-            overflowWrap: "anywhere",
-            lineHeight: 1.2,
-            marginRight: "8px",
-          }}
+          className={`item-dropdown__trigger-text${value ? "" : " item-dropdown__trigger-text--placeholder"}`}
         >
           {value || placeholder}
         </span>
-        <span
-          aria-hidden="true"
-          style={{
-            marginLeft: "8px",
-            display: "inline-block",
-            minWidth: "16px",
-            textAlign: "center",
-            fontSize: isOpen ? "1.1rem" : "1.35rem",
-            lineHeight: 1,
-          }}
-        >
-          {isOpen ? "−" : "▾"}
+        <span aria-hidden="true" className="item-dropdown__trigger-icon">
+          {isOpen ? "\u25B4" : "\u25BE"}
         </span>
       </button>
 
@@ -150,19 +123,7 @@ function DropdownWithNew({
         <div
           role="listbox"
           aria-label={`${ariaLabel} options`}
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            right: 0,
-            background: "#fff",
-            border: "1px solid rgba(0, 0, 0, 0.2)",
-            borderRadius: "8px",
-            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.16)",
-            maxHeight: "260px",
-            overflowY: "auto",
-            zIndex: 1200,
-          }}
+          className="item-dropdown__menu"
         >
           <button
             type="button"
@@ -170,60 +131,41 @@ function DropdownWithNew({
               onSelect("");
               setIsOpen(false);
             }}
-            style={{
-              width: "100%",
-              textAlign: "left",
-              border: 0,
-              background: "transparent",
-              padding: "4px 6px",
-              cursor: "pointer",
-              opacity: 0.8,
-              font: "inherit",
-            }}
+            className="item-dropdown__option item-dropdown__option--placeholder"
           >
-            {placeholder}
+            None
           </button>
 
           {options.length > 0 ? (
-            options.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => {
-                  onSelect(option);
-                  setIsOpen(false);
-                }}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  border: 0,
-                  background: "transparent",
-                  padding: "4px 6px",
-                  cursor: "pointer",
-                  font: "inherit",
-                }}
-              >
-                {option}
-              </button>
-            ))
+            options.map((option) => {
+              const isSelected = value === option;
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    onSelect(option);
+                    setIsOpen(false);
+                  }}
+                  className={`item-dropdown__option${isSelected ? " item-dropdown__option--selected" : ""}`}
+                >
+                  {option}
+                </button>
+              );
+            })
           ) : (
-            <div style={{ padding: "10px 12px", opacity: 0.7 }}>No options</div>
+            <div className="item-dropdown__empty">No options</div>
           )}
 
-          <div
-            style={{
-              borderTop: "1px solid rgba(0, 0, 0, 0.15)",
-              padding: "4px",
-            }}
-          >
+          <div className="item-dropdown__footer">
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
                 onNewClick();
               }}
-              className="staff-dev-pill"
-              style={{ width: "100%" }}
+              className="staff-dev-pill item-dropdown__new-button"
             >
               New
             </button>
@@ -233,7 +175,6 @@ function DropdownWithNew({
     </div>
   );
 }
-
 export default function StaffItemCreatePage() {
   const [form, setForm] = useState<CreateItemForm>(INITIAL_FORM);
   const [categories, setCategories] = useState<string[]>([]);
@@ -697,14 +638,7 @@ export default function StaffItemCreatePage() {
                 </button>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: "12px",
-                  flexWrap: "wrap",
-                  marginTop: "10px",
-                }}
-              >
+              <div className="item-image-grid">
                 {form.imageUrls.map((img, i) => {
                   const isSelected = selectedImageIndex === i;
 
@@ -717,29 +651,14 @@ export default function StaffItemCreatePage() {
                       }
                       aria-pressed={isSelected}
                       aria-label={`Select image ${i + 1}`}
-                      style={{
-                        border: isSelected
-                          ? "3px solid #000"
-                          : "1px solid rgba(0,0,0,0.15)",
-                        borderRadius: "8px",
-                        padding: "0",
-                        cursor: "pointer",
-                        background: "transparent",
-                        lineHeight: 0,
-                      }}
+                      className={`item-image-thumb-button${isSelected ? " item-image-thumb-button--selected" : ""}`}
                     >
                       <Image
-                        className="product-carousel-thumb-img"
+                        className={`product-carousel-thumb-img item-image-thumb${isSelected ? " item-image-thumb--selected" : ""}`}
                         src={img}
                         alt={`Image ${i + 1} of ${form.itemName || "new item"}`}
                         width={1000}
                         height={1000}
-                        style={{
-                          width: "200px",
-                          height: "auto",
-                          borderRadius: "6px",
-                          opacity: isSelected ? 0.9 : 1,
-                        }}
                         priority
                       />
                     </button>
@@ -748,7 +667,7 @@ export default function StaffItemCreatePage() {
               </div>
 
               {selectedImageIndex !== null && (
-                <div style={{ marginTop: "8px", fontSize: "0.9rem" }}>
+                <div className="item-edit-selected-images">
                   Selected image: {selectedImageIndex + 1}
                 </div>
               )}
@@ -788,36 +707,16 @@ export default function StaffItemCreatePage() {
           role="dialog"
           aria-modal="true"
           aria-label="New Category Access Status"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "16px",
-          }}
+          className="item-category-modal"
         >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: "420px",
-              background: "#fff",
-              borderRadius: "10px",
-              padding: "20px",
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.2)",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "1.05rem", fontWeight: 700 }}>
+          <div className="item-category-modal__content">
+            <div className="item-category-modal__title">
               the access was a success for now
             </div>
             <button
               type="button"
-              className="staff-dev-pill"
               onClick={() => setShowNewCategoryPopup(false)}
-              style={{ marginTop: "14px" }}
+              className="staff-dev-pill item-category-modal__close"
             >
               Close
             </button>

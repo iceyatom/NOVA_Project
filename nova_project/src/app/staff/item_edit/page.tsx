@@ -32,21 +32,114 @@ type CatalogApiResponse = {
   data: unknown;
 };
 
-const CATEGORY_OPTIONS = [
-  "Laboratory Supplies",
-  "Live Algae Specimens",
-  "Live Bacteria & Fungi Specimens",
-  "Live Invertebrates",
-  "Live Plant Specimens",
-  "Live Protozoa Specimens",
-  "Live Vertebrates",
-  "Microbiological Supplies",
-  "Microscopes",
-  "Owl Pellets",
-  "Preserved Invertebrates",
-  "Preserved Vertebrates",
-];
+type DropdownWithNewProps = {
+  value: string;
+  placeholder: string;
+  options: string[];
+  ariaLabel: string;
+  onSelect: (value: string) => void;
+  onNewClick: () => void;
+};
 
+function DropdownWithNew({
+  value,
+  placeholder,
+  options,
+  ariaLabel,
+  onSelect,
+  onNewClick,
+}: DropdownWithNewProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!dropdownRef.current) return;
+      if (!dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  return (
+    <div ref={dropdownRef} className="item-dropdown">
+      <button
+        type="button"
+        className="item-search-page__select item-dropdown__trigger"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <span
+          className={`item-dropdown__trigger-text${value ? "" : " item-dropdown__trigger-text--placeholder"}`}
+        >
+          {value || placeholder}
+        </span>
+        <span aria-hidden="true" className="item-dropdown__trigger-icon">
+          {isOpen ? "\u25B4" : "\u25BE"}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div
+          role="listbox"
+          aria-label={`${ariaLabel} options`}
+          className="item-dropdown__menu"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              onSelect("");
+              setIsOpen(false);
+            }}
+            className="item-dropdown__option item-dropdown__option--placeholder"
+          >
+            None
+          </button>
+
+          {options.length > 0 ? (
+            options.map((option) => {
+              const isSelected = value === option;
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    onSelect(option);
+                    setIsOpen(false);
+                  }}
+                  className={`item-dropdown__option${isSelected ? " item-dropdown__option--selected" : ""}`}
+                >
+                  {option}
+                </button>
+              );
+            })
+          ) : (
+            <div className="item-dropdown__empty">No options</div>
+          )}
+
+          <div className="item-dropdown__footer">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onNewClick();
+              }}
+              className="staff-dev-pill item-dropdown__new-button"
+            >
+              New
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
@@ -302,8 +395,10 @@ function StaffItemEditPageContent() {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
+  const [showNewCategoryPopup, setShowNewCategoryPopup] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
   );
@@ -380,6 +475,34 @@ function StaffItemEditPageContent() {
       mounted = false;
     };
   }, [itemId]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch("/api/catalog/categories", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          setCategories([]);
+          return;
+        }
+
+        const payload = (await response.json()) as { categories?: unknown };
+        const nextCategories = Array.isArray(payload?.categories)
+          ? payload.categories.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+
+        setCategories(nextCategories);
+      } catch {
+        setCategories([]);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     const fetchSubcategories = async () => {
@@ -699,72 +822,60 @@ function StaffItemEditPageContent() {
                   <span className={fieldNameClass(isFieldDirty("category3"))}>
                     Category *
                   </span>
-                  <select
-                    className="item-search-page__select"
+                  <DropdownWithNew
+                    ariaLabel="Category"
                     value={form.category3}
-                    onChange={(e) =>
+                    placeholder="Select category"
+                    options={categories}
+                    onSelect={(nextCategory) =>
                       setForm((prev) => ({
                         ...prev,
-                        category3: e.target.value,
+                        category3: nextCategory,
                         category2: "",
                         category1: "",
                       }))
                     }
-                  >
-                    <option value="">Select category</option>
-                    {CATEGORY_OPTIONS.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
+                    onNewClick={() => setShowNewCategoryPopup(true)}
+                  />
                 </label>
 
                 <label className="item-edit-field">
                   <span className={fieldNameClass(isFieldDirty("category2"))}>
                     Subcategory *
                   </span>
-                  <select
-                    className="item-search-page__select"
+                  <DropdownWithNew
+                    ariaLabel="Subcategory"
                     value={form.category2}
-                    onChange={(e) =>
+                    placeholder="Select subcategory"
+                    options={subcategories}
+                    onSelect={(nextSubcategory) =>
                       setForm((prev) => ({
                         ...prev,
-                        category2: e.target.value,
+                        category2: nextSubcategory,
                         category1: "",
                       }))
                     }
-                  >
-                    <option value="">Select subcategory</option>
-                    {subcategories.map((subcategory) => (
-                      <option key={subcategory} value={subcategory}>
-                        {subcategory}
-                      </option>
-                    ))}
-                  </select>
+                    onNewClick={() => setShowNewCategoryPopup(true)}
+                  />
                 </label>
 
                 <label className="item-edit-field">
                   <span className={fieldNameClass(isFieldDirty("category1"))}>
                     Type *
                   </span>
-                  <select
-                    className="item-search-page__select"
+                  <DropdownWithNew
+                    ariaLabel="Type"
                     value={form.category1}
-                    onChange={(e) =>
+                    placeholder="Select type"
+                    options={types}
+                    onSelect={(nextType) =>
                       setForm((prev) => ({
                         ...prev,
-                        category1: e.target.value,
+                        category1: nextType,
                       }))
                     }
-                  >
-                    <option value="">Select type</option>
-                    {types.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
+                    onNewClick={() => setShowNewCategoryPopup(true)}
+                  />
                 </label>
               </div>
 
@@ -887,14 +998,7 @@ function StaffItemEditPageContent() {
                     Delete Image
                   </button>
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                    marginTop: "10px",
-                  }}
-                >
+                <div className="item-image-grid">
                   {form.imageUrls.map((img, i) => {
                     const isSelected = selectedImageIndex === i;
 
@@ -907,29 +1011,14 @@ function StaffItemEditPageContent() {
                         }
                         aria-pressed={isSelected}
                         aria-label={`Select image ${i + 1}`}
-                        style={{
-                          border: isSelected
-                            ? "3px solid #000"
-                            : "1px solid rgba(0,0,0,0.15)",
-                          borderRadius: "8px",
-                          padding: "0",
-                          cursor: "pointer",
-                          background: "transparent",
-                          lineHeight: 0,
-                        }}
+                        className={`item-image-thumb-button${isSelected ? " item-image-thumb-button--selected" : ""}`}
                       >
                         <Image
-                          className="product-carousel-thumb-img"
+                          className={`product-carousel-thumb-img item-image-thumb${isSelected ? " item-image-thumb--selected" : ""}`}
                           src={img}
                           alt={`Image ${i + 1} of ${form.itemName}`}
                           width={1000}
                           height={1000}
-                          style={{
-                            width: "200px",
-                            height: "auto",
-                            borderRadius: "6px",
-                            opacity: isSelected ? 0.9 : 1,
-                          }}
                           priority
                         />
                       </button>
@@ -976,6 +1065,28 @@ function StaffItemEditPageContent() {
           </form>
         </div>
       </div>
+
+      {showNewCategoryPopup && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="New Category Access Status"
+          className="item-category-modal"
+        >
+          <div className="item-category-modal__content">
+            <div className="item-category-modal__title">
+              the access was a success for now
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowNewCategoryPopup(false)}
+              className="staff-dev-pill item-category-modal__close"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
