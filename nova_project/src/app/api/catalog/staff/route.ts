@@ -178,7 +178,12 @@ function buildPrismaOrderBy(q: StaffQuery) {
     case "name":
       return { itemName: q.sortOrder };
     case "category":
-      return { category3Ref: { name: q.sortOrder } };
+      return [
+        { category1Ref: { name: q.sortOrder } },
+        { category2Ref: { name: q.sortOrder } },
+        { category3Ref: { name: q.sortOrder } },
+        { itemName: q.sortOrder },
+      ];
     case "stock":
       return { quantityInStock: q.sortOrder };
     case "price":
