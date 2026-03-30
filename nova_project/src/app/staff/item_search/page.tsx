@@ -527,7 +527,7 @@ const StaffItemSearchPageContent = () => {
 
   const formatCategoryName = (category: string | null) => {
     if (!category) {
-      return "";
+      return "None";
     }
 
     const maxLength = 24;
@@ -684,10 +684,6 @@ const StaffItemSearchPageContent = () => {
                 <thead className="item-search-page__thead">
                   <tr>
                     <th className="item-search-page__th">
-                      <input type="checkbox" />
-                    </th>
-
-                    <th className="item-search-page__th">
                       <button
                         className={`item-search-page__th-button${
                           sortByParam === "sku"
@@ -778,10 +774,6 @@ const StaffItemSearchPageContent = () => {
                 <tbody className="item-search-page__tbody">
                   {catalogItems.map((item) => (
                     <tr key={item.id} className="item-search-page__tr">
-                      <td className="item-search-page__td">
-                        <input type="checkbox" />
-                      </td>
-
                       <td className="item-search-page__td">{item.sku}</td>
 
                       <td className="item-search-page__td">

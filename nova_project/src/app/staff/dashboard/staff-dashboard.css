@@ -225,6 +225,36 @@
   min-height: 640px;
 }
 
+.category-mgmt-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.category-mgmt-add-btn {
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin-top: -20px;
+  border: none;
+  background: transparent;
+  color: #065f46;
+  font-size: 1.4rem;
+  line-height: 1;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 0 rgba(209, 250, 229, 0.9);
+}
+
+.category-mgmt-add-btn:hover {
+  color: #047857;
+  transform: scale(1.08);
+}
+
 .category-mgmt-table-wrap {
   background-color: #ffffff;
   border-radius: 0.5rem;
@@ -306,7 +336,38 @@
 }
 
 .category-mgmt-edit-modal__content {
+  width: min(680px, 96vw);
+  max-width: 680px;
+  padding: 1.6rem 1.65rem;
   text-align: left;
+}
+
+.category-mgmt-edit-modal__content .item-category-modal__title {
+  font-size: 1.3rem;
+  line-height: 1.25;
+}
+
+.category-mgmt-edit-modal__content .item-category-form {
+  gap: 0.95rem;
+}
+
+.category-mgmt-edit-modal__content .item-category-form__label {
+  font-size: 0.88rem;
+}
+
+.category-mgmt-edit-modal__content .item-search-page__search-input,
+.category-mgmt-edit-modal__content .item-search-page__select {
+  font-size: 1rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.category-mgmt-edit-modal__content .item-category-form__status {
+  font-size: 0.95rem;
+}
+
+.category-mgmt-edit-modal__content .staff-dev-pill {
+  font-size: 0.98rem;
+  padding: 0.62rem 1.05rem;
 }
 
 .category-mgmt-edit-modal__label--dirty {

@@ -165,6 +165,24 @@ export default function StaffCategoryManagementPage() {
   const [editPopupError, setEditPopupError] = useState<string | null>(null);
   const [editPopupSuccess, setEditPopupSuccess] = useState<string | null>(null);
 
+  const [showCreatePopup, setShowCreatePopup] = useState(false);
+  const [createCategoryLevel, setCreateCategoryLevel] =
+    useState<CategoryLevel>("category3");
+  const [createCategoryName, setCreateCategoryName] = useState("");
+  const [createParentCategory3, setCreateParentCategory3] = useState("");
+  const [createParentCategory2, setCreateParentCategory2] = useState("");
+  const [createParentCategory2Options, setCreateParentCategory2Options] =
+    useState<string[]>([]);
+  const [createCategoryError, setCreateCategoryError] = useState<string | null>(
+    null,
+  );
+  const [createCategorySuccess, setCreateCategorySuccess] = useState<
+    string | null
+  >(null);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [showCreateConfirmation, setShowCreateConfirmation] = useState(false);
+  const [createConfirmChecked, setCreateConfirmChecked] = useState(false);
+
   useEffect(() => {
     let disposed = false;
 
@@ -343,6 +361,195 @@ export default function StaffCategoryManagementPage() {
     setDeleteConfirmChecked(false);
     setShowDeleteConfirmation(false);
     setShowSaveConfirmation(false);
+  };
+
+  const closeCreatePopup = () => {
+    setShowCreatePopup(false);
+    setCreateCategoryName("");
+    setCreateParentCategory3("");
+    setCreateParentCategory2("");
+    setCreateParentCategory2Options([]);
+    setCreateCategoryError(null);
+    setCreateCategorySuccess(null);
+    setShowCreateConfirmation(false);
+    setCreateConfirmChecked(false);
+  };
+
+  const openCreatePopup = (level: CategoryLevel) => {
+    setEditPopupContext(null);
+    setShowSaveConfirmation(false);
+    setShowCreatePopup(true);
+    setCreateCategoryLevel(level);
+    setCreateCategoryName("");
+    setCreateCategoryError(null);
+    setCreateCategorySuccess(null);
+    setShowCreateConfirmation(false);
+    setCreateConfirmChecked(false);
+
+    if (level === "category3") {
+      setCreateParentCategory3("");
+      setCreateParentCategory2("");
+      setCreateParentCategory2Options([]);
+      return;
+    }
+
+    if (level === "category2") {
+      setCreateParentCategory3(selectedCategory ?? "");
+      setCreateParentCategory2("");
+      setCreateParentCategory2Options([]);
+      return;
+    }
+
+    setCreateParentCategory3(selectedCategory ?? "");
+    setCreateParentCategory2(selectedSubcategory ?? "");
+  };
+
+  useEffect(() => {
+    let disposed = false;
+
+    if (!showCreatePopup || createCategoryLevel !== "category1") {
+      return;
+    }
+
+    if (!createParentCategory3.trim()) {
+      setCreateParentCategory2Options([]);
+      setCreateParentCategory2("");
+      return;
+    }
+
+    const loadSubcategoryOptions = async () => {
+      try {
+        const response = await fetch(
+          `/api/catalog/staff/subcategories?category=${encodeURIComponent(createParentCategory3)}`,
+          { cache: "no-store" },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load subcategories.");
+        }
+
+        const payload = (await response.json()) as SubcategoryApiResponse;
+        const nextOptions = fetchListKey(payload, "subcategories");
+
+        if (disposed) {
+          return;
+        }
+
+        setCreateParentCategory2Options(nextOptions);
+        setCreateParentCategory2((current) =>
+          nextOptions.includes(current) ? current : "",
+        );
+      } catch {
+        if (!disposed) {
+          setCreateParentCategory2Options([]);
+          setCreateParentCategory2("");
+        }
+      }
+    };
+
+    loadSubcategoryOptions();
+
+    return () => {
+      disposed = true;
+    };
+  }, [showCreatePopup, createCategoryLevel, createParentCategory3]);
+
+  const getCreateValidationError = (): string | null => {
+    const trimmedName = createCategoryName.trim();
+    if (!trimmedName) {
+      return "Category name is required.";
+    }
+
+    if (createCategoryLevel !== "category3" && !createParentCategory3.trim()) {
+      return "Parent Category is required.";
+    }
+
+    if (createCategoryLevel === "category1" && !createParentCategory2.trim()) {
+      return "Parent Subcategory is required.";
+    }
+
+    return null;
+  };
+
+  const handleCreateCategory = async () => {
+    const validationError = getCreateValidationError();
+    if (validationError) {
+      setCreateCategoryError(validationError);
+      setCreateCategorySuccess(null);
+      return;
+    }
+
+    if (!createConfirmChecked) {
+      setCreateCategoryError("Please confirm before creating.");
+      setCreateCategorySuccess(null);
+      return;
+    }
+
+    setIsCreatingCategory(true);
+    setCreateCategoryError(null);
+    setCreateCategorySuccess(null);
+    setShowCreateConfirmation(false);
+
+    try {
+      const trimmedName = createCategoryName.trim();
+      const response = await fetch("/api/catalog/staff/categories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          level: createCategoryLevel,
+          name: trimmedName,
+          parentCategory3:
+            createCategoryLevel === "category3"
+              ? null
+              : createParentCategory3.trim(),
+          parentCategory2:
+            createCategoryLevel === "category1"
+              ? createParentCategory2.trim()
+              : null,
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        error?: string;
+        details?: string;
+      };
+
+      if (!response.ok || !payload.success) {
+        const message =
+          payload.error && payload.details
+            ? `${payload.error} ${payload.details}`
+            : payload.error || "Failed to create category.";
+        throw new Error(message);
+      }
+
+      if (createCategoryLevel === "category3") {
+        setSelectedCategory(trimmedName);
+        setSelectedSubcategory(null);
+        setSelectedType(null);
+      } else if (createCategoryLevel === "category2") {
+        setSelectedCategory(createParentCategory3.trim());
+        setSelectedSubcategory(trimmedName);
+        setSelectedType(null);
+      } else {
+        setSelectedCategory(createParentCategory3.trim());
+        setSelectedSubcategory(createParentCategory2.trim());
+        setSelectedType(trimmedName);
+      }
+
+      setSubcategoryPage(1);
+      setTypePage(1);
+      setRefreshToken((current) => current + 1);
+      closeCreatePopup();
+    } catch (error) {
+      setCreateCategoryError(
+        error instanceof Error ? error.message : "Failed to create category.",
+      );
+    } finally {
+      setIsCreatingCategory(false);
+    }
   };
 
   useEffect(() => {
@@ -708,7 +915,17 @@ export default function StaffCategoryManagementPage() {
 
       <div className="staffGrid">
         <div className="staffCard col4 category-mgmt-panel">
-          <div className="staffCardLabel">Category (Level 3)</div>
+          <div className="category-mgmt-panel-header">
+            <div className="staffCardLabel">Category (Level 3)</div>
+            <button
+              type="button"
+              className="category-mgmt-add-btn"
+              onClick={() => openCreatePopup("category3")}
+              aria-label="Create new category"
+            >
+              +
+            </button>
+          </div>
           <div className="category-mgmt-table-wrap">
             <table className="category-mgmt-table">
               <thead className="category-mgmt-thead">
@@ -795,7 +1012,17 @@ export default function StaffCategoryManagementPage() {
         </div>
 
         <div className="staffCard col4 category-mgmt-panel">
-          <div className="staffCardLabel">Subcategory (Level 2)</div>
+          <div className="category-mgmt-panel-header">
+            <div className="staffCardLabel">Subcategory (Level 2)</div>
+            <button
+              type="button"
+              className="category-mgmt-add-btn"
+              onClick={() => openCreatePopup("category2")}
+              aria-label="Create new subcategory"
+            >
+              +
+            </button>
+          </div>
           <div className="category-mgmt-table-wrap">
             <table className="category-mgmt-table">
               <thead className="category-mgmt-thead">
@@ -886,7 +1113,17 @@ export default function StaffCategoryManagementPage() {
         </div>
 
         <div className="staffCard col4 category-mgmt-panel">
-          <div className="staffCardLabel">Type (Level 1)</div>
+          <div className="category-mgmt-panel-header">
+            <div className="staffCardLabel">Type (Level 1)</div>
+            <button
+              type="button"
+              className="category-mgmt-add-btn"
+              onClick={() => openCreatePopup("category1")}
+              aria-label="Create new type"
+            >
+              +
+            </button>
+          </div>
           <div className="category-mgmt-table-wrap">
             <table className="category-mgmt-table">
               <thead className="category-mgmt-thead">
@@ -974,6 +1211,194 @@ export default function StaffCategoryManagementPage() {
           />
         </div>
       </div>
+      {showCreatePopup ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Create New Category"
+          className="item-category-modal"
+          onClick={closeCreatePopup}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">
+              Creating New{" "}
+              {createCategoryLevel === "category3"
+                ? "Category"
+                : createCategoryLevel === "category2"
+                  ? "Subcategory"
+                  : "Type"}
+            </div>
+            <form
+              className="item-category-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const validationError = getCreateValidationError();
+                if (validationError) {
+                  setCreateCategoryError(validationError);
+                  setCreateCategorySuccess(null);
+                  setShowCreateConfirmation(false);
+                  return;
+                }
+                setCreateCategoryError(null);
+                setCreateCategorySuccess(null);
+                setCreateConfirmChecked(false);
+                setShowCreateConfirmation(true);
+              }}
+              noValidate
+            >
+              <label className="item-category-form__field">
+                <span className="item-category-form__label">Name</span>
+                <input
+                  className="item-search-page__search-input"
+                  type="text"
+                  value={createCategoryName}
+                  onChange={(event) =>
+                    setCreateCategoryName(event.target.value)
+                  }
+                  placeholder="Enter a unique name"
+                />
+              </label>
+
+              {createCategoryLevel !== "category3" ? (
+                <label className="item-category-form__field">
+                  <span className="item-category-form__label">
+                    Parent Category
+                  </span>
+                  <select
+                    className="item-search-page__select"
+                    value={createParentCategory3}
+                    onChange={(event) => {
+                      setCreateParentCategory3(event.target.value);
+                      setCreateParentCategory2("");
+                    }}
+                  >
+                    <option value="">None</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              {createCategoryLevel === "category1" ? (
+                <label className="item-category-form__field">
+                  <span className="item-category-form__label">
+                    Parent Subcategory
+                  </span>
+                  <select
+                    className="item-search-page__select"
+                    value={createParentCategory2}
+                    onChange={(event) =>
+                      setCreateParentCategory2(event.target.value)
+                    }
+                    disabled={!createParentCategory3.trim()}
+                  >
+                    <option value="">None</option>
+                    {createParentCategory2Options.map((subcategory) => (
+                      <option key={subcategory} value={subcategory}>
+                        {subcategory}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              {createCategoryError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {createCategoryError}
+                </div>
+              ) : null}
+              {createCategorySuccess ? (
+                <div className="item-category-form__status item-category-form__status--success">
+                  {createCategorySuccess}
+                </div>
+              ) : null}
+
+              <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+                <button
+                  type="button"
+                  onClick={closeCreatePopup}
+                  className="staff-dev-pill"
+                  disabled={isCreatingCategory}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="staff-dev-pill staff-dev-pill--ready"
+                  disabled={isCreatingCategory}
+                >
+                  {isCreatingCategory ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+      {showCreatePopup && showCreateConfirmation ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Create Category"
+          className="item-category-modal"
+          onClick={() => setShowCreateConfirmation(false)}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Creation</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to create this{" "}
+              {createCategoryLevel === "category3"
+                ? "category"
+                : createCategoryLevel === "category2"
+                  ? "subcategory"
+                  : "type"}
+              ?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>
+                New entry:{" "}
+                <strong>{createCategoryName.trim() || "Unnamed"}</strong>
+              </p>
+            </div>
+            <label className="category-mgmt-delete-confirm">
+              <input
+                type="checkbox"
+                checked={createConfirmChecked}
+                onChange={(event) =>
+                  setCreateConfirmChecked(event.target.checked)
+                }
+              />
+              Yes, I&apos;m sure.
+            </label>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={() => setShowCreateConfirmation(false)}
+                disabled={isCreatingCategory}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--ready"
+                onClick={() => void handleCreateCategory()}
+                disabled={isCreatingCategory}
+              >
+                {isCreatingCategory ? "Creating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {editPopupContext ? (
         <div
           role="dialog"
