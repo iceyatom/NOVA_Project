@@ -216,6 +216,227 @@
 }
 
 /* =========
+   Category Management Tables
+   ========= */
+
+.category-mgmt-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 640px;
+}
+
+.category-mgmt-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.category-mgmt-add-btn {
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin-top: -20px;
+  border: none;
+  background: transparent;
+  color: #065f46;
+  font-size: 1.4rem;
+  line-height: 1;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 0 rgba(209, 250, 229, 0.9);
+}
+
+.category-mgmt-add-btn:hover {
+  color: #047857;
+  transform: scale(1.08);
+}
+
+.category-mgmt-table-wrap {
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.category-mgmt-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.category-mgmt-thead {
+  background-color: var(--brand-teal);
+}
+
+.category-mgmt-th {
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--brand-teal-contrast);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.category-mgmt-tr {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.category-mgmt-tr:last-child {
+  border-bottom: none;
+}
+
+.category-mgmt-tr--selected .category-mgmt-td {
+  background: rgba(16, 185, 129, 0.12);
+  color: #064e3b;
+}
+
+.category-mgmt-tr--selected .item-search-page__edit-link {
+  color: #065f46;
+  font-weight: 700;
+}
+
+.category-mgmt-td {
+  padding: 1rem 1.5rem;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.category-mgmt-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.category-mgmt-selected-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  line-height: 1;
+  color: #064e3b;
+  background: radial-gradient(circle at 35% 30%, #d1fae5, #86efac);
+  border: 1px solid rgba(6, 95, 70, 0.2);
+  box-shadow: 0 1px 2px rgba(6, 95, 70, 0.2);
+  cursor: pointer;
+  transform: scaleX(-1) rotate(-12deg);
+}
+
+.category-mgmt-selected-icon:hover {
+  box-shadow: 0 2px 6px rgba(6, 95, 70, 0.28);
+}
+
+.category-mgmt-edit-modal__content {
+  width: min(680px, 96vw);
+  max-width: 680px;
+  padding: 1.6rem 1.65rem;
+  text-align: left;
+}
+
+.category-mgmt-edit-modal__content .item-category-modal__title {
+  font-size: 1.3rem;
+  line-height: 1.25;
+}
+
+.category-mgmt-edit-modal__content .item-category-form {
+  gap: 0.95rem;
+}
+
+.category-mgmt-edit-modal__content .item-category-form__label {
+  font-size: 0.88rem;
+}
+
+.category-mgmt-edit-modal__content .item-search-page__search-input,
+.category-mgmt-edit-modal__content .item-search-page__select {
+  font-size: 1rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.category-mgmt-edit-modal__content .item-category-form__status {
+  font-size: 0.95rem;
+}
+
+.category-mgmt-edit-modal__content .staff-dev-pill {
+  font-size: 0.98rem;
+  padding: 0.62rem 1.05rem;
+}
+
+.category-mgmt-edit-modal__label--dirty {
+  color: rgb(192, 96, 0);
+}
+
+.category-mgmt-edit-modal__actions {
+  justify-content: space-between;
+}
+
+.category-mgmt-confirm-modal__content {
+  max-width: 360px;
+  text-align: center;
+}
+
+.category-mgmt-confirm-modal__message {
+  margin: 0.85rem 0 0.35rem;
+  color: #334155;
+}
+
+.category-mgmt-confirm-modal__actions {
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.category-mgmt-delete-warning {
+  margin-top: 0.15rem;
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.9rem;
+}
+
+.category-mgmt-delete-warning p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.category-mgmt-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.staff-dev-pill--danger {
+  background: #dc2626;
+  border-color: rgba(127, 29, 29, 0.35);
+  color: #ffffff;
+}
+
+.staff-dev-pill--danger:hover {
+  background: #b91c1c;
+}
+
+.category-mgmt-pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* =========
    Responsive
    ========= */
 

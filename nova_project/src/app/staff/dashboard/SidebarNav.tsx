@@ -55,6 +55,16 @@ export default function SidebarNav() {
           { label: "Edit Item", href: "/staff/item_edit" },
         ]}
       />
+
+      <Section
+        title="Categories"
+        items={[
+          {
+            label: "Category Management",
+            href: "/staff/category_management",
+          },
+        ]}
+      />
     </nav>
   );
 }
