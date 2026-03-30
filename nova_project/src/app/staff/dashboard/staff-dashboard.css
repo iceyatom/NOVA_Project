@@ -277,6 +277,94 @@
   font-size: 0.875rem;
 }
 
+.category-mgmt-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.category-mgmt-selected-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  line-height: 1;
+  color: #064e3b;
+  background: radial-gradient(circle at 35% 30%, #d1fae5, #86efac);
+  border: 1px solid rgba(6, 95, 70, 0.2);
+  box-shadow: 0 1px 2px rgba(6, 95, 70, 0.2);
+  cursor: pointer;
+  transform: scaleX(-1) rotate(-12deg);
+}
+
+.category-mgmt-selected-icon:hover {
+  box-shadow: 0 2px 6px rgba(6, 95, 70, 0.28);
+}
+
+.category-mgmt-edit-modal__content {
+  text-align: left;
+}
+
+.category-mgmt-edit-modal__label--dirty {
+  color: rgb(192, 96, 0);
+}
+
+.category-mgmt-edit-modal__actions {
+  justify-content: space-between;
+}
+
+.category-mgmt-confirm-modal__content {
+  max-width: 360px;
+  text-align: center;
+}
+
+.category-mgmt-confirm-modal__message {
+  margin: 0.85rem 0 0.35rem;
+  color: #334155;
+}
+
+.category-mgmt-confirm-modal__actions {
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.category-mgmt-delete-warning {
+  margin-top: 0.15rem;
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.9rem;
+}
+
+.category-mgmt-delete-warning p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.category-mgmt-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.staff-dev-pill--danger {
+  background: #dc2626;
+  border-color: rgba(127, 29, 29, 0.35);
+  color: #ffffff;
+}
+
+.staff-dev-pill--danger:hover {
+  background: #b91c1c;
+}
+
 .category-mgmt-pagination-controls {
   display: flex;
   justify-content: center;
