@@ -1005,7 +1005,11 @@ async function resolveCategoryIds(
   }
 
   if (!payload.category1) {
-    return { category1: null, category2: category2.id, category3: category3.id };
+    return {
+      category1: null,
+      category2: category2.id,
+      category3: category3.id,
+    };
   }
 
   const category1 = await prisma.category1.findFirst({

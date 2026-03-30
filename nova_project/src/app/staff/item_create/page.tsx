@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 
 type CreateItemForm = {
   sku: string;
@@ -67,11 +67,179 @@ type CreateApiResponse = {
   details?: unknown;
 };
 
+type DropdownWithNewProps = {
+  value: string;
+  placeholder: string;
+  options: string[];
+  ariaLabel: string;
+  onSelect: (value: string) => void;
+  onNewClick: () => void;
+};
+
+function DropdownWithNew({
+  value,
+  placeholder,
+  options,
+  ariaLabel,
+  onSelect,
+  onNewClick,
+}: DropdownWithNewProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!dropdownRef.current) return;
+      if (!dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  return (
+    <div ref={dropdownRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        className="item-search-page__select"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+        style={{
+          width: "100%",
+          minHeight: "38px",
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          font: "inherit",
+          boxSizing: "border-box",
+        }}
+      >
+        <span
+          style={{
+            opacity: value ? 1 : 0.7,
+            whiteSpace: "normal",
+            overflowWrap: "anywhere",
+            lineHeight: 1.2,
+            marginRight: "8px",
+          }}
+        >
+          {value || placeholder}
+        </span>
+        <span
+          aria-hidden="true"
+          style={{
+            marginLeft: "8px",
+            display: "inline-block",
+            minWidth: "16px",
+            textAlign: "center",
+            fontSize: isOpen ? "1.1rem" : "1.35rem",
+            lineHeight: 1,
+          }}
+        >
+          {isOpen ? "−" : "▾"}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div
+          role="listbox"
+          aria-label={`${ariaLabel} options`}
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            right: 0,
+            background: "#fff",
+            border: "1px solid rgba(0, 0, 0, 0.2)",
+            borderRadius: "8px",
+            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.16)",
+            maxHeight: "260px",
+            overflowY: "auto",
+            zIndex: 1200,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              onSelect("");
+              setIsOpen(false);
+            }}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              border: 0,
+              background: "transparent",
+              padding: "4px 6px",
+              cursor: "pointer",
+              opacity: 0.8,
+              font: "inherit",
+            }}
+          >
+            {placeholder}
+          </button>
+
+          {options.length > 0 ? (
+            options.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  onSelect(option);
+                  setIsOpen(false);
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  border: 0,
+                  background: "transparent",
+                  padding: "4px 6px",
+                  cursor: "pointer",
+                  font: "inherit",
+                }}
+              >
+                {option}
+              </button>
+            ))
+          ) : (
+            <div style={{ padding: "10px 12px", opacity: 0.7 }}>No options</div>
+          )}
+
+          <div
+            style={{
+              borderTop: "1px solid rgba(0, 0, 0, 0.15)",
+              padding: "4px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onNewClick();
+              }}
+              className="staff-dev-pill"
+              style={{ width: "100%" }}
+            >
+              New
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function StaffItemCreatePage() {
   const [form, setForm] = useState<CreateItemForm>(INITIAL_FORM);
   const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
+  const [showNewCategoryPopup, setShowNewCategoryPopup] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
   );
@@ -388,68 +556,56 @@ export default function StaffItemCreatePage() {
 
               <label className="item-create-field">
                 <span className="item-create-label">Category *</span>
-                <select
-                  className="item-search-page__select"
+                <DropdownWithNew
+                  ariaLabel="Category"
                   value={form.category3}
-                  onChange={(e) =>
+                  placeholder="Select category"
+                  options={categories}
+                  onSelect={(nextCategory) =>
                     setForm((prev) => ({
                       ...prev,
-                      category3: e.target.value,
+                      category3: nextCategory,
                       category2: "",
                       category1: "",
                     }))
                   }
-                >
-                  <option value="">Select category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
+                  onNewClick={() => setShowNewCategoryPopup(true)}
+                />
               </label>
 
               <label className="item-create-field">
                 <span className="item-create-label">Subcategory *</span>
-                <select
-                  className="item-search-page__select"
+                <DropdownWithNew
+                  ariaLabel="Subcategory"
                   value={form.category2}
-                  onChange={(e) =>
+                  placeholder="Select subcategory"
+                  options={subcategories}
+                  onSelect={(nextSubcategory) =>
                     setForm((prev) => ({
                       ...prev,
-                      category2: e.target.value,
+                      category2: nextSubcategory,
                       category1: "",
                     }))
                   }
-                >
-                  <option value="">Select subcategory</option>
-                  {subcategories.map((subcategory) => (
-                    <option key={subcategory} value={subcategory}>
-                      {subcategory}
-                    </option>
-                  ))}
-                </select>
+                  onNewClick={() => setShowNewCategoryPopup(true)}
+                />
               </label>
 
               <label className="item-create-field">
                 <span className="item-create-label">Type *</span>
-                <select
-                  className="item-search-page__select"
+                <DropdownWithNew
+                  ariaLabel="Type"
                   value={form.category1}
-                  onChange={(e) =>
+                  placeholder="Select type"
+                  options={types}
+                  onSelect={(nextType) =>
                     setForm((prev) => ({
                       ...prev,
-                      category1: e.target.value,
+                      category1: nextType,
                     }))
                   }
-                >
-                  <option value="">Select type</option>
-                  {types.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
+                  onNewClick={() => setShowNewCategoryPopup(true)}
+                />
               </label>
 
               <label className="item-create-field">
@@ -626,6 +782,48 @@ export default function StaffItemCreatePage() {
           </form>
         </div>
       </div>
+
+      {showNewCategoryPopup && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="New Category Access Status"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              background: "#fff",
+              borderRadius: "10px",
+              padding: "20px",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.2)",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "1.05rem", fontWeight: 700 }}>
+              the access was a success for now
+            </div>
+            <button
+              type="button"
+              className="staff-dev-pill"
+              onClick={() => setShowNewCategoryPopup(false)}
+              style={{ marginTop: "14px" }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
