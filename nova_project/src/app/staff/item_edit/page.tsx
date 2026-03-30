@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import CategoryCombo from "@/app/components/CategoryCombo";
 
 type Item = {
   id: number | null;
@@ -32,114 +33,14 @@ type CatalogApiResponse = {
   data: unknown;
 };
 
-type DropdownWithNewProps = {
-  value: string;
-  placeholder: string;
-  options: string[];
-  ariaLabel: string;
-  onSelect: (value: string) => void;
-  onNewClick: () => void;
+type CategoryLevel = "category3" | "category2" | "category1";
+
+type CreateCategoryApiResponse = {
+  success?: boolean;
+  error?: unknown;
+  details?: unknown;
 };
 
-function DropdownWithNew({
-  value,
-  placeholder,
-  options,
-  ariaLabel,
-  onSelect,
-  onNewClick,
-}: DropdownWithNewProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (!dropdownRef.current) return;
-      if (!dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
-
-  return (
-    <div ref={dropdownRef} className="item-dropdown">
-      <button
-        type="button"
-        className="item-search-page__select item-dropdown__trigger"
-        aria-label={ariaLabel}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((prev) => !prev)}
-      >
-        <span
-          className={`item-dropdown__trigger-text${value ? "" : " item-dropdown__trigger-text--placeholder"}`}
-        >
-          {value || placeholder}
-        </span>
-        <span aria-hidden="true" className="item-dropdown__trigger-icon">
-          {isOpen ? "\u25B4" : "\u25BE"}
-        </span>
-      </button>
-
-      {isOpen && (
-        <div
-          role="listbox"
-          aria-label={`${ariaLabel} options`}
-          className="item-dropdown__menu"
-        >
-          <button
-            type="button"
-            onClick={() => {
-              onSelect("");
-              setIsOpen(false);
-            }}
-            className="item-dropdown__option item-dropdown__option--placeholder"
-          >
-            None
-          </button>
-
-          {options.length > 0 ? (
-            options.map((option) => {
-              const isSelected = value === option;
-
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    onSelect(option);
-                    setIsOpen(false);
-                  }}
-                  className={`item-dropdown__option${isSelected ? " item-dropdown__option--selected" : ""}`}
-                >
-                  {option}
-                </button>
-              );
-            })
-          ) : (
-            <div className="item-dropdown__empty">No options</div>
-          )}
-
-          <div className="item-dropdown__footer">
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                onNewClick();
-              }}
-              className="staff-dev-pill item-dropdown__new-button"
-            >
-              New
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
@@ -399,6 +300,19 @@ function StaffItemEditPageContent() {
   const [subcategories, setSubcategories] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [showNewCategoryPopup, setShowNewCategoryPopup] = useState(false);
+  const [newCategoryLevel, setNewCategoryLevel] =
+    useState<CategoryLevel>("category3");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newParentCategory3, setNewParentCategory3] = useState("");
+  const [newParentCategory2, setNewParentCategory2] = useState("");
+  const [newParentCategory2Options, setNewParentCategory2Options] = useState<
+    string[]
+  >([]);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategoryError, setNewCategoryError] = useState<string | null>(null);
+  const [newCategorySuccess, setNewCategorySuccess] = useState<string | null>(
+    null,
+  );
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
   );
@@ -476,101 +390,140 @@ function StaffItemEditPageContent() {
     };
   }, [itemId]);
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch("/api/catalog/categories", {
-          cache: "no-store",
-        });
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch("/api/catalog/categories", {
+        cache: "no-store",
+      });
 
-        if (!response.ok) {
-          setCategories([]);
-          return;
-        }
-
-        const payload = (await response.json()) as { categories?: unknown };
-        const nextCategories = Array.isArray(payload?.categories)
-          ? payload.categories.filter(
-              (entry): entry is string => typeof entry === "string",
-            )
-          : [];
-
-        setCategories(nextCategories);
-      } catch {
+      if (!response.ok) {
         setCategories([]);
+        return;
       }
-    };
 
+      const payload = (await response.json()) as { categories?: unknown };
+      const nextCategories = Array.isArray(payload?.categories)
+        ? payload.categories.filter(
+            (entry): entry is string => typeof entry === "string",
+          )
+        : [];
+
+      setCategories(nextCategories);
+    } catch {
+      setCategories([]);
+    }
+  };
+
+  const fetchSubcategories = async (category: string) => {
+    if (!category.trim()) {
+      setSubcategories([]);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/catalog/staff/subcategories?category=${encodeURIComponent(category)}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) {
+        setSubcategories([]);
+        return;
+      }
+
+      const payload = (await response.json()) as { subcategories?: unknown };
+      const nextSubcategories = Array.isArray(payload?.subcategories)
+        ? payload.subcategories.filter(
+            (entry): entry is string => typeof entry === "string",
+          )
+        : [];
+      setSubcategories(nextSubcategories);
+    } catch {
+      setSubcategories([]);
+    }
+  };
+
+  const fetchTypes = async (category: string, subcategory: string) => {
+    if (!category.trim() || !subcategory.trim()) {
+      setTypes([]);
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        category,
+        subcategory,
+      });
+      const response = await fetch(
+        `/api/catalog/staff/types?${params.toString()}`,
+        {
+          cache: "no-store",
+        },
+      );
+      if (!response.ok) {
+        setTypes([]);
+        return;
+      }
+
+      const payload = (await response.json()) as { types?: unknown };
+      const nextTypes = Array.isArray(payload?.types)
+        ? payload.types.filter(
+            (entry): entry is string => typeof entry === "string",
+          )
+        : [];
+      setTypes(nextTypes);
+    } catch {
+      setTypes([]);
+    }
+  };
+
+  useEffect(() => {
     fetchCategories();
   }, []);
 
   useEffect(() => {
-    const fetchSubcategories = async () => {
-      if (!form.category3.trim()) {
-        setSubcategories([]);
+    fetchSubcategories(form.category3);
+  }, [form.category3]);
+
+  useEffect(() => {
+    fetchTypes(form.category3, form.category2);
+  }, [form.category3, form.category2]);
+
+  useEffect(() => {
+    const fetchParentCategory2Options = async () => {
+      if (
+        !showNewCategoryPopup ||
+        newCategoryLevel !== "category1" ||
+        !newParentCategory3.trim()
+      ) {
+        setNewParentCategory2Options([]);
         return;
       }
 
       try {
         const response = await fetch(
-          `/api/catalog/staff/subcategories?category=${encodeURIComponent(form.category3)}`,
+          `/api/catalog/staff/subcategories?category=${encodeURIComponent(newParentCategory3)}`,
           { cache: "no-store" },
         );
+
         if (!response.ok) {
-          setSubcategories([]);
+          setNewParentCategory2Options([]);
           return;
         }
 
         const payload = (await response.json()) as { subcategories?: unknown };
-        const nextSubcategories = Array.isArray(payload?.subcategories)
+        const options = Array.isArray(payload?.subcategories)
           ? payload.subcategories.filter(
               (entry): entry is string => typeof entry === "string",
             )
           : [];
-        setSubcategories(nextSubcategories);
+        setNewParentCategory2Options(options);
       } catch {
-        setSubcategories([]);
+        setNewParentCategory2Options([]);
       }
     };
 
-    fetchSubcategories();
-  }, [form.category3]);
-
-  useEffect(() => {
-    const fetchTypes = async () => {
-      if (!form.category3.trim() || !form.category2.trim()) {
-        setTypes([]);
-        return;
-      }
-
-      try {
-        const params = new URLSearchParams({
-          category: form.category3,
-          subcategory: form.category2,
-        });
-        const response = await fetch(
-          `/api/catalog/staff/types?${params.toString()}`,
-          { cache: "no-store" },
-        );
-        if (!response.ok) {
-          setTypes([]);
-          return;
-        }
-
-        const payload = (await response.json()) as { types?: unknown };
-        const nextTypes = Array.isArray(payload?.types)
-          ? payload.types.filter(
-              (entry): entry is string => typeof entry === "string",
-            )
-          : [];
-        setTypes(nextTypes);
-      } catch {
-        setTypes([]);
-      }
-    };
-
-    fetchTypes();
-  }, [form.category3, form.category2]);
+    fetchParentCategory2Options();
+  }, [showNewCategoryPopup, newCategoryLevel, newParentCategory3]);
 
   const update =
     <K extends keyof ItemForm>(key: K) =>
@@ -715,6 +668,119 @@ function StaffItemEditPageContent() {
     setSelectedImageIndex(null);
   };
 
+  function openNewCategoryPopup(level: CategoryLevel) {
+    setNewCategoryLevel(level);
+    setNewCategoryName("");
+    setNewCategoryError(null);
+    setNewCategorySuccess(null);
+
+    if (level === "category3") {
+      setNewParentCategory3("");
+      setNewParentCategory2("");
+    } else if (level === "category2") {
+      setNewParentCategory3(form.category3.trim());
+      setNewParentCategory2("");
+    } else {
+      setNewParentCategory3(form.category3.trim());
+      setNewParentCategory2(form.category2.trim());
+    }
+
+    setShowNewCategoryPopup(true);
+  }
+
+  function closeNewCategoryPopup() {
+    if (isCreatingCategory) return;
+    setShowNewCategoryPopup(false);
+    setNewCategoryError(null);
+    setNewCategorySuccess(null);
+  }
+
+  async function handleCreateCategory(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setNewCategoryError(null);
+    setNewCategorySuccess(null);
+
+    const name = newCategoryName.trim();
+    if (!name) {
+      setNewCategoryError("Category name is required.");
+      return;
+    }
+
+    if (newCategoryLevel !== "category3" && !newParentCategory3.trim()) {
+      setNewCategoryError("Parent Category is required.");
+      return;
+    }
+
+    if (newCategoryLevel === "category1" && !newParentCategory2.trim()) {
+      setNewCategoryError("Parent Subcategory is required.");
+      return;
+    }
+
+    const payload = {
+      level: newCategoryLevel,
+      name,
+      parentCategory3:
+        newCategoryLevel === "category3" ? null : newParentCategory3.trim(),
+      parentCategory2:
+        newCategoryLevel === "category1" ? newParentCategory2.trim() : null,
+    };
+
+    setIsCreatingCategory(true);
+
+    try {
+      const response = await fetch("/api/catalog/staff/categories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = (await response.json()) as CreateCategoryApiResponse;
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Create category failed (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      setNewCategorySuccess("Category created successfully.");
+      setNewCategoryName("");
+
+      await fetchCategories();
+
+      if (
+        newCategoryLevel === "category2" &&
+        form.category3.trim() &&
+        form.category3.trim() === newParentCategory3.trim()
+      ) {
+        await fetchSubcategories(form.category3.trim());
+      }
+
+      if (
+        newCategoryLevel === "category1" &&
+        form.category3.trim() &&
+        form.category2.trim() &&
+        form.category3.trim() === newParentCategory3.trim() &&
+        form.category2.trim() === newParentCategory2.trim()
+      ) {
+        await fetchTypes(form.category3.trim(), form.category2.trim());
+      }
+    } catch (createError) {
+      setNewCategoryError(
+        createError instanceof Error
+          ? createError.message
+          : "Failed to create category.",
+      );
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  }
+
   return (
     <div>
       <div className="staffTitle">Edit Catalog Item</div>
@@ -822,7 +888,7 @@ function StaffItemEditPageContent() {
                   <span className={fieldNameClass(isFieldDirty("category3"))}>
                     Category *
                   </span>
-                  <DropdownWithNew
+                  <CategoryCombo
                     ariaLabel="Category"
                     value={form.category3}
                     placeholder="Select category"
@@ -835,7 +901,7 @@ function StaffItemEditPageContent() {
                         category1: "",
                       }))
                     }
-                    onNewClick={() => setShowNewCategoryPopup(true)}
+                    onNewClick={() => openNewCategoryPopup("category3")}
                   />
                 </label>
 
@@ -843,7 +909,7 @@ function StaffItemEditPageContent() {
                   <span className={fieldNameClass(isFieldDirty("category2"))}>
                     Subcategory *
                   </span>
-                  <DropdownWithNew
+                  <CategoryCombo
                     ariaLabel="Subcategory"
                     value={form.category2}
                     placeholder="Select subcategory"
@@ -855,7 +921,7 @@ function StaffItemEditPageContent() {
                         category1: "",
                       }))
                     }
-                    onNewClick={() => setShowNewCategoryPopup(true)}
+                    onNewClick={() => openNewCategoryPopup("category2")}
                   />
                 </label>
 
@@ -863,7 +929,7 @@ function StaffItemEditPageContent() {
                   <span className={fieldNameClass(isFieldDirty("category1"))}>
                     Type *
                   </span>
-                  <DropdownWithNew
+                  <CategoryCombo
                     ariaLabel="Type"
                     value={form.category1}
                     placeholder="Select type"
@@ -874,7 +940,7 @@ function StaffItemEditPageContent() {
                         category1: nextType,
                       }))
                     }
-                    onNewClick={() => setShowNewCategoryPopup(true)}
+                    onNewClick={() => openNewCategoryPopup("category1")}
                   />
                 </label>
               </div>
@@ -1070,20 +1136,109 @@ function StaffItemEditPageContent() {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="New Category Access Status"
+          aria-label="Create New Category"
           className="item-category-modal"
         >
           <div className="item-category-modal__content">
             <div className="item-category-modal__title">
-              the access was a success for now
+              Creating New{" "}
+              {newCategoryLevel === "category3"
+                ? "Category"
+                : newCategoryLevel === "category2"
+                  ? "Subcategory"
+                  : "Type"}
             </div>
-            <button
-              type="button"
-              onClick={() => setShowNewCategoryPopup(false)}
-              className="staff-dev-pill item-category-modal__close"
+
+            <form
+              className="item-category-form"
+              onSubmit={handleCreateCategory}
+              noValidate
             >
-              Close
-            </button>
+              <label className="item-category-form__field">
+                <span className="item-category-form__label">Name</span>
+                <input
+                  className="item-search-page__search-input"
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Enter a unique name"
+                />
+              </label>
+
+              {newCategoryLevel !== "category3" && (
+                <label className="item-category-form__field">
+                  <span className="item-category-form__label">
+                    Parent Category
+                  </span>
+                  <select
+                    className="item-search-page__select"
+                    value={newParentCategory3}
+                    onChange={(e) => {
+                      setNewParentCategory3(e.target.value);
+                      setNewParentCategory2("");
+                    }}
+                  >
+                    <option value="">None</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {newCategoryLevel === "category1" && (
+                <label className="item-category-form__field">
+                  <span className="item-category-form__label">
+                    Parent Subcategory
+                  </span>
+                  <select
+                    className="item-search-page__select"
+                    value={newParentCategory2}
+                    onChange={(e) => setNewParentCategory2(e.target.value)}
+                    disabled={!newParentCategory3.trim()}
+                  >
+                    <option value="">None</option>
+                    {newParentCategory2Options.map((subcategory) => (
+                      <option key={subcategory} value={subcategory}>
+                        {subcategory}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {newCategoryError && (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {newCategoryError}
+                </div>
+              )}
+
+              {newCategorySuccess && (
+                <div className="item-category-form__status item-category-form__status--success">
+                  {newCategorySuccess}
+                </div>
+              )}
+
+              <div className="item-category-form__actions">
+                <button
+                  type="button"
+                  onClick={closeNewCategoryPopup}
+                  className="staff-dev-pill"
+                  disabled={isCreatingCategory}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="staff-dev-pill staff-dev-pill--ready"
+                  disabled={isCreatingCategory}
+                >
+                  {isCreatingCategory ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

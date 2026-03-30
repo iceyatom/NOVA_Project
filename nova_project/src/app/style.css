@@ -2583,6 +2583,51 @@ body:has(.loginPage) main {
   margin-top: 14px;
 }
 
+.item-category-form {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.7rem;
+  text-align: left;
+}
+
+.item-category-form__field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.item-category-form__label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.item-category-form__status {
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.88rem;
+}
+
+.item-category-form__status--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.item-category-form__status--success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.item-category-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
+}
+
 @media (max-width: 700px) {
   .item-search-page__filter-row {
     flex-direction: column;
