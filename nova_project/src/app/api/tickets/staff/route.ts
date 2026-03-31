@@ -162,9 +162,12 @@ export async function POST(request: NextRequest) {
     ];
     const foundCatalogItems = await prisma.catalogItem.findMany({
       where: { id: { in: catalogIds } },
-      select: { id: true },
+      select: { id: true, itemName: true, quantityInStock: true },
     });
     const foundCatalogIdSet = new Set(foundCatalogItems.map((item) => item.id));
+    const catalogItemById = new Map(
+      foundCatalogItems.map((item) => [item.id, item]),
+    );
 
     const missingCatalogId = catalogIds.find(
       (id) => !foundCatalogIdSet.has(id),
@@ -174,6 +177,20 @@ export async function POST(request: NextRequest) {
         `Catalog item ${missingCatalogId} does not exist.`,
         400,
       );
+    }
+
+    if (input.type === "ORDER" || input.type === "SPOILAGE") {
+      for (const line of input.lines) {
+        const catalogItem = catalogItemById.get(line.catalogItemId);
+        if (!catalogItem) continue;
+
+        if (line.countDelta > catalogItem.quantityInStock) {
+          return errorResponse(
+            `"${catalogItem.itemName}" only has ${catalogItem.quantityInStock} in stock, but ${line.countDelta} was requested.`,
+            400,
+          );
+        }
+      }
     }
 
     const deltaSign = input.type === "SUPPLY" ? 1 : -1;

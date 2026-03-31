@@ -18,6 +18,7 @@ type TicketCatalogSuggestion = {
   itemName: string;
   category1: string | null;
   price: number | null;
+  quantityInStock: number | null;
 };
 
 type StaffCatalogResponse = {
@@ -45,6 +46,14 @@ type TicketCatalogPriceLookup = Record<
   {
     itemName: string;
     price: number;
+  }
+>;
+
+type TicketCatalogStockLookup = Record<
+  string,
+  {
+    itemName: string;
+    quantityInStock: number;
   }
 >;
 
@@ -95,6 +104,8 @@ export default function StaffTicketCreatePage() {
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [catalogPriceLookup, setCatalogPriceLookup] =
     useState<TicketCatalogPriceLookup>({});
+  const [catalogStockLookup, setCatalogStockLookup] =
+    useState<TicketCatalogStockLookup>({});
   const [valueSummary, setValueSummary] = useState<TicketValueSummary | null>(
     null,
   );
@@ -259,6 +270,11 @@ export default function StaffTicketCreatePage() {
                     : typeof item.price === "string"
                       ? Number.parseFloat(item.price)
                       : null,
+                quantityInStock:
+                  typeof item.quantityInStock === "number" &&
+                  Number.isFinite(item.quantityInStock)
+                    ? item.quantityInStock
+                    : null,
               } satisfies TicketCatalogSuggestion;
             })
             .filter((item): item is TicketCatalogSuggestion => item !== null)
@@ -275,6 +291,21 @@ export default function StaffTicketCreatePage() {
             next[String(item.id)] = {
               itemName: item.itemName,
               price: item.price,
+            };
+          }
+        }
+        return next;
+      });
+      setCatalogStockLookup((prev) => {
+        const next = { ...prev };
+        for (const item of items) {
+          if (
+            item.quantityInStock !== null &&
+            Number.isFinite(item.quantityInStock)
+          ) {
+            next[String(item.id)] = {
+              itemName: item.itemName,
+              quantityInStock: item.quantityInStock,
             };
           }
         }
@@ -324,6 +355,16 @@ export default function StaffTicketCreatePage() {
         [String(item.id)]: {
           itemName: item.itemName,
           price: selectedPrice,
+        },
+      }));
+    }
+    const selectedStock = item.quantityInStock;
+    if (typeof selectedStock === "number" && Number.isFinite(selectedStock)) {
+      setCatalogStockLookup((prev) => ({
+        ...prev,
+        [String(item.id)]: {
+          itemName: item.itemName,
+          quantityInStock: selectedStock,
         },
       }));
     }
@@ -566,6 +607,22 @@ export default function StaffTicketCreatePage() {
         line.countDelta.trim() === "0"
       )
         return "Quantity must be a positive whole number.";
+    }
+
+    if (draft.type === "ORDER" || draft.type === "SPOILAGE") {
+      for (const line of startedLines) {
+        const catalogItemId = line.catalogItemId.trim();
+        const quantityToRemove = Number.parseInt(line.countDelta.trim(), 10);
+        const stockInfo = catalogStockLookup[catalogItemId];
+
+        if (!stockInfo) {
+          return "Unable to verify stock for one or more selected catalog items. Re-select the item and try again.";
+        }
+
+        if (quantityToRemove > stockInfo.quantityInStock) {
+          return `"${stockInfo.itemName}" only has ${stockInfo.quantityInStock} in stock, but ${quantityToRemove} was entered.`;
+        }
+      }
     }
 
     return null;
