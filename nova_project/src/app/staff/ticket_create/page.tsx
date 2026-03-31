@@ -17,6 +17,7 @@ type TicketCatalogSuggestion = {
   sku: string | null;
   itemName: string;
   category1: string | null;
+  price: number | null;
 };
 
 type StaffCatalogResponse = {
@@ -37,6 +38,26 @@ type TicketDraft = {
   type: TicketType;
   note: string;
   lines: TicketLineDraft[];
+};
+
+type TicketCatalogPriceLookup = Record<
+  string,
+  {
+    itemName: string;
+    price: number;
+  }
+>;
+
+type TicketValueSummary = {
+  rows: Array<{
+    localId: number;
+    catalogItemId: string;
+    itemName: string;
+    quantity: number;
+    priceRate: number;
+    lineTotal: number;
+  }>;
+  totalAmount: number;
 };
 
 const TICKET_TYPE_OPTIONS: Array<{ value: TicketType; label: string }> = [
@@ -72,6 +93,11 @@ export default function StaffTicketCreatePage() {
     message: string;
   } | null>(null);
   const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [catalogPriceLookup, setCatalogPriceLookup] =
+    useState<TicketCatalogPriceLookup>({});
+  const [valueSummary, setValueSummary] = useState<TicketValueSummary | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const debounceTimersRef = useRef<
     Record<number, ReturnType<typeof setTimeout>>
@@ -101,12 +127,25 @@ export default function StaffTicketCreatePage() {
         firstLine.countDelta.trim(),
     );
   }, [draft]);
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }),
+    [],
+  );
+
+  function clearValueSummary() {
+    setValueSummary(null);
+  }
 
   function updateLine(
     localId: number,
     field: keyof Omit<TicketLineDraft, "localId">,
     value: string,
   ) {
+    clearValueSummary();
     setDraft((prev) => ({
       ...prev,
       lines: prev.lines.map((line) =>
@@ -116,6 +155,7 @@ export default function StaffTicketCreatePage() {
   }
 
   function addLine() {
+    clearValueSummary();
     setDraft((prev) => ({
       ...prev,
       lines: [
@@ -132,6 +172,7 @@ export default function StaffTicketCreatePage() {
   }
 
   function removeLine(localId: number) {
+    clearValueSummary();
     if (debounceTimersRef.current[localId]) {
       clearTimeout(debounceTimersRef.current[localId]);
       delete debounceTimersRef.current[localId];
@@ -212,6 +253,12 @@ export default function StaffTicketCreatePage() {
                   typeof item.itemName === "string" ? item.itemName : "",
                 category1:
                   typeof item.category1 === "string" ? item.category1 : null,
+                price:
+                  typeof item.price === "number"
+                    ? item.price
+                    : typeof item.price === "string"
+                      ? Number.parseFloat(item.price)
+                      : null,
               } satisfies TicketCatalogSuggestion;
             })
             .filter((item): item is TicketCatalogSuggestion => item !== null)
@@ -221,6 +268,18 @@ export default function StaffTicketCreatePage() {
         return;
       }
 
+      setCatalogPriceLookup((prev) => {
+        const next = { ...prev };
+        for (const item of items) {
+          if (item.price !== null && Number.isFinite(item.price)) {
+            next[String(item.id)] = {
+              itemName: item.itemName,
+              price: item.price,
+            };
+          }
+        }
+        return next;
+      });
       setLineSuggestions((prev) => ({ ...prev, [localId]: items }));
     } catch {
       setLineSuggestions((prev) => ({ ...prev, [localId]: [] }));
@@ -230,6 +289,7 @@ export default function StaffTicketCreatePage() {
   }
 
   function handleCatalogSearchInput(localId: number, nextSearch: string) {
+    clearValueSummary();
     updateLine(localId, "catalogSearch", nextSearch);
     updateLine(localId, "catalogItemId", "");
     setActiveSuggestionLineId(localId);
@@ -256,6 +316,17 @@ export default function StaffTicketCreatePage() {
     localId: number,
     item: TicketCatalogSuggestion,
   ) {
+    clearValueSummary();
+    const selectedPrice = item.price;
+    if (typeof selectedPrice === "number" && Number.isFinite(selectedPrice)) {
+      setCatalogPriceLookup((prev) => ({
+        ...prev,
+        [String(item.id)]: {
+          itemName: item.itemName,
+          price: selectedPrice,
+        },
+      }));
+    }
     setDraft((prev) => ({
       ...prev,
       lines: prev.lines.map((line) =>
@@ -275,6 +346,7 @@ export default function StaffTicketCreatePage() {
   }
 
   function clearCatalogSelection(localId: number) {
+    clearValueSummary();
     if (debounceTimersRef.current[localId]) {
       clearTimeout(debounceTimersRef.current[localId]);
       delete debounceTimersRef.current[localId];
@@ -303,6 +375,124 @@ export default function StaffTicketCreatePage() {
           : line,
       ),
     }));
+  }
+
+  function getStartedLines() {
+    const firstLine = draft.lines[0];
+    if (!firstLine) {
+      return [];
+    }
+
+    const startedAdditionalLines = draft.lines
+      .slice(1)
+      .filter(
+        (line) =>
+          line.catalogItemId.trim() ||
+          line.catalogSearch.trim() ||
+          line.countDelta.trim(),
+      );
+
+    return [firstLine, ...startedAdditionalLines];
+  }
+
+  function validateLinesForValueCalculation(
+    startedLines: TicketLineDraft[],
+  ): string | null {
+    if (startedLines.length === 0) {
+      return "At least one ticket line is required.";
+    }
+
+    const emptyAdditionalLines = draft.lines
+      .slice(1)
+      .filter(
+        (line) =>
+          !line.catalogItemId.trim() &&
+          !line.catalogSearch.trim() &&
+          !line.countDelta.trim(),
+      );
+    if (emptyAdditionalLines.length > 0) {
+      return "Remove empty ticket lines before calculating value.";
+    }
+
+    for (const [index, line] of startedLines.entries()) {
+      if (!line.catalogItemId.trim()) {
+        return index === 0
+          ? "First ticket line is missing a selected catalog item."
+          : "Each started ticket line must select a catalog item from search results.";
+      }
+
+      if (
+        !/^\d+$/.test(line.countDelta.trim()) ||
+        line.countDelta.trim() === "0"
+      ) {
+        return "Quantity must be a positive whole number.";
+      }
+    }
+
+    const seenCatalogItemIds = new Set<string>();
+    for (const line of startedLines) {
+      const catalogItemId = line.catalogItemId.trim();
+      if (seenCatalogItemIds.has(catalogItemId)) {
+        return "Duplicate catalog items are not allowed across ticket lines.";
+      }
+      seenCatalogItemIds.add(catalogItemId);
+    }
+
+    for (const line of startedLines) {
+      const catalogInfo = catalogPriceLookup[line.catalogItemId.trim()];
+      if (!catalogInfo) {
+        return "One or more selected catalog items are missing a price rate. Re-select the item and try again.";
+      }
+      if (!Number.isFinite(catalogInfo.price)) {
+        return "One or more selected catalog items have an invalid price.";
+      }
+    }
+
+    return null;
+  }
+
+  function handleCalculateValue() {
+    setError(null);
+    const startedLines = getStartedLines();
+    const validationError = validateLinesForValueCalculation(startedLines);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    try {
+      const rows = startedLines.map((line) => {
+        const catalogItemId = line.catalogItemId.trim();
+        const quantity = Number.parseInt(line.countDelta.trim(), 10);
+        const catalogInfo = catalogPriceLookup[catalogItemId];
+        if (!catalogInfo) {
+          throw new Error(
+            "One or more selected catalog items are missing a price rate. Re-select the item and try again.",
+          );
+        }
+        const priceRate = catalogInfo.price;
+        const lineTotal = quantity * priceRate;
+
+        return {
+          localId: line.localId,
+          catalogItemId,
+          itemName: catalogInfo.itemName,
+          quantity,
+          priceRate,
+          lineTotal,
+        };
+      });
+
+      const totalAmount = rows.reduce((sum, row) => sum + row.lineTotal, 0);
+      setValueSummary({ rows, totalAmount });
+    } catch (calculateError) {
+      setError(
+        calculateError instanceof Error
+          ? calculateError.message
+          : "Unable to calculate ticket value.",
+      );
+      setValueSummary(null);
+    }
   }
 
   function validateDraft(): string | null {
@@ -445,6 +635,7 @@ export default function StaffTicketCreatePage() {
       setLineSuggestions({});
       setIsSearchingLine({});
       setActiveSuggestionLineId(null);
+      setValueSummary(null);
       setShowClearConfirm(false);
       setError(null);
     } catch (createError) {
@@ -467,6 +658,7 @@ export default function StaffTicketCreatePage() {
     setLineSuggestions({});
     setIsSearchingLine({});
     setActiveSuggestionLineId(null);
+    setValueSummary(null);
     setShowCreateConfirm(false);
     setShowClearConfirm(false);
     setShowCreateResult(false);
@@ -512,12 +704,13 @@ export default function StaffTicketCreatePage() {
                 <select
                   className="ticket-create-input"
                   value={draft.type}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    clearValueSummary();
                     setDraft((prev) => ({
                       ...prev,
                       type: e.target.value as TicketType,
-                    }))
-                  }
+                    }));
+                  }}
                 >
                   {TICKET_TYPE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -663,6 +856,37 @@ export default function StaffTicketCreatePage() {
               ))}
             </div>
 
+            {valueSummary && (
+              <div className="ticket-value-summary">
+                <div className="staffCardLabel ticket-value-summary__title">
+                  Calculated Ticket Value
+                </div>
+                <div className="ticket-value-summary__table">
+                  <div className="ticket-value-summary__row ticket-value-summary__row--header">
+                    <div>Catalog Item</div>
+                    <div>Qty</div>
+                    <div>Price Rate</div>
+                    <div>Line Total</div>
+                  </div>
+                  {valueSummary.rows.map((row) => (
+                    <div
+                      key={row.localId}
+                      className="ticket-value-summary__row"
+                    >
+                      <div>{row.itemName}</div>
+                      <div>{row.quantity}</div>
+                      <div>{currencyFormatter.format(row.priceRate)}</div>
+                      <div>{currencyFormatter.format(row.lineTotal)}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="ticket-value-summary__overall">
+                  Total Amount:{" "}
+                  {currencyFormatter.format(valueSummary.totalAmount)}
+                </div>
+              </div>
+            )}
+
             <label className="ticket-create-field">
               <span className="ticket-create-label">Notes</span>
               <textarea
@@ -685,6 +909,13 @@ export default function StaffTicketCreatePage() {
                 onClick={handleClearButtonClick}
               >
                 Clear
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={handleCalculateValue}
+              >
+                Calculate Value
               </button>
               <button
                 type="submit"
