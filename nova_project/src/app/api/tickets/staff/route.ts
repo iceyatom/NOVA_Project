@@ -130,6 +130,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let catalogItemById = new Map<
+    number,
+    { id: number; itemName: string; quantityInStock: number }
+  >();
+
   try {
     const creator = await prisma.account.findUnique({
       where: { email: input.createdByEmail },
@@ -165,9 +170,7 @@ export async function POST(request: NextRequest) {
       select: { id: true, itemName: true, quantityInStock: true },
     });
     const foundCatalogIdSet = new Set(foundCatalogItems.map((item) => item.id));
-    const catalogItemById = new Map(
-      foundCatalogItems.map((item) => [item.id, item]),
-    );
+    catalogItemById = new Map(foundCatalogItems.map((item) => [item.id, item]));
 
     const missingCatalogId = catalogIds.find(
       (id) => !foundCatalogIdSet.has(id),
@@ -205,13 +208,43 @@ export async function POST(request: NextRequest) {
         select: { id: true },
       });
 
-      await tx.ticketLine.createMany({
-        data: input.lines.map((line) => ({
-          ticketId: ticket.id,
-          catalogItemId: line.catalogItemId,
-          countDelta: deltaSign * line.countDelta,
-        })),
-      });
+      const lineWrites = input.lines.map((line) => ({
+        ticketId: ticket.id,
+        catalogItemId: line.catalogItemId,
+        countDelta: deltaSign * line.countDelta,
+      }));
+
+      await tx.ticketLine.createMany({ data: lineWrites });
+
+      for (const line of lineWrites) {
+        if (line.countDelta < 0) {
+          const result = await tx.catalogItem.updateMany({
+            where: {
+              id: line.catalogItemId,
+              quantityInStock: { gte: Math.abs(line.countDelta) },
+            },
+            data: {
+              quantityInStock: { increment: line.countDelta },
+            },
+          });
+
+          if (result.count !== 1) {
+            throw new Error(`INSUFFICIENT_STOCK:${line.catalogItemId}`);
+          }
+          continue;
+        }
+
+        const result = await tx.catalogItem.updateMany({
+          where: { id: line.catalogItemId },
+          data: {
+            quantityInStock: { increment: line.countDelta },
+          },
+        });
+
+        if (result.count !== 1) {
+          throw new Error(`CATALOG_ITEM_NOT_FOUND:${line.catalogItemId}`);
+        }
+      }
 
       return ticket;
     });
@@ -224,6 +257,28 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.startsWith("INSUFFICIENT_STOCK:")) {
+        const id = Number.parseInt(error.message.split(":")[1] ?? "", 10);
+        const name = Number.isFinite(id)
+          ? catalogItemById.get(id)?.itemName
+          : null;
+        return errorResponse(
+          name
+            ? `"${name}" does not have enough stock to apply this ticket.`
+            : "One or more items do not have enough stock to apply this ticket.",
+          400,
+        );
+      }
+
+      if (error.message.startsWith("CATALOG_ITEM_NOT_FOUND:")) {
+        return errorResponse(
+          "A selected catalog item no longer exists. Refresh and try again.",
+          400,
+        );
+      }
+    }
+
     console.error("[tickets/staff] create failed", error);
     return errorResponse("Failed to create ticket.", 500);
   }
