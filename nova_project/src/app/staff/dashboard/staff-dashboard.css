@@ -593,6 +593,34 @@
   position: relative;
 }
 
+.ticket-item-search-input {
+  padding-right: 2rem;
+}
+
+.ticket-item-search-clear-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ticket-item-search-clear-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 .ticket-item-selected-id {
   margin-top: 0.33rem;
   font-size: 0.77rem;

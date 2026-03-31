@@ -262,9 +262,39 @@ export default function StaffTicketCreatePage() {
     setActiveSuggestionLineId(null);
   }
 
+  function clearCatalogSelection(localId: number) {
+    if (debounceTimersRef.current[localId]) {
+      clearTimeout(debounceTimersRef.current[localId]);
+      delete debounceTimersRef.current[localId];
+    }
+
+    abortControllersRef.current[localId]?.abort();
+    abortControllersRef.current[localId] = null;
+    latestSearchByLineRef.current[localId] = "";
+
+    setLineSuggestions((prev) => ({ ...prev, [localId]: [] }));
+    setIsSearchingLine((prev) => ({ ...prev, [localId]: false }));
+    if (activeSuggestionLineId === localId) {
+      setActiveSuggestionLineId(null);
+    }
+
+    setDraft((prev) => ({
+      ...prev,
+      lines: prev.lines.map((line) =>
+        line.localId === localId
+          ? {
+              ...line,
+              catalogItemId: "",
+              catalogSearch: "",
+              countDelta: "",
+            }
+          : line,
+      ),
+    }));
+  }
+
   function validateDraft(): string | null {
     if (!draft.type) return "Ticket type is required.";
-    if (!draft.note.trim()) return "Notes are required.";
     if (draft.lines.length === 0) {
       return "At least one ticket line is required.";
     }
@@ -281,6 +311,19 @@ export default function StaffTicketCreatePage() {
     }
     if (firstLine.countDelta.trim() === "0") {
       return "First ticket line quantity cannot be zero.";
+    }
+    if (!draft.note.trim()) return "Notes are required.";
+
+    const emptyAdditionalLines = draft.lines
+      .slice(1)
+      .filter(
+        (line) =>
+          !line.catalogItemId.trim() &&
+          !line.catalogSearch.trim() &&
+          !line.countDelta.trim(),
+      );
+    if (emptyAdditionalLines.length > 0) {
+      return "Remove empty ticket lines before creating a ticket.";
     }
 
     const startedAdditionalLines = draft.lines
@@ -305,6 +348,15 @@ export default function StaffTicketCreatePage() {
     }
 
     const startedLines = [firstLine, ...startedAdditionalLines];
+    const seenCatalogItemIds = new Set<string>();
+    for (const line of startedLines) {
+      const catalogItemId = line.catalogItemId.trim();
+      if (seenCatalogItemIds.has(catalogItemId)) {
+        return "Duplicate catalog items are not allowed across ticket lines.";
+      }
+      seenCatalogItemIds.add(catalogItemId);
+    }
+
     for (const line of startedLines) {
       // Preserve current rule that quantity inputs are absolute values.
       if (
@@ -451,7 +503,7 @@ export default function StaffTicketCreatePage() {
                 <div key={line.localId} className="ticket-lines-grid">
                   <div className="ticket-item-search">
                     <input
-                      className="ticket-create-input"
+                      className="ticket-create-input ticket-item-search-input"
                       type="text"
                       value={line.catalogSearch}
                       onChange={(e) =>
@@ -467,6 +519,18 @@ export default function StaffTicketCreatePage() {
                       }}
                       placeholder="Search by SKU or Name"
                     />
+                    {line.catalogItemId.trim().length > 0 && (
+                      <button
+                        type="button"
+                        className="ticket-item-search-clear-btn"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => clearCatalogSelection(line.localId)}
+                        aria-label="Clear selected catalog item"
+                        title="Clear selected catalog item"
+                      >
+                        ×
+                      </button>
+                    )}
 
                     {line.catalogSearch.trim().length > 0 &&
                       activeSuggestionLineId === line.localId && (
