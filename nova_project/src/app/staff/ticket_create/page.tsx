@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLoginStatus } from "../../LoginStatusContext";
 
 type TicketType = "ORDER" | "SUPPLY" | "SPOILAGE";
 
@@ -23,6 +24,15 @@ type StaffCatalogResponse = {
   data?: unknown;
 };
 
+type CreateTicketApiResponse = {
+  success?: boolean;
+  error?: string;
+  data?: {
+    ticketId?: number;
+    lineCount?: number;
+  };
+};
+
 type TicketDraft = {
   type: TicketType;
   note: string;
@@ -42,6 +52,7 @@ const INITIAL_DRAFT: TicketDraft = {
 };
 
 export default function StaffTicketCreatePage() {
+  const { accountEmail } = useLoginStatus();
   const [draft, setDraft] = useState<TicketDraft>(INITIAL_DRAFT);
   const [nextLineId, setNextLineId] = useState(2);
   const [lineSuggestions, setLineSuggestions] = useState<
@@ -60,6 +71,7 @@ export default function StaffTicketCreatePage() {
     success: boolean;
     message: string;
   } | null>(null);
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceTimersRef = useRef<
     Record<number, ReturnType<typeof setTimeout>>
@@ -382,20 +394,69 @@ export default function StaffTicketCreatePage() {
     setShowCreateConfirm(true);
   }
 
-  function confirmCreateTicket() {
+  async function confirmCreateTicket() {
     setShowCreateConfirm(false);
+    setError(null);
+    setIsCreatingTicket(true);
+
     try {
-      // Placeholder success path until API persistence is wired.
+      const creatorEmail = accountEmail.trim().toLowerCase();
+      if (!creatorEmail) {
+        throw new Error("You must be signed in to create a ticket.");
+      }
+
+      const payload = {
+        type: draft.type,
+        note: draft.note.trim(),
+        createdByEmail: creatorEmail,
+        lines: draft.lines.map((line) => ({
+          catalogItemId: Number.parseInt(line.catalogItemId.trim(), 10),
+          countDelta: Number.parseInt(line.countDelta.trim(), 10),
+        })),
+      };
+
+      const response = await fetch("/api/tickets/staff", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = (await response.json()) as CreateTicketApiResponse;
+      if (!response.ok || result.success === false) {
+        const message =
+          typeof result.error === "string"
+            ? result.error
+            : `Ticket creation failed (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      const ticketId =
+        typeof result.data?.ticketId === "number" ? result.data.ticketId : null;
       setCreateResult({
         success: true,
-        message: "Ticket created successfully.",
+        message: ticketId
+          ? `Ticket created successfully. New ticket ID: ${ticketId}.`
+          : "Ticket created successfully.",
       });
-    } catch {
+      setDraft(INITIAL_DRAFT);
+      setNextLineId(2);
+      setLineSuggestions({});
+      setIsSearchingLine({});
+      setActiveSuggestionLineId(null);
+      setShowClearConfirm(false);
+      setError(null);
+    } catch (createError) {
       setCreateResult({
         success: false,
-        message: "Ticket creation failed. Please try again.",
+        message:
+          createError instanceof Error
+            ? createError.message
+            : "Ticket creation failed. Please try again.",
       });
     } finally {
+      setIsCreatingTicket(false);
       setShowCreateResult(true);
     }
   }
@@ -528,7 +589,7 @@ export default function StaffTicketCreatePage() {
                         aria-label="Clear selected catalog item"
                         title="Clear selected catalog item"
                       >
-                        ×
+                        x
                       </button>
                     )}
 
@@ -656,6 +717,7 @@ export default function StaffTicketCreatePage() {
                 type="button"
                 className="staff-dev-pill"
                 onClick={() => setShowCreateConfirm(false)}
+                disabled={isCreatingTicket}
               >
                 Cancel
               </button>
@@ -663,8 +725,9 @@ export default function StaffTicketCreatePage() {
                 type="button"
                 className="staff-dev-pill staff-dev-pill--ready"
                 onClick={confirmCreateTicket}
+                disabled={isCreatingTicket}
               >
-                Confirm Create
+                {isCreatingTicket ? "Creating..." : "Confirm Create"}
               </button>
             </div>
           </div>
