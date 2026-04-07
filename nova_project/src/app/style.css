@@ -3445,3 +3445,873 @@ body:has(.loginPage) main {
   gap: 0.75rem;
   margin-top: 0.5rem;
 }
+
+.staffTaskSummaryRow {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.staffTaskSummaryValue {
+  font-size: 28px;
+}
+
+.staffTaskLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid #d9dee7;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.staffTaskLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.staffTaskLegendSwatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.staffTaskLegendSwatch.completed {
+  background: #dcfce7;
+}
+
+.staffTaskLegendSwatch.expired {
+  background: #fee2e2;
+}
+
+.staffTaskLegendSwatch.in-progress {
+  background: #fef3c7;
+}
+
+.staffTaskLegendSwatch.not-started {
+  background: #ffffff;
+}
+
+.staffTaskGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.staffEmployeeGroup {
+  border: 1px solid #d9dee7;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.staffEmployeeGroupTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.staffEmployeeGroupSubtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.staffEmployeeTaskGrid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.staffTaskCard {
+  border: 1px solid #d9dee7;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+
+.staffTaskCard.completed {
+  background: #ecfdf3;
+}
+
+.staffTaskCard.expired {
+  background: #fef2f2;
+}
+
+.staffTaskCard.in-progress {
+  background: #fffbea;
+}
+
+.staffTaskCard.not-started {
+  background: #ffffff;
+}
+
+.staffTaskCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.staffTaskEmployeeName {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.staffTaskEmployeeRole {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.staffTaskStatusBadge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.staffTaskStatusBadge.completed {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.staffTaskStatusBadge.expired {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.staffTaskStatusBadge.in-progress {
+  background: #fde68a;
+  color: #92400e;
+}
+
+.staffTaskStatusBadge.not-started {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.staffTaskDivider {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.08);
+  margin: 14px 0;
+}
+
+.staffTaskBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.staffTaskRow,
+.staffTaskDescriptionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.staffTaskLabel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.staffTaskValue {
+  font-size: 14px;
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+.staffTaskDescriptionText {
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.staffTaskExpandButton {
+  margin-top: 4px;
+  width: fit-content;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  cursor: pointer;
+}
+
+.staffTaskExpandButton:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1100px) {
+  .staffEmployeeTaskGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .staffTaskSummaryRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.staffTaskHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.staffActionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  border-radius: 999px;
+  background: #198754;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 14px 20px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.staffActionButton:hover {
+  opacity: 0.95;
+}
+
+.staffActionButtonIcon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.staffActionButtonIcon.collapsed {
+  transform: rotate(-180deg);
+}
+
+.staffTaskSummaryRow {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.staffTaskSummaryValue {
+  font-size: 28px;
+}
+
+.staffTaskLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid #d9dee7;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.staffTaskLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.staffTaskLegendSwatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.staffTaskLegendSwatch.expired {
+  background: #fee2e2;
+}
+
+.staffTaskLegendSwatch.in-progress {
+  background: #fef3c7;
+}
+
+.staffTaskGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.staffEmployeeGroup {
+  border: 1px solid #d9dee7;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.staffEmployeeGroupTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.staffEmployeeGroupSubtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.staffEmployeeTaskGrid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.staffTaskCard {
+  border: 1px solid #d9dee7;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  min-width: 0;
+}
+
+.staffTaskCard.completed {
+  background: #ecfdf3;
+}
+
+.staffTaskCard.expired {
+  background: #fef2f2;
+}
+
+.staffTaskCard.in-progress {
+  background: #fffbea;
+}
+
+.staffTaskCard.not-started {
+  background: #ffffff;
+}
+
+.staffTaskCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.staffTaskCardHeaderLeft {
+  min-width: 0;
+  flex: 1;
+}
+
+.staffTaskCardHeaderRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.staffTaskTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.35;
+}
+
+.staffTaskEmployeeRole {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.staffTaskCollapseButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.staffTaskCollapseIcon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.staffTaskCollapseIcon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.staffTaskStatusBadge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.staffTaskStatusBadge.completed {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.staffTaskStatusBadge.expired {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.staffTaskStatusBadge.in-progress {
+  background: #fde68a;
+  color: #92400e;
+}
+
+.staffTaskStatusBadge.not-started {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.staffTaskDivider {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.08);
+  margin: 14px 0;
+}
+
+.staffTaskBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.staffTaskRow,
+.staffTaskDescriptionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.staffTaskLabel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.staffTaskValue {
+  font-size: 14px;
+  color: #1f2937;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.staffTaskDescriptionText {
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.staffTaskExpandButton {
+  margin-top: 4px;
+  width: fit-content;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  cursor: pointer;
+}
+
+.staffTaskExpandButton:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1400px) {
+  .staffEmployeeTaskGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .staffEmployeeTaskGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .staffTaskHeaderRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .staffTaskSummaryRow {
+    grid-template-columns: 1fr;
+  }
+
+  .staffEmployeeTaskGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.staffTaskSummaryRow {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.staffTaskSummaryValue {
+  font-size: 28px;
+}
+
+.staffTaskLegendRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.staffTaskLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #d9dee7;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.staffTaskLegend.compact {
+  padding: 10px 14px;
+  gap: 12px;
+}
+
+.staffTaskLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.staffTaskLegendSwatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.staffTaskLegendSwatch.expired {
+  background: #fee2e2;
+}
+
+.staffTaskLegendSwatch.in-progress {
+  background: #fef3c7;
+}
+
+.staffActionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  border-radius: 999px;
+  background: #198754;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 18px;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.staffActionButton:hover {
+  opacity: 0.95;
+}
+
+.staffActionButtonIcon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.staffActionButtonIcon.collapsed {
+  transform: rotate(-180deg);
+}
+
+.employeeSectionButton {
+  padding: 10px 16px;
+  font-size: 13px;
+}
+
+.staffTaskGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.staffEmployeeGroup {
+  border: 1px solid #d9dee7;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.staffEmployeeGroupHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.staffEmployeeGroupTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.staffEmployeeGroupSubtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.staffEmployeeTaskGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.staffTaskCard {
+  border: 1px solid #d9dee7;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  min-width: 0;
+  align-self: start;
+}
+
+.staffTaskCard.isCollapsed {
+  min-height: 120px;
+}
+
+.staffTaskCard.completed {
+  background: #ecfdf3;
+}
+
+.staffTaskCard.expired {
+  background: #fef2f2;
+}
+
+.staffTaskCard.in-progress {
+  background: #fffbea;
+}
+
+.staffTaskCard.not-started {
+  background: #ffffff;
+}
+
+.staffTaskCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.staffTaskCardHeaderLeft {
+  min-width: 0;
+  flex: 1;
+}
+
+.staffTaskCardHeaderRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.staffTaskTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.35;
+}
+
+.staffTaskEmployeeRole {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.staffTaskCollapseButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.staffTaskCollapseIcon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.staffTaskCollapseIcon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.staffTaskStatusBadge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.staffTaskStatusBadge.completed {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.staffTaskStatusBadge.expired {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.staffTaskStatusBadge.in-progress {
+  background: #fde68a;
+  color: #92400e;
+}
+
+.staffTaskStatusBadge.not-started {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.staffTaskDivider {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.08);
+  margin: 14px 0;
+}
+
+.staffTaskBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.staffTaskRow,
+.staffTaskDescriptionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.staffTaskLabel {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.staffTaskValue {
+  font-size: 14px;
+  color: #1f2937;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.staffTaskDescriptionText {
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.staffTaskExpandButton {
+  margin-top: 4px;
+  width: fit-content;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  cursor: pointer;
+}
+
+.staffTaskExpandButton:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1400px) {
+  .staffEmployeeTaskGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .staffEmployeeTaskGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .staffTaskLegendRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .staffEmployeeGroupHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 900px) {
+  .staffTaskSummaryRow {
+    grid-template-columns: 1fr;
+  }
+
+  .staffEmployeeTaskGrid {
+    grid-template-columns: 1fr;
+  }
+}
