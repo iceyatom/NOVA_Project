@@ -20,9 +20,12 @@ async function main() {
   ];
 
   for (const category of category3Items) {
-    await prisma.category3.create({ data: category });
-  }
-
+  await prisma.category3.upsert({
+    where: { name: category.name },
+    update: {},
+    create: category,
+  });
+}
   const category2Items = [
     { name: "Dissecting Supplies", category3Name: "Laboratory Supplies" },
     { name: "Microscopy Supplies", category3Name: "Laboratory Supplies" },
@@ -107,24 +110,31 @@ async function main() {
   ];
 
   for (const category of category2Items) {
-    const parentCategory3 = await prisma.category3.findUnique({
-      where: { name: category.category3Name },
-      select: { id: true },
-    });
+  const parentCategory3 = await prisma.category3.findUnique({
+    where: { name: category.category3Name },
+    select: { id: true },
+  });
 
-    if (!parentCategory3) {
-      throw new Error(
-        `Category3 '${category.category3Name}' not found for Category2 '${category.name}'.`,
-      );
-    }
-
-    await prisma.category2.create({
-      data: {
-        name: category.name,
-        category3Id: parentCategory3.id,
-      },
-    });
+  if (!parentCategory3) {
+    throw new Error(
+      `Category3 '${category.category3Name}' not found for Category2 '${category.name}'.`,
+    );
   }
+
+  await prisma.category2.upsert({
+    where: {
+      category3Id_name: {
+        category3Id: parentCategory3.id,
+        name: category.name,
+      },
+    },
+    update: {},
+    create: {
+      name: category.name,
+      category3Id: parentCategory3.id,
+    },
+  });
+}
 
   const category1Items = [
     {
@@ -1112,12 +1122,19 @@ async function main() {
       );
     }
 
-    await prisma.category1.create({
-      data: {
-        name: category.name,
+      await prisma.category1.upsert({
+    where: {
+      category2Id_name: {
         category2Id: parentCategory2.id,
+        name: category.name,
       },
-    });
+    },
+    update: {},
+    create: {
+      name: category.name,
+      category2Id: parentCategory2.id,
+    },
+  });
   }
 
   const items = [
