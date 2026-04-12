@@ -29,7 +29,8 @@ export default function Header() {
   } = useLoginStatus();
   const normalizedRole = userRole ? userRole.toUpperCase() : "";
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
     setLoggedIn(false);
     setAccount("");
     setAccountEmail("");
