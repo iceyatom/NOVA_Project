@@ -94,6 +94,8 @@ model Account {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  tasks Task[] @relation("AccountTasks")
 }
 
 model Ticket {
@@ -120,4 +122,21 @@ model TicketLine {
 
   @@index([ticketId])
   @@index([catalogItemId])
+}
+
+model Task {
+  id                  Int      @id @default(autoincrement())
+  title               String
+  description         String?  @db.Text
+  assignedToAccountId Int
+  createdAt           DateTime @default(now())
+  isCompleted         Boolean  @default(false)
+  completedAt         DateTime?
+  expiresAt           DateTime
+
+  assignedTo Account @relation("AccountTasks", fields: [assignedToAccountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([assignedToAccountId])
+  @@index([isCompleted])
+  @@index([expiresAt])
 }
