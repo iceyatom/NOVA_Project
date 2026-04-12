@@ -297,7 +297,8 @@ export default function LoginSignIn() {
             className="loginButton"
             type="button"
             style={{ marginTop: "0.5rem", background: "#e53e3e" }}
-            onClick={() => {
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
               setLoggedIn(false);
               setAccount("");
               setAccountEmail("");
