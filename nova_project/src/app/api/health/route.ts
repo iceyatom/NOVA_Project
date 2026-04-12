@@ -56,12 +56,12 @@ async function checkDb() {
 }
 
 async function checkS3() {
-  if (!process.env.AWS_REGION || !process.env.S3_BUCKET) {
+  if (!process.env.AWS_REGION || !process.env.S3_BUCKET_NAME) {
     return { ok: true, skipped: true };
   }
   try {
     const s3 = new S3Client({ region: process.env.AWS_REGION });
-    await s3.send(new HeadBucketCommand({ Bucket: process.env.S3_BUCKET }));
+    await s3.send(new HeadBucketCommand({ Bucket: process.env.S3_BUCKET_NAME }));
     return { ok: true };
   } catch (e) {
     const err = e as Partial<Error> & { code?: string };
