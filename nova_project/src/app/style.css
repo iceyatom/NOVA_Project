@@ -3540,29 +3540,6 @@ body:has(.loginPage) main {
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
 }
 
-.staffTaskCard.completed {
-  background: #ecfdf3;
-}
-
-.staffTaskCard.expired {
-  background: #fef2f2;
-}
-
-.staffTaskCard.in-progress {
-  background: #fffbea;
-}
-
-.staffTaskCard.not-started {
-  background: #ffffff;
-}
-
-.staffTaskCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
 .staffTaskEmployeeName {
   font-size: 17px;
   font-weight: 700;
@@ -3603,12 +3580,6 @@ body:has(.loginPage) main {
   color: #374151;
 }
 
-.staffTaskDivider {
-  height: 1px;
-  background: rgba(15, 23, 42, 0.08);
-  margin: 14px 0;
-}
-
 .staffTaskBody {
   display: flex;
   flex-direction: column;
@@ -3634,12 +3605,6 @@ body:has(.loginPage) main {
   font-size: 14px;
   color: #1f2937;
   line-height: 1.5;
-}
-
-.staffTaskDescriptionText {
-  font-size: 14px;
-  color: #334155;
-  line-height: 1.6;
 }
 
 .staffTaskExpandButton {
@@ -3794,48 +3759,6 @@ body:has(.loginPage) main {
   min-width: 0;
 }
 
-.staffTaskCard.completed {
-  background: #ecfdf3;
-}
-
-.staffTaskCard.expired {
-  background: #fef2f2;
-}
-
-.staffTaskCard.in-progress {
-  background: #fffbea;
-}
-
-.staffTaskCard.not-started {
-  background: #ffffff;
-}
-
-.staffTaskCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.staffTaskCardHeaderLeft {
-  min-width: 0;
-  flex: 1;
-}
-
-.staffTaskCardHeaderRight {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-}
-
-.staffTaskTitle {
-  font-size: 17px;
-  font-weight: 700;
-  color: #1f2937;
-  line-height: 1.35;
-}
-
 .staffTaskEmployeeRole {
   margin-top: 4px;
   font-size: 12px;
@@ -3894,12 +3817,6 @@ body:has(.loginPage) main {
   color: #374151;
 }
 
-.staffTaskDivider {
-  height: 1px;
-  background: rgba(15, 23, 42, 0.08);
-  margin: 14px 0;
-}
-
 .staffTaskBody {
   display: flex;
   flex-direction: column;
@@ -3926,13 +3843,6 @@ body:has(.loginPage) main {
   font-size: 14px;
   color: #1f2937;
   line-height: 1.5;
-  word-break: break-word;
-}
-
-.staffTaskDescriptionText {
-  font-size: 14px;
-  color: #334155;
-  line-height: 1.6;
   word-break: break-word;
 }
 
@@ -4151,6 +4061,8 @@ body:has(.loginPage) main {
 .staffTaskCardHeaderLeft {
   min-width: 0;
   flex: 1;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .staffTaskCardHeaderRight {
@@ -4165,6 +4077,16 @@ body:has(.loginPage) main {
   font-weight: 700;
   color: #1f2937;
   line-height: 1.35;
+}
+
+.staffTaskTitleShort {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .staffTaskEmployeeRole {
@@ -4266,6 +4188,16 @@ body:has(.loginPage) main {
   color: #334155;
   line-height: 1.6;
   word-break: break-word;
+}
+
+.staffTaskDescriptionTextShort {
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.6;
+  word-break: break-word;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .staffTaskExpandButton {
