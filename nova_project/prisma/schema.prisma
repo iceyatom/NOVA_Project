@@ -130,7 +130,6 @@ model Task {
   description         String?  @db.Text
   assignedToAccountId Int
   createdAt           DateTime @default(now())
-  isCompleted         Boolean  @default(false)
   completedAt         DateTime?
   expiresAt           DateTime
 
