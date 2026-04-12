@@ -44,15 +44,16 @@ function getEndOfDayExpiry(): string {
 export default function StaffTaskCreatePage() {
   const { userRole, accountEmail } = useLoginStatus();
 
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [accounts, setAccounts] = useState<EmployeeAccount[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
-    description?: string;
+    title?: string;
     assignee?: string;
-  }>({});
+  }>();
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -82,9 +83,9 @@ export default function StaffTaskCreatePage() {
   }, []);
 
   function validate(): boolean {
-    const errors: { description?: string; assignee?: string } = {};
-    if (!description.trim()) {
-      errors.description = "Task description is required.";
+    const errors: { title?: string; assignee?: string } = {};
+    if (!title.trim()) {
+      errors.title = "Task title is required.";
     }
     if (!assigneeId) {
       errors.assignee = "Please select an employee to assign this task to.";
@@ -105,9 +106,9 @@ export default function StaffTaskCreatePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          description: description.trim(),
+          title: title.trim(),
+          description: description.trim() || undefined,
           assignedToAccountId: Number(assigneeId),
-          assignedByEmail: accountEmail,
         }),
       });
       const payload = (await res.json()) as CreateTaskApiResponse;
@@ -124,6 +125,7 @@ export default function StaffTaskCreatePage() {
   }
 
   function handleReset() {
+    setTitle("");
     setDescription("");
     setAssigneeId("");
     setFieldErrors({});
@@ -131,7 +133,11 @@ export default function StaffTaskCreatePage() {
     setSubmitError(null);
   }
 
-  if (userRole && userRole !== "ADMIN") {
+  if (!userRole) {
+    return null;
+  }
+
+  if (userRole !== "ADMIN") {
     return (
       <div>
         <div className="staffTitle">Create Task</div>
@@ -185,24 +191,38 @@ export default function StaffTaskCreatePage() {
           <div className="task-create-section-label">Task Details</div>
 
           <div className="task-create-field">
-            <label className="ticket-create-label" htmlFor="task-description">
-              Task Description
+            <label className="ticket-create-label" htmlFor="task-title">
+              Task Title
             </label>
-            <textarea
-              id="task-description"
-              className={`ticket-create-textarea task-create-textarea${fieldErrors.description ? " task-create-input--error" : ""}`}
-              placeholder="Describe the task to be completed…"
-              value={description}
+            <input
+              id="task-title"
+              type="text"
+              className={`ticket-create-input${fieldErrors?.title ? " task-create-input--error" : ""}`}
+              placeholder="Enter a short title for this task…"
+              value={title}
               onChange={(e) => {
-                setDescription(e.target.value);
-                if (fieldErrors.description) {
-                  setFieldErrors((prev) => ({ ...prev, description: undefined }));
+                setTitle(e.target.value);
+                if (fieldErrors?.title) {
+                  setFieldErrors((prev) => ({ ...prev, title: undefined }));
                 }
               }}
             />
-            {fieldErrors.description && (
-              <span className="task-create-error">{fieldErrors.description}</span>
+            {fieldErrors?.title && (
+              <span className="task-create-error">{fieldErrors.title}</span>
             )}
+          </div>
+
+          <div className="task-create-field">
+            <label className="ticket-create-label" htmlFor="task-description">
+              Description <span style={{ fontWeight: 400, textTransform: "none", color: "#94a3b8" }}>(optional)</span>
+            </label>
+            <textarea
+              id="task-description"
+              className="ticket-create-textarea task-create-textarea"
+              placeholder="Add any additional details…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
 
           <div className="task-create-field">
@@ -216,11 +236,11 @@ export default function StaffTaskCreatePage() {
             ) : (
               <select
                 id="task-assignee"
-                className={`ticket-create-input task-create-select${fieldErrors.assignee ? " task-create-input--error" : ""}`}
+                className={`ticket-create-input task-create-select${fieldErrors?.assignee ? " task-create-input--error" : ""}`}
                 value={assigneeId}
                 onChange={(e) => {
                   setAssigneeId(e.target.value);
-                  if (fieldErrors.assignee) {
+                  if (fieldErrors?.assignee) {
                     setFieldErrors((prev) => ({ ...prev, assignee: undefined }));
                   }
                 }}
@@ -236,7 +256,7 @@ export default function StaffTaskCreatePage() {
                 ))}
               </select>
             )}
-            {fieldErrors.assignee && (
+            {fieldErrors?.assignee && (
               <span className="task-create-error">{fieldErrors.assignee}</span>
             )}
           </div>

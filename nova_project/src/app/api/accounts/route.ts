@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const accounts = await prisma.account.findMany({
-      where: { deletedAt: null, status: "active" },
+      where: { deletedAt: null, status: "active", role: { not: "CUSTOMER" } },
       select: { id: true, displayName: true, email: true, role: true },
       orderBy: { displayName: "asc" },
     });

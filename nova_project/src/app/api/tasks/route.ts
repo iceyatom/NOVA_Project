@@ -2,29 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // ─── POST /api/tasks ─────────────────────────────────────────────────────────
-// Body: { description, assignedToAccountId, assignedByEmail }
+// Body: { title, description?, assignedToAccountId }
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
+      title?: unknown;
       description?: unknown;
       assignedToAccountId?: unknown;
-      assignedByEmail?: unknown;
     };
 
+    const title =
+      typeof body.title === "string" ? body.title.trim() : "";
     const description =
-      typeof body.description === "string" ? body.description.trim() : "";
+      typeof body.description === "string" ? body.description.trim() : undefined;
     const assignedToAccountId =
       typeof body.assignedToAccountId === "number"
         ? body.assignedToAccountId
         : Number(body.assignedToAccountId);
-    const assignedByEmail =
-      typeof body.assignedByEmail === "string"
-        ? body.assignedByEmail.trim().toLowerCase()
-        : "";
 
-    if (!description) {
+    if (!title) {
       return NextResponse.json(
-        { success: false, error: "description is required." },
+        { success: false, error: "title is required." },
         { status: 400 },
       );
     }
@@ -32,30 +30,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: "assignedToAccountId must be a valid account id." },
         { status: 400 },
-      );
-    }
-    if (!assignedByEmail) {
-      return NextResponse.json(
-        { success: false, error: "assignedByEmail is required." },
-        { status: 400 },
-      );
-    }
-
-    const assignedBy = await prisma.account.findUnique({
-      where: { email: assignedByEmail },
-      select: { id: true, role: true },
-    });
-
-    if (!assignedBy) {
-      return NextResponse.json(
-        { success: false, error: "assignedByEmail account not found." },
-        { status: 404 },
-      );
-    }
-    if (assignedBy.role !== "ADMIN") {
-      return NextResponse.json(
-        { success: false, error: "Only admin accounts can create tasks." },
-        { status: 403 },
       );
     }
 
@@ -70,12 +44,11 @@ export async function POST(req: NextRequest) {
       59,
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const task = await (prisma as any).task.create({
+    const task = await prisma.task.create({
       data: {
-        description,
+        title,
+        description: description || null,
         assignedToAccountId,
-        assignedByAccountId: assignedBy.id,
         expiresAt,
       },
     });
@@ -112,8 +85,7 @@ export async function GET(req: NextRequest) {
     }
 
     const now = new Date();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tasks = await (prisma as any).task.findMany({
+    const tasks = await prisma.task.findMany({
       where: {
         assignedToAccountId: account.id,
         expiresAt: { gte: now },
