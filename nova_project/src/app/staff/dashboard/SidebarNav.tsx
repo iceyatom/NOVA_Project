@@ -63,7 +63,10 @@ export default function SidebarNav() {
 
       <Section
         title="Support"
-        items={[{ label: "Create Ticket", href: "/staff/ticket_create" }]}
+        items={[
+          { label: "Create Ticket", href: "/staff/ticket_create" },
+          { label: "View Tickets", href: "/staff/tickets" },
+        ]}
       />
 
       <Section
