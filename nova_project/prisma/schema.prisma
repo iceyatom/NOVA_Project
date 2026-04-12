@@ -28,6 +28,10 @@ model CatalogItem {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  category3Ref Category3? @relation("CatalogItemCategory3", fields: [category3], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  category2Ref Category2? @relation("CatalogItemCategory2", fields: [category2], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  category1Ref Category1? @relation("CatalogItemCategory1", fields: [category1], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
   @@index([category1])
   @@index([category2])
   @@index([category3])
@@ -39,12 +43,19 @@ model CatalogItem {
 model Category3 {
   id   Int    @id @default(autoincrement())
   name String @unique
+
+  category2Items  Category2[]
+  catalogItems    CatalogItem[] @relation("CatalogItemCategory3")
 }
 
 model Category2 {
   id          Int    @id @default(autoincrement())
   name        String
   category3Id Int
+
+  category3   Category3 @relation(fields: [category3Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category1Items Category1[]
+  catalogItems   CatalogItem[] @relation("CatalogItemCategory2")
 
   @@unique([category3Id, name])
   @@index([category3Id])
@@ -54,6 +65,9 @@ model Category1 {
   id          Int    @id @default(autoincrement())
   name        String
   category2Id Int
+
+  category2    Category2 @relation(fields: [category2Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  catalogItems CatalogItem[] @relation("CatalogItemCategory1")
 
   @@unique([category2Id, name])
   @@index([category2Id])
