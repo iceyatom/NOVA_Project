@@ -57,6 +57,11 @@ export default function SidebarNav() {
       />
 
       <Section
+        title="Tasks"
+        items={[{ label: "Create Task", href: "/staff/task_create" }]}
+      />
+
+      <Section
         title="Support"
         items={[{ label: "Create Ticket", href: "/staff/ticket_create" }]}
       />
