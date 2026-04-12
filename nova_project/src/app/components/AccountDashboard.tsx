@@ -7,23 +7,22 @@ export default function AccountDashboard() {
   const router = useRouter();
   const {
     loggedIn,
-    setLoggedIn,
     account,
-    setAccount,
-    setAccountEmail,
-    setUserRole,
+    authStatus,
+    logout,
   } = useLoginStatus();
+
+  if (authStatus === "loading") {
+    return null;
+  }
 
   if (!loggedIn) {
     router.push("/login");
     return null;
   }
 
-  const handleLogout = () => {
-    setLoggedIn(false);
-    setAccount("");
-    setAccountEmail("");
-    setUserRole("");
+  const handleLogout = async () => {
+    await logout();
     router.push("/login");
   };
 
