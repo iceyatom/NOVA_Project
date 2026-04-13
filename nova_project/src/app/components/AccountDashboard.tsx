@@ -25,6 +25,12 @@ type AccountResponse = {
   };
 };
 
+type ProfileSnapshot = {
+  displayName: string;
+  phone: string;
+  email: string;
+};
+
 function formatLockDate(value: string | null) {
   if (!value) return "Unavailable";
   const parsed = new Date(value);
@@ -32,10 +38,12 @@ function formatLockDate(value: string | null) {
   return parsed.toLocaleString();
 }
 
-function isValidPhone(value: string) {
-  const digitsOnly = value.replace(/\D/g, "");
-  return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+function getPhoneDigitsLength(value: string) {
+  return value.replace(/\D/g, "").length;
 }
+
+const MIN_PHONE_DIGITS = 10;
+const MAX_PHONE_DIGITS = 10;
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
@@ -69,11 +77,20 @@ export default function AccountDashboard() {
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [initialProfile, setInitialProfile] = useState<ProfileSnapshot>({
+    displayName: "",
+    phone: "",
+    email: "",
+  });
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
 
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
@@ -106,8 +123,28 @@ export default function AccountDashboard() {
   }>({});
 
   const hasSensitivePending = useMemo(() => {
-    return email.trim().toLowerCase() !== accountEmail.trim().toLowerCase() || !!newPassword;
+    return (
+      email.trim().toLowerCase() !== accountEmail.trim().toLowerCase() ||
+      !!newPassword
+    );
   }, [accountEmail, email, newPassword]);
+
+  const isDisplayNameDirty = displayName.trim() !== initialProfile.displayName;
+  const isPhoneDirty = phone.trim() !== initialProfile.phone;
+  const isEmailDirty =
+    email.trim().toLowerCase() !== initialProfile.email.toLowerCase();
+  const isCurrentPasswordDirty = currentPassword.length > 0;
+  const isNewPasswordDirty = newPassword.length > 0;
+  const isConfirmNewPasswordDirty = confirmNewPassword.length > 0;
+  const isDeletePasswordDirty = deletePassword.length > 0;
+  const hasProfileChanges = isDisplayNameDirty || isPhoneDirty || isEmailDirty;
+  const hasPasswordChangeChanges =
+    isNewPasswordDirty || isConfirmNewPasswordDirty;
+  const hasUnsavedChanges =
+    hasProfileChanges || isCurrentPasswordDirty || hasPasswordChangeChanges;
+  const hasChangesToSave = hasProfileChanges || hasPasswordChangeChanges;
+  const fieldLabelClass = (dirty: boolean) =>
+    `accountFieldLabel${dirty ? " accountFieldLabelDirty" : ""}`;
 
   useEffect(() => {
     if (!loggedIn) {
@@ -140,6 +177,11 @@ export default function AccountDashboard() {
         setDisplayName(data.account.displayName ?? "");
         setPhone(data.account.phone ?? "");
         setEmail(data.account.email ?? "");
+        setInitialProfile({
+          displayName: (data.account.displayName ?? "").trim(),
+          phone: (data.account.phone ?? "").trim(),
+          email: (data.account.email ?? "").trim().toLowerCase(),
+        });
         setRole(data.account.role ?? "");
         setStatus(data.account.status ?? "");
         setCreatedAt(data.account.createdAt ?? "");
@@ -153,7 +195,9 @@ export default function AccountDashboard() {
         );
       } catch (error) {
         if (!mounted) return;
-        setFeedback(error instanceof Error ? error.message : "Unable to load account.");
+        setFeedback(
+          error instanceof Error ? error.message : "Unable to load account.",
+        );
         setFeedbackType("error");
       } finally {
         if (mounted) {
@@ -178,6 +222,14 @@ export default function AccountDashboard() {
     setAccount("");
     setAccountEmail("");
     setUserRole("");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setDeletePassword("");
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmNewPassword(false);
+    setShowDeletePassword(false);
     router.push("/login");
   };
 
@@ -190,8 +242,14 @@ export default function AccountDashboard() {
 
     if (!phone.trim()) {
       nextErrors.phone = "Phone number is required.";
-    } else if (!isValidPhone(phone)) {
-      nextErrors.phone = "Please enter a valid phone number.";
+    } else {
+      const phoneDigitsLength = getPhoneDigitsLength(phone);
+
+      if (phoneDigitsLength > MAX_PHONE_DIGITS) {
+        nextErrors.phone = "Phone number is too long. Use exactly 10 digits.";
+      } else if (phoneDigitsLength < MIN_PHONE_DIGITS) {
+        nextErrors.phone = "Phone number is too short. Use exactly 10 digits.";
+      }
     }
 
     if (email.trim() !== accountEmail.trim()) {
@@ -263,6 +321,11 @@ export default function AccountDashboard() {
       setDisplayName(data.account.displayName || "");
       setPhone(data.account.phone || "");
       setEmail(data.account.email || "");
+      setInitialProfile({
+        displayName: (data.account.displayName || "").trim(),
+        phone: (data.account.phone || "").trim(),
+        email: (data.account.email || "").trim().toLowerCase(),
+      });
       setRole(data.account.role || "");
       setStatus(data.account.status || "");
       setCreatedAt(data.account.createdAt || "");
@@ -278,11 +341,16 @@ export default function AccountDashboard() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmNewPassword(false);
       setErrors({});
       setFeedback(data.message || "Account updated successfully.");
       setFeedbackType("success");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to update account.");
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to update account.",
+      );
       setFeedbackType("error");
     } finally {
       setIsSaving(false);
@@ -326,11 +394,36 @@ export default function AccountDashboard() {
 
       handleLogout();
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to delete account.");
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to delete account.",
+      );
       setFeedbackType("error");
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleDiscardChanges = () => {
+    setDisplayName(initialProfile.displayName);
+    setPhone(initialProfile.phone);
+    setEmail(initialProfile.email);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmNewPassword(false);
+    setErrors((prev) => ({
+      ...prev,
+      displayName: undefined,
+      phone: undefined,
+      email: undefined,
+      currentPassword: undefined,
+      newPassword: undefined,
+      confirmNewPassword: undefined,
+    }));
+    setFeedback(null);
+    setFeedbackType(null);
   };
 
   return (
@@ -338,8 +431,8 @@ export default function AccountDashboard() {
       <section className="accountDashboardHero">
         <h1>Account Dashboard</h1>
         <p>
-          Manage your account information, update your profile details, and review
-          restrictions on sensitive account changes.
+          Manage your account information, update your profile details, and
+          review restrictions on sensitive account changes.
         </p>
       </section>
 
@@ -353,14 +446,19 @@ export default function AccountDashboard() {
             <div className="accountForm">
               <div className="accountFormRow">
                 <label className="accountField">
-                  <span className="accountFieldLabel">Display Name</span>
+                  <span className={fieldLabelClass(isDisplayNameDirty)}>
+                    Display Name
+                  </span>
                   <input
                     className={`accountInput ${errors.displayName ? "inputError" : ""}`}
                     type="text"
                     value={displayName}
                     onChange={(e) => {
                       setDisplayName(e.target.value);
-                      setErrors((prev) => ({ ...prev, displayName: undefined }));
+                      setErrors((prev) => ({
+                        ...prev,
+                        displayName: undefined,
+                      }));
                     }}
                   />
                   {errors.displayName && (
@@ -369,7 +467,9 @@ export default function AccountDashboard() {
                 </label>
 
                 <label className="accountField">
-                  <span className="accountFieldLabel">Phone Number</span>
+                  <span className={fieldLabelClass(isPhoneDirty)}>
+                    Phone Number
+                  </span>
                   <input
                     className={`accountInput ${errors.phone ? "inputError" : ""}`}
                     type="tel"
@@ -384,7 +484,9 @@ export default function AccountDashboard() {
               </div>
 
               <label className="accountField">
-                <span className="accountFieldLabel">Email Address</span>
+                <span className={fieldLabelClass(isEmailDirty)}>
+                  Email Address
+                </span>
                 <input
                   className={`accountInput ${errors.email ? "inputError" : ""}`}
                   type="email"
@@ -397,7 +499,8 @@ export default function AccountDashboard() {
                 />
                 {lockInfo.isLocked ? (
                   <p className="accountRestrictionText">
-                    Email changes are locked until {formatLockDate(lockInfo.unlocksAt)}.
+                    Email changes are locked until{" "}
+                    {formatLockDate(lockInfo.unlocksAt)}.
                   </p>
                 ) : (
                   <p className="accountHelperText">
@@ -411,19 +514,55 @@ export default function AccountDashboard() {
                 <h3>Change Password</h3>
 
                 <label className="accountField">
-                  <span className="accountFieldLabel">Current Password</span>
-                  <input
-                    className={`accountInput ${errors.currentPassword ? "inputError" : ""}`}
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => {
-                      setCurrentPassword(e.target.value);
-                      setErrors((prev) => ({
-                        ...prev,
-                        currentPassword: undefined,
-                      }));
-                    }}
-                  />
+                  <span className={fieldLabelClass(isCurrentPasswordDirty)}>
+                    Current Password
+                  </span>
+                  <div className="passwordInputWrap">
+                    <input
+                      className={`accountInput passwordInput ${
+                        errors.currentPassword ? "inputError" : ""
+                      }`}
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => {
+                        setCurrentPassword(e.target.value);
+                        if (!e.target.value) {
+                          setShowCurrentPassword(false);
+                        }
+                        setErrors((prev) => ({
+                          ...prev,
+                          currentPassword: undefined,
+                        }));
+                      }}
+                    />
+                    {currentPassword.length > 0 && (
+                      <button
+                        type="button"
+                        className="passwordToggle"
+                        onClick={() => setShowCurrentPassword((prev) => !prev)}
+                        aria-label={
+                          showCurrentPassword
+                            ? "Hide password"
+                            : "Show password"
+                        }
+                        aria-pressed={showCurrentPassword}
+                      >
+                        {showCurrentPassword ? (
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M3 3l18 18" />
+                            <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                            <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                            <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
+                  </div>
                   {errors.currentPassword && (
                     <p className="errorText">{errors.currentPassword}</p>
                   )}
@@ -431,39 +570,116 @@ export default function AccountDashboard() {
 
                 <div className="accountFormRow">
                   <label className="accountField">
-                    <span className="accountFieldLabel">New Password</span>
-                    <input
-                      className={`accountInput ${errors.newPassword ? "inputError" : ""}`}
-                      type="password"
-                      value={newPassword}
-                      disabled={lockInfo.isLocked}
-                      onChange={(e) => {
-                        setNewPassword(e.target.value);
-                        setErrors((prev) => ({ ...prev, newPassword: undefined }));
-                      }}
-                    />
+                    <span className={fieldLabelClass(isNewPasswordDirty)}>
+                      New Password
+                    </span>
+                    <div className="passwordInputWrap">
+                      <input
+                        className={`accountInput passwordInput ${
+                          errors.newPassword ? "inputError" : ""
+                        }`}
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        disabled={lockInfo.isLocked}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          if (!e.target.value) {
+                            setShowNewPassword(false);
+                          }
+                          setErrors((prev) => ({
+                            ...prev,
+                            newPassword: undefined,
+                          }));
+                        }}
+                      />
+                      {newPassword.length > 0 && (
+                        <button
+                          type="button"
+                          className="passwordToggle"
+                          onClick={() => setShowNewPassword((prev) => !prev)}
+                          aria-label={
+                            showNewPassword ? "Hide password" : "Show password"
+                          }
+                          aria-pressed={showNewPassword}
+                          disabled={lockInfo.isLocked}
+                        >
+                          {showNewPassword ? (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M3 3l18 18" />
+                              <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                              <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                              <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
+                    </div>
                     {errors.newPassword && (
                       <p className="errorText">{errors.newPassword}</p>
                     )}
                   </label>
 
                   <label className="accountField">
-                    <span className="accountFieldLabel">Confirm New Password</span>
-                    <input
-                      className={`accountInput ${
-                        errors.confirmNewPassword ? "inputError" : ""
-                      }`}
-                      type="password"
-                      value={confirmNewPassword}
-                      disabled={lockInfo.isLocked}
-                      onChange={(e) => {
-                        setConfirmNewPassword(e.target.value);
-                        setErrors((prev) => ({
-                          ...prev,
-                          confirmNewPassword: undefined,
-                        }));
-                      }}
-                    />
+                    <span
+                      className={fieldLabelClass(isConfirmNewPasswordDirty)}
+                    >
+                      Confirm New Password
+                    </span>
+                    <div className="passwordInputWrap">
+                      <input
+                        className={`accountInput passwordInput ${
+                          errors.confirmNewPassword ? "inputError" : ""
+                        }`}
+                        type={showConfirmNewPassword ? "text" : "password"}
+                        value={confirmNewPassword}
+                        disabled={lockInfo.isLocked}
+                        onChange={(e) => {
+                          setConfirmNewPassword(e.target.value);
+                          if (!e.target.value) {
+                            setShowConfirmNewPassword(false);
+                          }
+                          setErrors((prev) => ({
+                            ...prev,
+                            confirmNewPassword: undefined,
+                          }));
+                        }}
+                      />
+                      {confirmNewPassword.length > 0 && (
+                        <button
+                          type="button"
+                          className="passwordToggle"
+                          onClick={() =>
+                            setShowConfirmNewPassword((prev) => !prev)
+                          }
+                          aria-label={
+                            showConfirmNewPassword
+                              ? "Hide password"
+                              : "Show password"
+                          }
+                          aria-pressed={showConfirmNewPassword}
+                          disabled={lockInfo.isLocked}
+                        >
+                          {showConfirmNewPassword ? (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M3 3l18 18" />
+                              <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                              <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                              <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
+                    </div>
                     {errors.confirmNewPassword && (
                       <p className="errorText">{errors.confirmNewPassword}</p>
                     )}
@@ -472,12 +688,13 @@ export default function AccountDashboard() {
 
                 {lockInfo.isLocked ? (
                   <p className="accountRestrictionText">
-                    Password changes are locked until {formatLockDate(lockInfo.unlocksAt)}.
+                    Password changes are locked until{" "}
+                    {formatLockDate(lockInfo.unlocksAt)}.
                   </p>
                 ) : (
                   <p className="accountHelperText">
-                    Password must be at least 8 characters and include uppercase,
-                    lowercase, and a number.
+                    Password must be at least 8 characters and include
+                    uppercase, lowercase, and a number.
                   </p>
                 )}
               </div>
@@ -485,8 +702,16 @@ export default function AccountDashboard() {
               <div className="accountActionRow">
                 <button
                   type="button"
+                  className="accountSecondaryButton"
+                  disabled={isSaving || isLoading || !hasUnsavedChanges}
+                  onClick={handleDiscardChanges}
+                >
+                  Discard Changes
+                </button>
+                <button
+                  type="button"
                   className="accountPrimaryButton"
-                  disabled={isSaving}
+                  disabled={isSaving || isLoading || !hasChangesToSave}
                   onClick={handleSave}
                 >
                   {isSaving ? "Saving..." : "Save Changes"}
@@ -535,21 +760,58 @@ export default function AccountDashboard() {
           <div className="accountDangerZone">
             <h3>Delete Account</h3>
             <p>
-              This permanently marks your account as deleted. Enter your password
-              to confirm.
+              This permanently marks your account as deleted. Enter your
+              password to confirm.
             </p>
 
             <label className="accountField">
-              <span className="accountFieldLabel">Confirm Password</span>
-              <input
-                className={`accountInput ${errors.deletePassword ? "inputError" : ""}`}
-                type="password"
-                value={deletePassword}
-                onChange={(e) => {
-                  setDeletePassword(e.target.value);
-                  setErrors((prev) => ({ ...prev, deletePassword: undefined }));
-                }}
-              />
+              <span className={fieldLabelClass(isDeletePasswordDirty)}>
+                Confirm Password
+              </span>
+              <div className="passwordInputWrap">
+                <input
+                  className={`accountInput passwordInput ${
+                    errors.deletePassword ? "inputError" : ""
+                  }`}
+                  type={showDeletePassword ? "text" : "password"}
+                  value={deletePassword}
+                  onChange={(e) => {
+                    setDeletePassword(e.target.value);
+                    if (!e.target.value) {
+                      setShowDeletePassword(false);
+                    }
+                    setErrors((prev) => ({
+                      ...prev,
+                      deletePassword: undefined,
+                    }));
+                  }}
+                />
+                {deletePassword.length > 0 && (
+                  <button
+                    type="button"
+                    className="passwordToggle"
+                    onClick={() => setShowDeletePassword((prev) => !prev)}
+                    aria-label={
+                      showDeletePassword ? "Hide password" : "Show password"
+                    }
+                    aria-pressed={showDeletePassword}
+                  >
+                    {showDeletePassword ? (
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 3l18 18" />
+                        <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                        <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                        <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                )}
+              </div>
               {errors.deletePassword && (
                 <p className="errorText">{errors.deletePassword}</p>
               )}

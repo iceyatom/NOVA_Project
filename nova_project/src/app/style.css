@@ -4353,6 +4353,10 @@ body:has(.loginPage) main {
   color: #475569;
 }
 
+.accountFieldLabelDirty {
+  color: rgb(192, 96, 0);
+}
+
 .accountInput {
   height: 42px;
   padding: 0 12px;
@@ -4363,7 +4367,7 @@ body:has(.loginPage) main {
 
 .accountInput:focus {
   outline: none;
-  border-color: var(--brand-focus);
+  border-color: #000;
 }
 
 .accountHelperText {
@@ -4413,6 +4417,25 @@ body:has(.loginPage) main {
 }
 
 .accountPrimaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.accountSecondaryButton {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  background: #dc2626;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.accountSecondaryButton:hover {
+  background: #b91c1c;
+}
+
+.accountSecondaryButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

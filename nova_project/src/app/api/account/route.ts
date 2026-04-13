@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 const SENSITIVE_LOCK_DAYS = 30;
 const SENSITIVE_LOCK_MS = SENSITIVE_LOCK_DAYS * 24 * 60 * 60 * 1000;
+const MIN_PHONE_DIGITS = 10;
+const MAX_PHONE_DIGITS = 10;
 
 type AccountUpdateBody = {
   currentEmail?: string;
@@ -46,7 +48,14 @@ function normalizePhone(phone: string): string {
 
 function isValidPhone(value: string): boolean {
   const digitsOnly = value.replace(/\D/g, "");
-  return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+  return (
+    digitsOnly.length >= MIN_PHONE_DIGITS &&
+    digitsOnly.length <= MAX_PHONE_DIGITS
+  );
+}
+
+function getPhoneDigitsLength(value: string): number {
+  return value.replace(/\D/g, "").length;
 }
 
 function isValidEmail(value: string): boolean {
@@ -153,10 +162,13 @@ export async function PATCH(request: NextRequest) {
   }
 
   const currentEmail =
-    typeof body.currentEmail === "string" ? normalizeEmail(body.currentEmail) : "";
+    typeof body.currentEmail === "string"
+      ? normalizeEmail(body.currentEmail)
+      : "";
   const displayName =
     typeof body.displayName === "string" ? body.displayName.trim() : "";
-  const phone = typeof body.phone === "string" ? normalizePhone(body.phone) : "";
+  const phone =
+    typeof body.phone === "string" ? normalizePhone(body.phone) : "";
   const newEmail =
     typeof body.newEmail === "string" ? normalizeEmail(body.newEmail) : "";
   const currentPassword =
@@ -165,7 +177,10 @@ export async function PATCH(request: NextRequest) {
     typeof body.newPassword === "string" ? body.newPassword : "";
 
   if (!currentEmail) {
-    return jsonResponse({ ok: false, error: "Current email is required." }, 400);
+    return jsonResponse(
+      { ok: false, error: "Current email is required." },
+      400,
+    );
   }
 
   if (!displayName) {
@@ -177,10 +192,13 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (!isValidPhone(phone)) {
-    return jsonResponse(
-      { ok: false, error: "Please enter a valid phone number." },
-      400,
-    );
+    const phoneDigitsLength = getPhoneDigitsLength(phone);
+    const phoneError =
+      phoneDigitsLength > MAX_PHONE_DIGITS
+        ? "Phone number is too long. Use exactly 10 digits."
+        : "Phone number is too short. Use exactly 10 digits.";
+
+    return jsonResponse({ ok: false, error: phoneError }, 400);
   }
 
   try {
@@ -248,7 +266,10 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
-      const passwordOk = await verifyPassword(currentPassword, account.passwordHash);
+      const passwordOk = await verifyPassword(
+        currentPassword,
+        account.passwordHash,
+      );
 
       if (!passwordOk) {
         return jsonResponse(
@@ -313,10 +334,7 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error) {
     console.error("[account/update] failed", error);
-    return jsonResponse(
-      { ok: false, error: "Unable to update account." },
-      500,
-    );
+    return jsonResponse({ ok: false, error: "Unable to update account." }, 500);
   }
 }
 
@@ -330,7 +348,9 @@ export async function DELETE(request: NextRequest) {
   }
 
   const currentEmail =
-    typeof body.currentEmail === "string" ? normalizeEmail(body.currentEmail) : "";
+    typeof body.currentEmail === "string"
+      ? normalizeEmail(body.currentEmail)
+      : "";
   const password = typeof body.password === "string" ? body.password : "";
 
   if (!currentEmail || !password) {
@@ -377,9 +397,6 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error) {
     console.error("[account/delete] failed", error);
-    return jsonResponse(
-      { ok: false, error: "Unable to delete account." },
-      500,
-    );
+    return jsonResponse({ ok: false, error: "Unable to delete account." }, 500);
   }
 }
