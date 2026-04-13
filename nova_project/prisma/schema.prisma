@@ -96,6 +96,7 @@ model Account {
   updatedAt DateTime @updatedAt
 
   tasks Task[] @relation("AccountTasks")
+  sensitiveUpdatedAt  DateTime?
 }
 
 model Ticket {
