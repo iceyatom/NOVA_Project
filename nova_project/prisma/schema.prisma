@@ -98,6 +98,8 @@ model Account {
   tasks          Task[]          @relation("AccountTasks")
   authSessions   AuthSession[]
   mfaChallenges  MfaChallenge[]
+  tasks Task[] @relation("AccountTasks")
+  sensitiveUpdatedAt  DateTime?
 }
 
 model Ticket {

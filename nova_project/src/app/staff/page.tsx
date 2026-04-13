@@ -6,6 +6,7 @@ const tools = [
   { label: "Item search and browse", href: "/staff/item_search" },
   { label: "Item specific edit page UI", href: "/staff/item_edit" },
   { label: "Create item UI", href: "/staff/item_create" },
+  { label: "Create task", href: "/staff/task_create" },
   { label: "Password hashing test", href: "/staff/password-hash-test" },
   { label: "Image upload demo", href: "/staff/image-upload-demo" },
 ];
