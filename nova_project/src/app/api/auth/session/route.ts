@@ -35,7 +35,11 @@ export async function GET() {
     }
 
     const { account } = session;
-    if (!account || account.deletedAt || account.status.toLowerCase() !== "active") {
+    if (
+      !account ||
+      account.deletedAt ||
+      account.status.toLowerCase() !== "active"
+    ) {
       return NextResponse.json({ ok: false }, { status: 401 });
     }
 

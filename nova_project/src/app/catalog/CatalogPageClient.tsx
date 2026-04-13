@@ -9,6 +9,13 @@ import Filters from "../components/Filters";
 import CatalogPagination from "../components/CatalogPagination";
 import APIError from "./APIError";
 
+type ItemImage = {
+  id: number | null;
+  s3Key: string | null;
+  url: string;
+  createdAt: string | null;
+};
+
 type Item = {
   id: number | null;
   sku: string | null;
@@ -21,6 +28,7 @@ type Item = {
   unitOfMeasure: string | null;
   quantity: number | null;
   imageUrl: string | null;
+  images?: ItemImage[] | null;
   quantityInStock: number | null;
 };
 
@@ -147,6 +155,53 @@ function normalizePriceRange(minPrice: number | null, maxPrice: number | null) {
     min: Math.max(DEFAULT_PRICE_RANGE.min, Math.min(min, max)),
     max: Math.min(DEFAULT_PRICE_RANGE.max, Math.max(max, min)),
   };
+}
+
+// normalizeCatalogPayload helper functions
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function getNullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function getNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function parseItemImages(raw: unknown): ItemImage[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map((entry): ItemImage | null => {
+      const image = asRecord(entry);
+      if (!image) return null;
+
+      const url =
+        getNullableString(image.url) ??
+        getNullableString(image.fileUrl) ??
+        null;
+
+      if (!url) return null;
+
+      return {
+        id: getNullableNumber(image.id),
+        s3Key: getNullableString(image.s3Key),
+        url,
+        createdAt: getNullableString(image.createdAt),
+      };
+    })
+    .filter((entry): entry is ItemImage => entry !== null);
 }
 
 function normalizeCatalogPayload(
@@ -319,10 +374,18 @@ export default function CatalogPageClient() {
         }
 
         const normalizedItems =
-          payload.data?.map((item) => ({
-            ...item,
-            price: item.price === null ? null : Number(item.price),
-          })) ?? [];
+          payload.data?.map((item) => {
+            const images = parseItemImages(
+              (item as { images?: unknown }).images,
+            );
+
+            return {
+              ...item,
+              price: item.price === null ? null : Number(item.price),
+              images,
+              imageUrl: images[0]?.url ?? item.imageUrl ?? "/FillerImage.webp",
+            };
+          }) ?? [];
 
         setItems(normalizedItems);
         setTotalCount(payload.totalCount ?? 0);

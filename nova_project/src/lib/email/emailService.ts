@@ -8,9 +8,7 @@ export async function sendVerificationEmail(
   // In development (or when no API key is set), print the code to the terminal
   // so the flow can be tested without a real email provider.
   if (!process.env.RESEND_API_KEY || process.env.NODE_ENV !== "production") {
-    console.log(
-      `\n[DEV] Verification code for ${toEmail}: ${code}\n`,
-    );
+    console.log(`\n[DEV] Verification code for ${toEmail}: ${code}\n`);
     return;
   }
 
@@ -50,6 +48,8 @@ export async function sendVerificationEmail(
 
   if (result.error) {
     console.error("[emailService] Resend error:", result.error);
-    throw new Error(`Failed to send verification email: ${result.error.message}`);
+    throw new Error(
+      `Failed to send verification email: ${result.error.message}`,
+    );
   }
 }

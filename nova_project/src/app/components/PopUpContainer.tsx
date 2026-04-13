@@ -1,5 +1,5 @@
-import React, { ReactNode } from 'react';
-import '../styles/PopUpContainer.css';
+import React, { ReactNode } from "react";
+import "../styles/PopUpContainer.css";
 
 interface PopupData {
   isOpen: boolean;
@@ -16,9 +16,7 @@ const PopUpContainer: React.FC<PopupData> = ({ isOpen, onClose, children }) => {
         <button className="close-button" onClick={onClose}>
           &times;
         </button>
-        <div className="popup-content">
-          {children}
-        </div>
+        <div className="popup-content">{children}</div>
       </div>
     </div>
   );

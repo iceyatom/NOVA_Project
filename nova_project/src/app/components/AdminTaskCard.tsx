@@ -52,12 +52,17 @@ export default function AdminTaskCard({
 }) {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
-  const expiredStatus = task.currentStatus !== "completed" && new Date(task.expiresAt.replace("-", "")) < new Date() ? "expired" : task.currentStatus;
+  const expiredStatus =
+    task.currentStatus !== "completed" &&
+    new Date(task.expiresAt.replace("-", "")) < new Date()
+      ? "expired"
+      : task.currentStatus;
 
   return (
     <div
-      className={`staffTaskCard ${expiredStatus} ${isCollapsed ? "isCollapsed" : ""
-        }`}
+      className={`staffTaskCard ${expiredStatus} ${
+        isCollapsed ? "isCollapsed" : ""
+      }`}
     >
       <div className="staffTaskCardHeader">
         <div className="staffTaskCardHeaderLeft">
@@ -75,8 +80,9 @@ export default function AdminTaskCard({
             aria-label={isCollapsed ? "Expand task" : "Collapse task"}
           >
             <span
-              className={`staffTaskCollapseIcon ${isCollapsed ? "collapsed" : ""
-                }`}
+              className={`staffTaskCollapseIcon ${
+                isCollapsed ? "collapsed" : ""
+              }`}
             >
               ▾
             </span>
@@ -84,7 +90,10 @@ export default function AdminTaskCard({
           </button>
 
           <div className={`staffTaskStatusBadge ${expiredStatus}`}>
-            {task.currentStatus === "not-started" && new Date(task.expiresAt.replace("-", "")) < new Date() ? "Late" : getStatusLabel(task.currentStatus)}
+            {task.currentStatus === "not-started" &&
+            new Date(task.expiresAt.replace("-", "")) < new Date()
+              ? "Late"
+              : getStatusLabel(task.currentStatus)}
           </div>
         </div>
       </div>
@@ -117,7 +126,9 @@ export default function AdminTaskCard({
             <div className="staffTaskRow">
               <span className="staffTaskLabel">Expiration Status:</span>
               <span className="staffTaskValue">
-                {new Date(task.expiresAt.replace("-", "")) < new Date() ? "Expired" : "Active"}
+                {new Date(task.expiresAt.replace("-", "")) < new Date()
+                  ? "Expired"
+                  : "Active"}
               </span>
             </div>
 
@@ -131,16 +142,20 @@ export default function AdminTaskCard({
             <div className="staffTaskRow">
               <span className="staffTaskLabel">Completed At:</span>
               <span className="staffTaskValue">
-                {task.currentStatus === "completed"
-                  ? task.completedAt
-                  : "—"}
+                {task.currentStatus === "completed" ? task.completedAt : "—"}
               </span>
             </div>
 
             <div className="staffTaskDescriptionBlock">
               <span className="staffTaskLabel">Description:</span>
 
-              <div className={descriptionExpanded ? "staffTaskDescriptionText" : "staffTaskDescriptionTextShort"}>
+              <div
+                className={
+                  descriptionExpanded
+                    ? "staffTaskDescriptionText"
+                    : "staffTaskDescriptionTextShort"
+                }
+              >
                 {task.description}
               </div>
 

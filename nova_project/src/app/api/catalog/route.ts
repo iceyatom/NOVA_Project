@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -431,6 +432,17 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     description: true,
     price: true,
     quantityInStock: true,
+    images: {
+      select: {
+        id: true,
+        s3Key: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "asc" as const,
+      },
+      take: 1,
+    },
   };
 
   // Detail view: full item shape for edit/detail experiences
@@ -459,22 +471,69 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     unitCost: true,
     createdAt: true,
     updatedAt: true,
-  };
+    images: {
+      select: {
+        id: true,
+        s3Key: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "asc" as const,
+      },
+    },
+  } satisfies Prisma.CatalogItemSelect;
+
+  function getImageUrlFromKey(key: string) {
+    if (/^https?:\/\//i.test(key)) {
+      return key;
+    }
+
+    const normalizedKey = key.replace(/^\/+/, "");
+    const bucket = process.env.S3_BUCKET_NAME;
+    const region = process.env.AWS_REGION;
+
+    if (!bucket) {
+      throw new Error(
+        "S3_BUCKET_NAME is required to build catalog image URLs.",
+      );
+    }
+
+    if (!region || region === "us-east-1") {
+      return `https://${bucket}.s3.amazonaws.com/${normalizedKey}`;
+    }
+
+    return `https://${bucket}.s3.${region}.amazonaws.com/${normalizedKey}`;
+  }
 
   function withCategoryNames<
     T extends {
       category1Ref?: { name: string } | null;
       category2Ref?: { name: string } | null;
       category3Ref?: { name: string } | null;
+      images?: Array<{
+        id: number;
+        s3Key: string;
+        createdAt: Date;
+      }> | null;
     },
   >(item: T) {
-    const { category1Ref, category2Ref, category3Ref, ...rest } = item;
+    const { category1Ref, category2Ref, category3Ref, images, ...rest } = item;
 
     return {
       ...rest,
       category1: category1Ref?.name ?? null,
       category2: category2Ref?.name ?? null,
       category3: category3Ref?.name ?? null,
+      ...(images
+        ? {
+            images: images.map((img) => ({
+              id: img.id,
+              s3Key: img.s3Key,
+              createdAt: img.createdAt,
+              url: getImageUrlFromKey(img.s3Key),
+            })),
+          }
+        : {}),
     };
   }
 

@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import AdminTaskCard, { EmployeeTask, TaskStatus } from "@/app/components/AdminTaskCard";
+import AdminTaskCard, {
+  EmployeeTask,
+  TaskStatus,
+  getStatusLabel,
+} from "@/app/components/AdminTaskCard";
 
 const mockTasks: EmployeeTask[] = [
   {
@@ -248,10 +252,134 @@ export function statusPriority(task: EmployeeTask) {
         return 4;
     }
   }
-};
+}
 
 function getCompletionStateLabel(task: EmployeeTask) {
   return task.currentStatus === "completed" ? "Completed" : "Not Completed";
+}
+
+function TaskCard({
+  task,
+  isCollapsed,
+  onToggleCollapse,
+}: {
+  task: EmployeeTask;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+}) {
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+
+  return (
+    <div
+      className={`staffTaskCard ${task.currentStatus} ${
+        isCollapsed ? "isCollapsed" : ""
+      }`}
+    >
+      <div className="staffTaskCardHeader">
+        <div className="staffTaskCardHeaderLeft">
+          <div className="staffTaskTitle">{task.title}</div>
+          <div className="staffTaskEmployeeRole">
+            {task.employeeName} • {task.employeePosition}
+          </div>
+        </div>
+
+        <div className="staffTaskCardHeaderRight">
+          <button
+            type="button"
+            className="staffTaskCollapseButton"
+            onClick={onToggleCollapse}
+            aria-label={isCollapsed ? "Expand task" : "Collapse task"}
+          >
+            <span
+              className={`staffTaskCollapseIcon ${
+                isCollapsed ? "collapsed" : ""
+              }`}
+            >
+              ▾
+            </span>
+            {isCollapsed ? "Expand" : "Collapse"}
+          </button>
+
+          <div className={`staffTaskStatusBadge ${task.currentStatus}`}>
+            {getStatusLabel(task.currentStatus)}
+          </div>
+        </div>
+      </div>
+
+      {!isCollapsed && (
+        <>
+          <div className="staffTaskDivider" />
+
+          <div className="staffTaskBody">
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Assigned Employee:</span>
+              <span className="staffTaskValue">{task.employeeName}</span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Assigned Account ID:</span>
+              <span className="staffTaskValue">{task.assignedToAccountId}</span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Created At:</span>
+              <span className="staffTaskValue">{task.createdAt}</span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Expires At:</span>
+              <span className="staffTaskValue">{task.expiresAt}</span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Expiration Status:</span>
+              <span className="staffTaskValue">
+                {new Date(task.expiresAt.replace("-", "")) < new Date()
+                  ? "Expired"
+                  : "Active"}
+              </span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Current Status:</span>
+              <span className="staffTaskValue">
+                {getStatusLabel(task.currentStatus)}
+              </span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Completed At:</span>
+              <span className="staffTaskValue">
+                {task.currentStatus === "completed" ? task.completedAt : "—"}
+              </span>
+            </div>
+
+            <div className="staffTaskDescriptionBlock">
+              <span className="staffTaskLabel">Description:</span>
+
+              <div className="staffTaskDescriptionText">
+                {descriptionExpanded
+                  ? task.description
+                  : `${task.description.slice(0, 120)}${
+                      task.description.length > 120 ? "..." : ""
+                    }`}
+              </div>
+
+              {task.description.length > 120 && (
+                <button
+                  type="button"
+                  className="staffTaskExpandButton"
+                  onClick={() => setDescriptionExpanded(!descriptionExpanded)}
+                >
+                  {descriptionExpanded ? "Show less" : "Show more"}
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function StaffTaskViewPage() {
@@ -274,7 +402,7 @@ export default function StaffTaskViewPage() {
         acc[task.employeeName].push(task);
         return acc;
       },
-      {}
+      {},
     );
 
     return Object.entries(grouped);
@@ -305,7 +433,7 @@ export default function StaffTaskViewPage() {
   function toggleEmployeeCollapse(taskIds: number[]) {
     setCollapsedTaskIds((currentIds) => {
       const areAllEmployeeTasksCollapsed = taskIds.every((taskId) =>
-        currentIds.includes(taskId)
+        currentIds.includes(taskId),
       );
 
       if (areAllEmployeeTasksCollapsed) {
@@ -344,7 +472,10 @@ export default function StaffTaskViewPage() {
         <div className="staffCard col4">
           <div className="staffCardLabel">Completed</div>
           <div className="staffCardValue staffTaskSummaryValue">
-            {mockTasks.filter((task) => task.currentStatus === "completed").length}
+            {
+              mockTasks.filter((task) => task.currentStatus === "completed")
+                .length
+            }
           </div>
           <div className="staffCardHint">Tasks marked complete.</div>
         </div>
@@ -352,9 +483,17 @@ export default function StaffTaskViewPage() {
         <div className="staffCard col4">
           <div className="staffCardLabel">Late</div>
           <div className="staffCardValue staffTaskSummaryValue">
-            {mockTasks.filter((task) => (!(task.currentStatus === "completed") && new Date(task.expiresAt.replace("-", "")) < new Date())).length}
+            {
+              mockTasks.filter(
+                (task) =>
+                  task.currentStatus !== "completed" &&
+                  new Date(task.expiresAt.replace("-", "")) < new Date(),
+              ).length
+            }
           </div>
-          <div className="staffCardHint">Tasks not completed and past deadline.</div>
+          <div className="staffCardHint">
+            Tasks not completed and past deadline.
+          </div>
         </div>
       </div>
 
@@ -387,8 +526,9 @@ export default function StaffTaskViewPage() {
           onClick={toggleCollapseAll}
         >
           <span
-            className={`staffActionButtonIcon ${areAllCollapsed ? "collapsed" : ""
-              }`}
+            className={`staffActionButtonIcon ${
+              areAllCollapsed ? "collapsed" : ""
+            }`}
           >
             ▾
           </span>
@@ -400,7 +540,7 @@ export default function StaffTaskViewPage() {
         {groupedTasks.map(([employeeName, tasks]) => {
           const employeeTaskIds = tasks.map((task) => task.id);
           const areEmployeeTasksCollapsed = employeeTaskIds.every((taskId) =>
-            collapsedTaskIds.includes(taskId)
+            collapsedTaskIds.includes(taskId),
           );
 
           return (
@@ -419,8 +559,9 @@ export default function StaffTaskViewPage() {
                   onClick={() => toggleEmployeeCollapse(employeeTaskIds)}
                 >
                   <span
-                    className={`staffActionButtonIcon ${areEmployeeTasksCollapsed ? "collapsed" : ""
-                      }`}
+                    className={`staffActionButtonIcon ${
+                      areEmployeeTasksCollapsed ? "collapsed" : ""
+                    }`}
                   >
                     ▾
                   </span>

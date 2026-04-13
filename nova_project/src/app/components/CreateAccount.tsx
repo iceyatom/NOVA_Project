@@ -238,11 +238,7 @@ export default function CreateAccountPage() {
         <h1 className="loginTitle">Create Account</h1>
 
         {feedback && (
-          <div
-            className="errorText"
-            style={{ marginBottom: 16 }}
-            role="alert"
-          >
+          <div className="errorText" style={{ marginBottom: 16 }} role="alert">
             {feedback}
           </div>
         )}
@@ -346,11 +342,7 @@ export default function CreateAccountPage() {
             </select>
           </label>
 
-          <button
-            className="loginButton"
-            type="submit"
-            disabled={isSubmitting}
-          >
+          <button className="loginButton" type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Creating account…" : "Create account"}
           </button>
         </form>

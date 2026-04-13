@@ -7,13 +7,9 @@ import EmployeeTaskCard from "./EmployeeTaskCard";
 import { statusPriority } from "../staff/adminTaskView/page";
 
 function getTasks(account: string) {
-  // Search task model in database for the account and return tasks 
-  ;
-
-  // Get the first 5 or so tasks from the database 
-  ;
-
-  // This is mock data 
+  // Search task model in database for the account and return tasks
+  // Get the first 5 or so tasks from the database
+  // This is mock data
   const tasks: EmployeeTask[] = [
     {
       id: 1,
@@ -63,7 +59,7 @@ function getTasks(account: string) {
       createdAt: "Apr 6, 2026 - 1:10 PM",
       expiresAt: "Apr 7, 2026 - 4:30 PM",
       currentStatus: "not-started",
-    }
+    },
   ];
 
   return tasks;
@@ -71,17 +67,19 @@ function getTasks(account: string) {
 
 export default function TaskWidget(account: string) {
   const [tasks, setTasks] = useState(() =>
-    getTasks(account).sort((a, b) => statusPriority(a) - statusPriority(b)).slice(0, 5)
+    getTasks(account)
+      .sort((a, b) => statusPriority(a) - statusPriority(b))
+      .slice(0, 5),
   );
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<EmployeeTask | null>(null);
 
   const updateTask = (updatedTask: EmployeeTask) => {
-    setTasks(prev =>
+    setTasks((prev) =>
       prev
-        .map(t => (t.id === updatedTask.id ? updatedTask : t))
+        .map((t) => (t.id === updatedTask.id ? updatedTask : t))
         .sort((a, b) => statusPriority(a) - statusPriority(b))
-        .slice(0, 5)
+        .slice(0, 5),
     );
     if (selectedTask?.id === updatedTask.id) {
       setSelectedTask(updatedTask);
@@ -102,31 +100,34 @@ export default function TaskWidget(account: string) {
   let taskList = <div className="staffCardHint">No tasks found.</div>;
 
   if (tasks.length !== 0) {
-    taskList = <div>
-      {tasks.map((task) => (
-        <div className="employeeCardHint"
-          onClick={() => openPopup(task)}
-          key={task.id}>
-          <EmployeeTaskCard
-            task={task}
-            isSummary={true}
-          />
-        </div>
-      ))}
-    </div>;
+    taskList = (
+      <div>
+        {tasks.map((task) => (
+          <div
+            className="employeeCardHint"
+            onClick={() => openPopup(task)}
+            key={task.id}
+          >
+            <EmployeeTaskCard task={task} isSummary={true} />
+          </div>
+        ))}
+      </div>
+    );
   }
 
-  return <div className="staffCard col4">
-    <div className="staffCardLabel">Upcoming Task{s}</div>
-    {taskList}
-    {selectedTask && (
-      <PopUpContainer isOpen={isPopupOpen} onClose={closePopup}>
-        <EmployeeTaskCard
-          task={selectedTask}
-          isSummary={false}
-          onTaskUpdate={updateTask}
-        />
-      </PopUpContainer>
-    )}
-  </div>;
+  return (
+    <div className="staffCard col4">
+      <div className="staffCardLabel">Upcoming Task{s}</div>
+      {taskList}
+      {selectedTask && (
+        <PopUpContainer isOpen={isPopupOpen} onClose={closePopup}>
+          <EmployeeTaskCard
+            task={selectedTask}
+            isSummary={false}
+            onTaskUpdate={updateTask}
+          />
+        </PopUpContainer>
+      )}
+    </div>
+  );
 }
