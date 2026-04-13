@@ -90,9 +90,7 @@ function TicketCard({ ticket }: { ticket: StaffTicketRecord }) {
         {ticket.lines.map((line) => (
           <div key={line.id} className="ticket-view-line">
             <span className="ticket-view-line-name">{line.itemName}</span>
-            <span className="ticket-view-line-sku">
-              {line.sku || "N/A"}
-            </span>
+            <span className="ticket-view-line-sku">{line.sku || "N/A"}</span>
             <span
               className={`ticket-view-line-qty ${line.countDelta >= 0 ? "ticket-view-line-qty--positive" : "ticket-view-line-qty--negative"}`}
             >
@@ -105,9 +103,7 @@ function TicketCard({ ticket }: { ticket: StaffTicketRecord }) {
       <div className="ticket-view-summary">
         <div className="ticket-view-summary-item">
           <span className="ticket-view-summary-label">Entries</span>
-          <span className="ticket-view-summary-value">
-            {ticket.entryCount}
-          </span>
+          <span className="ticket-view-summary-value">{ticket.entryCount}</span>
         </div>
         <div className="ticket-view-summary-item">
           <span className="ticket-view-summary-label">Net Delta</span>
@@ -161,9 +157,7 @@ export default function StaffTicketsPage() {
       setTotalCount(body.totalCount || 0);
       setOffset(pageOffset);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load tickets.",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load tickets.");
     } finally {
       setIsLoading(false);
     }
@@ -220,8 +214,7 @@ export default function StaffTicketsPage() {
             </button>
             <span className="ticket-view-pagination-info">
               {offset + 1} &ndash;{" "}
-              {Math.min(offset + DEFAULT_PAGE_SIZE, totalCount)} of{" "}
-              {totalCount}
+              {Math.min(offset + DEFAULT_PAGE_SIZE, totalCount)} of {totalCount}
             </span>
             <button
               type="button"

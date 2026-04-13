@@ -185,10 +185,7 @@ export async function GET(request: NextRequest) {
       }));
 
       const entryCount = lines.length;
-      const netQuantityDelta = lines.reduce(
-        (sum, l) => sum + l.countDelta,
-        0,
-      );
+      const netQuantityDelta = lines.reduce((sum, l) => sum + l.countDelta, 0);
       const absoluteQuantityMoved = lines.reduce(
         (sum, l) => sum + Math.abs(l.countDelta),
         0,
