@@ -78,10 +78,7 @@ export async function POST(request: Request) {
   });
 
   if (updated.attemptCount > MAX_MFA_ATTEMPTS) {
-    return errorResponse(
-      "Too many attempts. Please request a new code.",
-      429,
-    );
+    return errorResponse("Too many attempts. Please request a new code.", 429);
   }
 
   const submittedHash = hashMfaCode(code);

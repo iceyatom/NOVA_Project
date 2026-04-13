@@ -65,15 +65,9 @@ export default function AccountDashboard() {
     account,
     authStatus,
     logout,
-  } = useLoginStatus();
-
-  if (authStatus === "loading") {
-    return null;
-  }
     setAccount,
     accountEmail,
     setAccountEmail,
-    setUserRole,
   } = useLoginStatus();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -153,6 +147,10 @@ export default function AccountDashboard() {
     `accountFieldLabel${dirty ? " accountFieldLabelDirty" : ""}`;
 
   useEffect(() => {
+    if (authStatus === "loading") {
+      return;
+    }
+
     if (!loggedIn) {
       router.push("/login");
       return;
@@ -217,19 +215,14 @@ export default function AccountDashboard() {
     return () => {
       mounted = false;
     };
-  }, [accountEmail, loggedIn, router]);
+  }, [accountEmail, authStatus, loggedIn, router]);
 
-  if (!loggedIn) {
+  if (authStatus === "loading" || !loggedIn) {
     return null;
   }
 
   const handleLogout = async () => {
     await logout();
-  const handleLogout = () => {
-    setLoggedIn(false);
-    setAccount("");
-    setAccountEmail("");
-    setUserRole("");
     setCurrentPassword("");
     setNewPassword("");
     setConfirmNewPassword("");

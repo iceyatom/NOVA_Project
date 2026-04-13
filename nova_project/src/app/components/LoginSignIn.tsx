@@ -262,9 +262,7 @@ export default function LoginSignIn() {
       }
 
       setLoggedIn(true);
-      setAccount(
-        data.account?.displayName || data.account?.email || username,
-      );
+      setAccount(data.account?.displayName || data.account?.email || username);
       setAccountEmail(data.account?.email || normalizedEmail);
       setUserRole(data.account?.role || "");
       router.push("/account");
@@ -323,7 +321,13 @@ export default function LoginSignIn() {
     return (
       <section className="loginCard" aria-label="MFA Verification">
         <h1 className="loginTitle">Verification Code</h1>
-        <p style={{ textAlign: "center", color: "var(--muted)", marginBottom: "1rem" }}>
+        <p
+          style={{
+            textAlign: "center",
+            color: "var(--muted)",
+            marginBottom: "1rem",
+          }}
+        >
           Enter the 6-digit code sent to your device.
         </p>
 
