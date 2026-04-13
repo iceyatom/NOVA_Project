@@ -1011,8 +1011,7 @@
   font-size: 0.88rem;
   color: #475569;
   font-variant-numeric: tabular-nums;
-   Task Create
-   ========= */
+}
 
 .task-create-form {
   display: flex;
