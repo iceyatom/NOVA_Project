@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLoginStatus } from "../../LoginStatusContext";
 
 type CreateTaskApiResponse = {
   success?: boolean;
@@ -42,8 +41,6 @@ function getEndOfDayExpiry(): string {
 }
 
 export default function StaffTaskCreatePage() {
-  const { userRole, accountEmail } = useLoginStatus();
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
@@ -133,21 +130,6 @@ export default function StaffTaskCreatePage() {
     setSubmitError(null);
   }
 
-  if (!userRole) {
-    return null;
-  }
-
-  if (userRole !== "ADMIN") {
-    return (
-      <div>
-        <div className="staffTitle">Create Task</div>
-        <div className="task-create-access-denied">
-          <p>This page is restricted to admin-level accounts.</p>
-        </div>
-      </div>
-    );
-  }
-
   if (submitSuccess) {
     return (
       <div>
@@ -182,11 +164,7 @@ export default function StaffTaskCreatePage() {
         end of today&apos;s calendar day.
       </div>
 
-      <form
-        className="task-create-form"
-        onSubmit={handleSubmit}
-        noValidate
-      >
+      <form className="task-create-form" onSubmit={handleSubmit} noValidate>
         <div className="task-create-card">
           <div className="task-create-section-label">Task Details</div>
 
@@ -214,7 +192,16 @@ export default function StaffTaskCreatePage() {
 
           <div className="task-create-field">
             <label className="ticket-create-label" htmlFor="task-description">
-              Description <span style={{ fontWeight: 400, textTransform: "none", color: "#94a3b8" }}>(optional)</span>
+              Description{" "}
+              <span
+                style={{
+                  fontWeight: 400,
+                  textTransform: "none",
+                  color: "#94a3b8",
+                }}
+              >
+                (optional)
+              </span>
             </label>
             <textarea
               id="task-description"
@@ -241,7 +228,10 @@ export default function StaffTaskCreatePage() {
                 onChange={(e) => {
                   setAssigneeId(e.target.value);
                   if (fieldErrors?.assignee) {
-                    setFieldErrors((prev) => ({ ...prev, assignee: undefined }));
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      assignee: undefined,
+                    }));
                   }
                 }}
               >
@@ -264,9 +254,7 @@ export default function StaffTaskCreatePage() {
           <div className="task-create-expiry-row">
             <span className="task-create-expiry-label">Expires</span>
             <span className="task-create-expiry-value">{expiryLabel}</span>
-            <span className="task-create-expiry-hint">
-              (end of today)
-            </span>
+            <span className="task-create-expiry-hint">(end of today)</span>
           </div>
         </div>
 

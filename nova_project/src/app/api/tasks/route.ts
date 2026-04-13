@@ -11,10 +11,11 @@ export async function POST(req: NextRequest) {
       assignedToAccountId?: unknown;
     };
 
-    const title =
-      typeof body.title === "string" ? body.title.trim() : "";
+    const title = typeof body.title === "string" ? body.title.trim() : "";
     const description =
-      typeof body.description === "string" ? body.description.trim() : undefined;
+      typeof body.description === "string"
+        ? body.description.trim()
+        : undefined;
     const assignedToAccountId =
       typeof body.assignedToAccountId === "number"
         ? body.assignedToAccountId
@@ -28,7 +29,10 @@ export async function POST(req: NextRequest) {
     }
     if (!Number.isInteger(assignedToAccountId) || assignedToAccountId <= 0) {
       return NextResponse.json(
-        { success: false, error: "assignedToAccountId must be a valid account id." },
+        {
+          success: false,
+          error: "assignedToAccountId must be a valid account id.",
+        },
         { status: 400 },
       );
     }
