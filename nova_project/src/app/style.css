@@ -2332,6 +2332,33 @@ body:has(.loginPage) main {
   margin-top: 4px;
 }
 
+/* MFA verification */
+.mfaCodeInput {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 8px;
+  font-family: monospace;
+}
+
+.mfaActions {
+  display: flex;
+  gap: 10px;
+}
+
+.mfaActions .loginButton {
+  flex: 1;
+}
+
+.mfaDebugCallout {
+  padding: 8px 12px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 14px;
+  text-align: center;
+}
+
 /* Staff item search page */
 .item-search-page {
   min-height: 100vh;
