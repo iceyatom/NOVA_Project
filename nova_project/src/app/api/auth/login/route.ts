@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/passwordHash";
+import { randomBytes } from "crypto";
+
+const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -271,7 +274,7 @@ export async function POST(request: Request) {
       email: account.email,
     });
 
-    return jsonResponse({
+    const response = jsonResponse({
       ok: true,
       account: {
         email: account.email,
@@ -280,6 +283,36 @@ export async function POST(request: Request) {
       },
       role: account.role,
     });
+
+    try {
+      const sessionToken = randomBytes(32).toString("hex");
+      const sessionExpiresAt = new Date(
+        Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
+      );
+
+      await prisma.session.create({
+        data: {
+          token: sessionToken,
+          accountId: account.id,
+          expiresAt: sessionExpiresAt,
+        },
+      });
+
+      response.cookies.set("session", sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: SESSION_MAX_AGE_SECONDS,
+        path: "/",
+      });
+    } catch (sessionError) {
+      console.warn(
+        "[auth/login] session persistence unavailable (run prisma migrate):",
+        sessionError,
+      );
+    }
+
+    return response;
   } catch (error) {
     console.error("[auth/login] route failed", error);
     return errorResponse("Unable to process login request.", 500);
