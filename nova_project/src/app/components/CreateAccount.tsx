@@ -12,6 +12,8 @@ type Errors = {
   role?: string;
 };
 
+type Step = "form" | "verify" | "success";
+
 export default function CreateAccountPage() {
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
@@ -21,8 +23,16 @@ export default function CreateAccountPage() {
   const [role, setRole] = useState("CUSTOMER");
   const [errors, setErrors] = useState<Errors>({});
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Verification step state
+  const [step, setStep] = useState<Step>("form");
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
 
   const isValidPhone = (value: string) => {
     const digitsOnly = value.replace(/\D/g, "");
@@ -70,13 +80,11 @@ export default function CreateAccountPage() {
     if (Object.keys(next).length > 0) {
       setErrors(next);
       setFeedback(null);
-      setSuccess(false);
       return;
     }
 
     setErrors({});
     setFeedback(null);
-    setSuccess(false);
     setIsSubmitting(true);
 
     try {
@@ -87,36 +95,137 @@ export default function CreateAccountPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setFeedback("Account created successfully! You may now sign in.");
-        setSuccess(true);
-        setDisplayName("");
-        setPhone("");
-        setEmail("");
-        setPassword("");
-        setConfirmPassword("");
-        setRole("CUSTOMER");
+        setVerifiedEmail(data.email ?? email.trim().toLowerCase());
+        setStep("verify");
+      } else if (res.status === 409) {
+        setErrors((p) => ({ ...p, email: data.error }));
       } else {
         setFeedback(data.error || "Account creation failed.");
-        setSuccess(false);
       }
-    } catch (err) {
+    } catch {
       setFeedback("An error occurred. Please try again later.");
-      setSuccess(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (success) {
+  const handleVerify = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!verifyCode.trim()) {
+      setVerifyError("Please enter the 6-digit code.");
+      return;
+    }
+    setVerifyError(null);
+    setIsVerifying(true);
+    try {
+      const res = await fetch("/api/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verifiedEmail, code: verifyCode }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStep("success");
+      } else {
+        setVerifyError(data.error ?? "Verification failed. Please try again.");
+      }
+    } catch {
+      setVerifyError("Network error. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendMessage(null);
+    setIsResending(true);
+    try {
+      await fetch("/api/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verifiedEmail }),
+      });
+      setResendMessage("A new code has been sent to your email.");
+      setVerifyCode("");
+      setVerifyError(null);
+    } catch {
+      setResendMessage("Could not resend. Please try again.");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  if (step === "verify") {
     return (
       <div className="loginPage">
-        <section className="loginCard" aria-label="Account created">
-          <h1 className="loginTitle">Account Created</h1>
+        <section className="loginCard" aria-label="Verify your email">
+          <h1 className="loginTitle">Check your email</h1>
           <p className="authLinksText" style={{ marginBottom: "1rem" }}>
-            Your account has been created successfully.
+            We sent a 6-digit code to <strong>{verifiedEmail}</strong>. Enter it
+            below to activate your account.
+          </p>
+
+          <form className="loginForm" onSubmit={handleVerify} noValidate>
+            <label className="loginLabel">
+              Verification Code
+              <input
+                className={`loginInput ${verifyError ? "inputError" : ""}`}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={verifyCode}
+                autoComplete="one-time-code"
+                onChange={(e) => {
+                  setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setVerifyError(null);
+                }}
+              />
+              {verifyError && <p className="errorText">{verifyError}</p>}
+            </label>
+
+            <button
+              className="loginButton"
+              type="submit"
+              disabled={isVerifying}
+            >
+              {isVerifying ? "Verifying…" : "Verify account"}
+            </button>
+          </form>
+
+          <div className="authLinks" aria-label="Resend options">
+            <span className="authLinksText">Didn&apos;t receive the code?</span>
+            <button
+              className="authLink"
+              type="button"
+              onClick={handleResend}
+              disabled={isResending}
+              style={{ background: "none", border: "none", cursor: "pointer" }}
+            >
+              {isResending ? "Sending…" : "Resend code"}
+            </button>
+          </div>
+
+          {resendMessage && (
+            <p className="authLinksText" style={{ marginTop: "0.5rem" }}>
+              {resendMessage}
+            </p>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  if (step === "success") {
+    return (
+      <div className="loginPage">
+        <section className="loginCard" aria-label="Account activated">
+          <h1 className="loginTitle">Account Activated</h1>
+          <p className="authLinksText" style={{ marginBottom: "1rem" }}>
+            Your email has been verified and your account is now active.
           </p>
           <Link className="authLink" href="/login">
-            Account created! Sign in →
+            Sign in →
           </Link>
         </section>
       </div>
@@ -130,9 +239,9 @@ export default function CreateAccountPage() {
 
         {feedback && (
           <div
-            className={success ? "successText" : "errorText"}
+            className="errorText"
             style={{ marginBottom: 16 }}
-            role={success ? "status" : "alert"}
+            role="alert"
           >
             {feedback}
           </div>
@@ -237,19 +346,13 @@ export default function CreateAccountPage() {
             </select>
           </label>
 
-          <button className="loginButton" type="submit">
-            Create account
+          <button
+            className="loginButton"
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Creating account…" : "Create account"}
           </button>
-
-          {feedback && (
-            <div
-              className={success ? "successText" : "errorText"}
-              style={{ marginTop: 16 }}
-              role={success ? "status" : "alert"}
-            >
-              {feedback}
-            </div>
-          )}
         </form>
 
         <div className="authLinks" aria-label="Account actions">
