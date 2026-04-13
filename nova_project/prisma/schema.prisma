@@ -108,7 +108,19 @@ model Account {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasks Task[] @relation("AccountTasks")
+  tasks               Task[]               @relation("AccountTasks")
+  pendingVerification PendingVerification?
+  sessions            Session[]
+}
+
+model PendingVerification {
+  id        Int      @id @default(autoincrement())
+  accountId Int      @unique
+  codeHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model Ticket {
@@ -143,13 +155,23 @@ model Task {
   description         String?  @db.Text
   assignedToAccountId Int
   createdAt           DateTime @default(now())
-  isCompleted         Boolean  @default(false)
   completedAt         DateTime?
   expiresAt           DateTime
 
   assignedTo Account @relation("AccountTasks", fields: [assignedToAccountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([assignedToAccountId])
-  @@index([isCompleted])
   @@index([expiresAt])
+}
+
+model Session {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  accountId Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
 }

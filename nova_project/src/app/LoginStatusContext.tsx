@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const LoginStatusContext = createContext({
   loggedIn: false,
@@ -25,6 +25,21 @@ export function LoginStatusProvider({
   const [account, setAccount] = useState("");
   const [accountEmail, setAccountEmail] = useState("");
   const [userRole, setUserRole] = useState("");
+
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.ok && data.account) {
+          setLoggedIn(true);
+          setAccount(data.account.displayName ?? data.account.email);
+          setAccountEmail(data.account.email);
+          setUserRole(data.account.role);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <LoginStatusContext.Provider
       value={{

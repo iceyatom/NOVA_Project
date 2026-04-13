@@ -1,5 +1,6 @@
 "use client";
 
+import TaskWidget from "@/app/components/TaskWidget";
 import { useLoginStatus } from "../../LoginStatusContext";
 
 export default function StaffDashboardHome() {
@@ -43,14 +44,7 @@ export default function StaffDashboardHome() {
           </div>
         </div>
 
-        <div className="staffCard col4">
-          <div className="staffCardLabel">Upcoming Tasks</div>
-          <div className="staffCardHint">Task 1</div>
-          <div className="staffCardHint">Task 2</div>
-          <div className="staffCardHint">Task 3</div>
-          <div className="staffCardHint">Task 4</div>
-          <div className="staffCardHint">Task 5</div>
-        </div>
+        {TaskWidget(account)}
 
         <div className="staffCard col12">
           <div className="staffCardLabel">Inventory Tracker</div>

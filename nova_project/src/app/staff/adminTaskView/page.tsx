@@ -1,22 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
-type TaskStatus = "not-started" | "in-progress" | "completed" | "expired";
-
-type EmployeeTask = {
-  id: number;
-  title: string;
-  description: string;
-  assignedToAccountId: number;
-  employeeName: string;
-  employeePosition: string;
-  createdAt: string;
-  isCompleted: boolean;
-  completedAt?: string;
-  expiresAt: string;
-  currentStatus: TaskStatus;
-};
+import AdminTaskCard, { EmployeeTask, TaskStatus } from "@/app/components/AdminTaskCard";
 
 const mockTasks: EmployeeTask[] = [
   {
@@ -28,7 +13,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Sarah Chen",
     employeePosition: "Inventory Specialist",
     createdAt: "Apr 5, 2026 - 8:30 AM",
-    isCompleted: true,
     completedAt: "Apr 6, 2026 - 1:42 PM",
     expiresAt: "Apr 6, 2026 - 3:00 PM",
     currentStatus: "completed",
@@ -42,7 +26,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Sarah Chen",
     employeePosition: "Inventory Specialist",
     createdAt: "Apr 6, 2026 - 9:10 AM",
-    isCompleted: false,
     expiresAt: "Apr 7, 2026 - 11:30 AM",
     currentStatus: "in-progress",
   },
@@ -55,9 +38,8 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Sarah Chen",
     employeePosition: "Inventory Specialist",
     createdAt: "Apr 4, 2026 - 8:00 AM",
-    isCompleted: false,
-    expiresAt: "Apr 5, 2026 - 4:00 PM",
-    currentStatus: "expired",
+    expiresAt: "Apr 12, 2026 - 4:00 PM",
+    currentStatus: "not-started",
   },
   {
     id: 4,
@@ -68,7 +50,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Sarah Chen",
     employeePosition: "Inventory Specialist",
     createdAt: "Apr 6, 2026 - 1:10 PM",
-    isCompleted: false,
     expiresAt: "Apr 7, 2026 - 4:30 PM",
     currentStatus: "not-started",
   },
@@ -81,9 +62,8 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Marcus Rivera",
     employeePosition: "Shipping Coordinator",
     createdAt: "Apr 4, 2026 - 10:00 AM",
-    isCompleted: false,
     expiresAt: "Apr 5, 2026 - 4:00 PM",
-    currentStatus: "expired",
+    currentStatus: "not-started",
   },
   {
     id: 6,
@@ -94,7 +74,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Marcus Rivera",
     employeePosition: "Shipping Coordinator",
     createdAt: "Apr 6, 2026 - 7:45 AM",
-    isCompleted: false,
     expiresAt: "Apr 6, 2026 - 5:00 PM",
     currentStatus: "not-started",
   },
@@ -107,7 +86,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Marcus Rivera",
     employeePosition: "Shipping Coordinator",
     createdAt: "Apr 6, 2026 - 9:00 AM",
-    isCompleted: false,
     expiresAt: "Apr 6, 2026 - 6:30 PM",
     currentStatus: "in-progress",
   },
@@ -120,7 +98,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Marcus Rivera",
     employeePosition: "Shipping Coordinator",
     createdAt: "Apr 5, 2026 - 11:20 AM",
-    isCompleted: true,
     completedAt: "Apr 5, 2026 - 1:10 PM",
     expiresAt: "Apr 5, 2026 - 2:30 PM",
     currentStatus: "completed",
@@ -134,7 +111,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Emily Watson",
     employeePosition: "Lab Support Assistant",
     createdAt: "Apr 6, 2026 - 8:00 AM",
-    isCompleted: true,
     completedAt: "Apr 6, 2026 - 12:18 PM",
     expiresAt: "Apr 6, 2026 - 2:00 PM",
     currentStatus: "completed",
@@ -148,7 +124,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Emily Watson",
     employeePosition: "Lab Support Assistant",
     createdAt: "Apr 6, 2026 - 11:15 AM",
-    isCompleted: false,
     expiresAt: "Apr 7, 2026 - 1:00 PM",
     currentStatus: "in-progress",
   },
@@ -161,9 +136,8 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Emily Watson",
     employeePosition: "Lab Support Assistant",
     createdAt: "Apr 5, 2026 - 2:00 PM",
-    isCompleted: false,
     expiresAt: "Apr 6, 2026 - 9:30 AM",
-    currentStatus: "expired",
+    currentStatus: "not-started",
   },
   {
     id: 12,
@@ -174,7 +148,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Emily Watson",
     employeePosition: "Lab Support Assistant",
     createdAt: "Apr 6, 2026 - 3:15 PM",
-    isCompleted: false,
     expiresAt: "Apr 7, 2026 - 10:00 AM",
     currentStatus: "not-started",
   },
@@ -187,7 +160,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Daniel Brooks",
     employeePosition: "Warehouse Associate",
     createdAt: "Apr 6, 2026 - 8:25 AM",
-    isCompleted: false,
     expiresAt: "Apr 6, 2026 - 3:45 PM",
     currentStatus: "in-progress",
   },
@@ -200,7 +172,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Daniel Brooks",
     employeePosition: "Warehouse Associate",
     createdAt: "Apr 6, 2026 - 7:15 AM",
-    isCompleted: true,
     completedAt: "Apr 6, 2026 - 10:05 AM",
     expiresAt: "Apr 6, 2026 - 11:00 AM",
     currentStatus: "completed",
@@ -214,7 +185,6 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Daniel Brooks",
     employeePosition: "Warehouse Associate",
     createdAt: "Apr 6, 2026 - 12:40 PM",
-    isCompleted: false,
     expiresAt: "Apr 7, 2026 - 9:00 AM",
     currentStatus: "not-started",
   },
@@ -227,33 +197,58 @@ const mockTasks: EmployeeTask[] = [
     employeeName: "Daniel Brooks",
     employeePosition: "Warehouse Associate",
     createdAt: "Apr 5, 2026 - 1:35 PM",
-    isCompleted: false,
     expiresAt: "Apr 5, 2026 - 5:00 PM",
-    currentStatus: "expired",
+    currentStatus: "not-started",
+  },
+  {
+    id: 17,
+    title: "Task 17",
+    description:
+      "Review the frog specimen shelf counts, compare them to the internal inventory sheet, and note any differences that may require recounting or adjustment before the next shipment cycle.",
+    assignedToAccountId: 101,
+    employeeName: "Sarah Chen",
+    employeePosition: "Inventory Specialist",
+    createdAt: "Apr 5, 2026 - 8:30 AM",
+    completedAt: "Apr 6, 2026 - 1:42 PM",
+    expiresAt: "Apr 12, 2026 - 3:00 PM",
+    currentStatus: "in-progress",
+  },
+  {
+    id: 18,
+    title: "Task 18",
+    description:
+      "Review the frog specimen shelf counts, compare them to the internal inventory sheet, and note any differences that may require recounting or adjustment before the next shipment cycle.",
+    assignedToAccountId: 101,
+    employeeName: "Sarah Chen",
+    employeePosition: "Inventory Specialist",
+    createdAt: "Apr 5, 2026 - 8:30 AM",
+    completedAt: "Apr 6, 2026 - 1:42 PM",
+    expiresAt: "Apr 12, 2026 - 3:00 PM",
+    currentStatus: "completed",
   },
 ];
 
-const statusPriority: Record<TaskStatus, number> = {
-  expired: 0,
-  "not-started": 1,
-  "in-progress": 2,
-  completed: 3,
-};
-
-function getStatusLabel(status: TaskStatus) {
-  switch (status) {
-    case "completed":
-      return "Completed";
-    case "expired":
-      return "Late";
-    case "in-progress":
-      return "In Progress";
-    case "not-started":
-      return "Not Started";
-    default:
-      return status;
+export function statusPriority(task: EmployeeTask) {
+  if (new Date(task.expiresAt.replace("-", "")) < new Date()) {
+    switch (task.currentStatus) {
+      case "not-started":
+        return 0;
+      case "in-progress":
+        return 1;
+      case "completed":
+        return 5;
+    }
+  } else {
+    switch (task.currentStatus) {
+      case "not-started":
+        return 2;
+      case "in-progress":
+        return 3;
+      case "completed":
+        return 4;
+    }
   }
-}
+};
 
 function getCompletionStateLabel(task: EmployeeTask) {
   return task.isCompleted ? "Completed" : "Not Completed";
@@ -389,7 +384,7 @@ export default function StaffTaskViewPage() {
 
   const groupedTasks = useMemo(() => {
     const sortedTasks = [...mockTasks].sort((a, b) => {
-      return statusPriority[a.currentStatus] - statusPriority[b.currentStatus];
+      return statusPriority(a) - statusPriority(b);
     });
 
     const grouped = sortedTasks.reduce<Record<string, EmployeeTask[]>>(
@@ -465,13 +460,13 @@ export default function StaffTaskViewPage() {
           <div className="staffCardValue staffTaskSummaryValue">
             {mockTasks.length}
           </div>
-          <div className="staffCardHint">Mock development data.</div>
+          <div className="staffCardHint">Tasks assigned in total.</div>
         </div>
 
         <div className="staffCard col4">
           <div className="staffCardLabel">Completed</div>
           <div className="staffCardValue staffTaskSummaryValue">
-            {mockTasks.filter((task) => task.isCompleted).length}
+            {mockTasks.filter((task) => task.currentStatus === "completed").length}
           </div>
           <div className="staffCardHint">Tasks marked complete.</div>
         </div>
@@ -483,8 +478,9 @@ export default function StaffTaskViewPage() {
               mockTasks.filter((task) => task.currentStatus === "expired")
                 .length
             }
+            {mockTasks.filter((task) => (!(task.currentStatus === "completed") && new Date(task.expiresAt.replace("-", "")) < new Date())).length}
           </div>
-          <div className="staffCardHint">Tasks past deadline.</div>
+          <div className="staffCardHint">Tasks not completed and past deadline.</div>
         </div>
       </div>
 
@@ -517,9 +513,8 @@ export default function StaffTaskViewPage() {
           onClick={toggleCollapseAll}
         >
           <span
-            className={`staffActionButtonIcon ${
-              areAllCollapsed ? "collapsed" : ""
-            }`}
+            className={`staffActionButtonIcon ${areAllCollapsed ? "collapsed" : ""
+              }`}
           >
             ▾
           </span>
@@ -550,9 +545,8 @@ export default function StaffTaskViewPage() {
                   onClick={() => toggleEmployeeCollapse(employeeTaskIds)}
                 >
                   <span
-                    className={`staffActionButtonIcon ${
-                      areEmployeeTasksCollapsed ? "collapsed" : ""
-                    }`}
+                    className={`staffActionButtonIcon ${areEmployeeTasksCollapsed ? "collapsed" : ""
+                      }`}
                   >
                     ▾
                   </span>
@@ -564,7 +558,7 @@ export default function StaffTaskViewPage() {
 
               <div className="staffEmployeeTaskGrid">
                 {tasks.map((task) => (
-                  <TaskCard
+                  <AdminTaskCard
                     key={task.id}
                     task={task}
                     isCollapsed={collapsedTaskIds.includes(task.id)}
