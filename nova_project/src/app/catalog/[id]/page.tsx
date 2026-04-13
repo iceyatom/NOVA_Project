@@ -1,14 +1,21 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { Decimal } from "@prisma/client/runtime/library";
+import CatalogImageGallery from "@/app/components/CatalogImageGallery";
 
 type CatalogItemPageProps = {
   params: Promise<{
     id: string;
   }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+type CatalogItemImage = {
+  id: number | null;
+  s3Key: string | null;
+  url: string;
+  createdAt: string | null;
 };
 
 type CatalogItemRecord = {
@@ -28,6 +35,7 @@ type CatalogItemRecord = {
   dateAcquired: Date | string | null;
   reorderLevel: number;
   unitCost: number | string | Decimal | null;
+  images?: CatalogItemImage[] | null;
 };
 
 function formatPrice(price: number | string | Decimal | null): string {
@@ -63,6 +71,18 @@ function getStockStatus(quantity: number, reorderLevel: number): string {
   if (quantity === 0) return "OUT OF STOCK";
   if (quantity <= reorderLevel) return "LOW STOCK";
   return "IN STOCK";
+}
+
+function getDisplayImages(images?: CatalogItemImage[] | null): string[] {
+  if (!images || images.length === 0) {
+    return ["/FillerImage.webp"];
+  }
+
+  const urls = images
+    .map((img) => img?.url)
+    .filter((url): url is string => typeof url === "string" && url.trim() !== "");
+
+  return urls.length > 0 ? urls : ["/FillerImage.webp"];
 }
 
 async function getCatalogItem(
@@ -156,64 +176,13 @@ export default async function CatalogItemPage({
   const price = formatPrice(item.price);
   const stockStatus = getStockStatus(item.quantityInStock, item.reorderLevel);
 
-  const images = [
-    "/FillerImage.webp",
-    "/FillerImage.webp",
-    "/FillerImage.webp",
-  ];
+  const images = getDisplayImages(item.images);
 
   return (
     <main style={{ padding: "2rem" }}>
       <div className="product-section">
         <div className="product-left">
-          <div className="product-image">
-            <Image
-              className="product-image-img"
-              src={images[0]}
-              alt={`Image of ${title}`}
-              width={640}
-              height={428}
-              sizes="(max-width: 900px) 100vw, 320px"
-              priority
-            />
-          </div>
-
-          <div className="product-carousel">
-            <button
-              className="product-carousel-nav"
-              type="button"
-              aria-label="Previous images"
-            >
-              &lt;
-            </button>
-
-            <div className="product-carousel-track">
-              {images.map((img, i) => (
-                <button
-                  key={i}
-                  className="product-carousel-thumb"
-                  type="button"
-                  aria-label={`View image ${i + 1}`}
-                >
-                  <Image
-                    className="product-carousel-thumb-img"
-                    src={img}
-                    alt={`Image ${i + 1} of ${title}`}
-                    width={160}
-                    height={120}
-                  />
-                </button>
-              ))}
-            </div>
-
-            <button
-              className="product-carousel-nav"
-              type="button"
-              aria-label="Next images"
-            >
-              &gt;
-            </button>
-          </div>
+          <CatalogImageGallery images={images} title={title} />
         </div>
 
         <div className="product-right">

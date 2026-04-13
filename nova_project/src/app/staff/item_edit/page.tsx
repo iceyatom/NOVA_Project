@@ -5,6 +5,14 @@ import Image from "next/image";
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import CategoryCombo from "@/app/components/CategoryCombo";
+import ImageUpload from "@/app/components/ImageUpload";
+
+type ItemImage = {
+  id: number | null;
+  s3Key: string | null;
+  url: string;
+  createdAt: string | null;
+};
 
 type Item = {
   id: number | null;
@@ -15,7 +23,7 @@ type Item = {
   category2: string | null;
   category1: string | null;
   description: string | null;
-  imageUrls: string[] | null;
+  images: ItemImage[];
   quantityInStock: number | null;
   unitOfMeasure: string | null;
   storageLocation: string | null;
@@ -41,6 +49,18 @@ type CreateCategoryApiResponse = {
   details?: unknown;
 };
 
+type LinkImageApiResponse = {
+  success?: boolean;
+  data?: {
+    id?: unknown;
+    catalogItemId?: unknown;
+    s3Key?: unknown;
+    createdAt?: unknown;
+  };
+  error?: unknown;
+  details?: unknown;
+};
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
@@ -58,6 +78,79 @@ function getNullableNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
+  const imagesValue = raw.images;
+  if (Array.isArray(imagesValue)) {
+    const parsedImages = imagesValue
+      .map((entry): ItemImage | null => {
+        const image = asRecord(entry);
+        if (!image) return null;
+
+        const url =
+          getNullableString(image.url) ??
+          getNullableString(image.fileUrl) ??
+          null;
+
+        if (!url) return null;
+
+        return {
+          id: getNullableNumber(image.id),
+          s3Key: getNullableString(image.s3Key),
+          url,
+          createdAt: getNullableString(image.createdAt),
+        };
+      })
+      .filter((entry): entry is ItemImage => entry !== null);
+
+    if (parsedImages.length > 0) {
+      return parsedImages;
+    }
+  }
+
+  const legacyImageUrls = raw.imageUrls;
+
+  if (Array.isArray(legacyImageUrls)) {
+    const urls = legacyImageUrls.filter(
+      (entry): entry is string => typeof entry === "string" && entry.trim() !== "",
+    );
+
+    if (urls.length > 0) {
+      return urls.map((url) => ({
+        id: null,
+        s3Key: null,
+        url,
+        createdAt: null,
+      }));
+    }
+  }
+
+  const imageUrlsString = getNullableString(legacyImageUrls);
+  if (imageUrlsString) {
+    const urls = imageUrlsString
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (urls.length > 0) {
+      return urls.map((url) => ({
+        id: null,
+        s3Key: null,
+        url,
+        createdAt: null,
+      }));
+    }
+  }
+
+  return [
+    {
+      id: null,
+      s3Key: null,
+      url: "/FillerImage.webp",
+      createdAt: null,
+    },
+  ];
 }
 
 function parseCatalogItem(data: unknown): Item | null {
@@ -80,9 +173,7 @@ function parseCatalogItem(data: unknown): Item | null {
     category2: getNullableString(raw.category2),
     category1: getNullableString(raw.category1),
     description: getNullableString(raw.description),
-    imageUrls: getNullableString(raw.imageUrls)?.split(",") ?? [
-      "/FillerImage.webp",
-    ],
+    images: parseCatalogImages(raw),
     quantityInStock: getNullableNumber(raw.quantityInStock),
     unitOfMeasure: getNullableString(raw.unitOfMeasure),
     storageLocation: getNullableString(raw.storageLocation),
@@ -104,7 +195,7 @@ type ItemForm = {
   category2: string;
   category1: string;
   description: string;
-  imageUrls: string[];
+  images: ItemImage[];
   quantityInStock: string;
   unitOfMeasure: string;
   storageLocation: string;
@@ -128,17 +219,28 @@ function initOptional(value: string | null | undefined): string {
   return normalizeOptional(value);
 }
 
+function withFallbackImage(images: ItemImage[]): ItemImage[] {
+  return images.length
+    ? images
+    : [
+        {
+          id: null,
+          s3Key: null,
+          url: "/FillerImage.webp",
+          createdAt: null,
+        },
+      ];
+}
+
 function applyNA(f: ItemForm): ItemForm {
   return {
     ...f,
-    // required-ish fields: trim, but do NOT auto-fill N/A
     sku: f.sku.trim(),
     itemName: f.itemName.trim(),
     category3: f.category3.trim(),
     category2: f.category2.trim(),
     category1: f.category1.trim(),
 
-    // optional fields: blank => N/A
     description: normalizeOptional(f.description),
     unitOfMeasure: normalizeOptional(f.unitOfMeasure),
     storageLocation: normalizeOptional(f.storageLocation),
@@ -146,10 +248,8 @@ function applyNA(f: ItemForm): ItemForm {
     expirationDate: normalizeOptional(f.expirationDate),
     dateAcquired: normalizeOptional(f.dateAcquired),
 
-    // keep imageUrls non-empty
-    imageUrls: f.imageUrls.length ? f.imageUrls : ["/FillerImage.webp"],
+    images: withFallbackImage(f.images),
 
-    // numeric strings: just trim
     price: f.price.trim(),
     quantityInStock: f.quantityInStock.trim(),
     reorderLevel: f.reorderLevel.trim(),
@@ -165,20 +265,25 @@ function toForm(item: Item): ItemForm {
     category3: item.category3 ?? "",
     category2: item.category2 ?? "",
     category1: item.category1 ?? "",
-
-    // optional: show N/A when missing
     description: initOptional(item.description),
-    imageUrls: item.imageUrls ?? ["/FillerImage.webp"],
+    images: withFallbackImage(item.images ?? []),
     quantityInStock: String(item.quantityInStock ?? 0),
     unitOfMeasure: initOptional(item.unitOfMeasure),
     storageLocation: initOptional(item.storageLocation),
     storageConditions: initOptional(item.storageConditions),
     expirationDate: initOptional(item.expirationDate),
     dateAcquired: initOptional(item.dateAcquired),
-
     reorderLevel: String(item.reorderLevel ?? 0),
     unitCost: item.unitCost != null ? String(item.unitCost) : "",
   };
+}
+
+function normalizeImagesForCompare(images: ItemImage[]) {
+  return images.map((image) => ({
+    id: image.id ?? null,
+    s3Key: image.s3Key ?? null,
+    url: image.url,
+  }));
 }
 
 function normalizeForCompare(f: ItemForm) {
@@ -192,26 +297,29 @@ function normalizeForCompare(f: ItemForm) {
     category3: n(f.category3),
     category2: n(f.category2),
     category1: n(f.category1),
-
-    // treat blank and N/A as the same for optionals
     description: normalizeOptional(f.description),
-    imageUrls: [...f.imageUrls],
+    images: normalizeImagesForCompare(f.images),
     quantityInStock: Math.max(0, Math.trunc(num(f.quantityInStock))),
     unitOfMeasure: normalizeOptional(f.unitOfMeasure),
     storageLocation: normalizeOptional(f.storageLocation),
     storageConditions: normalizeOptional(f.storageConditions),
     expirationDate: normalizeOptional(f.expirationDate),
     dateAcquired: normalizeOptional(f.dateAcquired),
-
     reorderLevel: Math.max(0, Math.trunc(num(f.reorderLevel))),
     unitCost: num(f.unitCost),
   };
 }
 
-function sameForm(a: ItemForm, b: ItemForm) {
+function normalizeForCompareWithoutImages(f: ItemForm) {
+  const normalized = normalizeForCompare(f);
+  const { images: _images, ...rest } = normalized;
+  return rest;
+}
+
+function sameNonImageForm(a: ItemForm, b: ItemForm) {
   return (
-    JSON.stringify(normalizeForCompare(a)) ===
-    JSON.stringify(normalizeForCompare(b))
+    JSON.stringify(normalizeForCompareWithoutImages(a)) ===
+    JSON.stringify(normalizeForCompareWithoutImages(b))
   );
 }
 
@@ -278,7 +386,14 @@ function StaffItemEditPageContent() {
       category2: "",
       category1: "",
       description: "",
-      imageUrls: ["/FillerImage.webp"],
+      images: [
+        {
+          id: null,
+          s3Key: null,
+          url: "/FillerImage.webp",
+          createdAt: null,
+        },
+      ],
       quantityInStock: 0,
       unitOfMeasure: "",
       storageLocation: "",
@@ -294,6 +409,7 @@ function StaffItemEditPageContent() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isDeletingImage, setIsDeletingImage] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
@@ -319,14 +435,15 @@ function StaffItemEditPageContent() {
 
   const originalRef = useRef<ItemForm>(form);
 
-  const isDirty = useMemo(() => !sameForm(form, originalRef.current), [form]);
+  const isDirty = useMemo(
+    () => !sameNonImageForm(form, originalRef.current),
+    [form],
+  );
   const normalizedForm = useMemo(() => normalizeForCompare(form), [form]);
   const normalizedOriginal = normalizeForCompare(originalRef.current);
   const isFieldDirty = (field: keyof NormalizedItemForm) =>
     JSON.stringify(normalizedForm[field]) !==
     JSON.stringify(normalizedOriginal[field]);
-  const isAnyFieldDirty = (fields: (keyof NormalizedItemForm)[]) =>
-    fields.some((field) => isFieldDirty(field));
   const fieldNameClass = (dirty: boolean) =>
     `item-edit-field-name${dirty ? " item-edit-field-name--dirty" : ""}`;
 
@@ -477,15 +594,15 @@ function StaffItemEditPageContent() {
   };
 
   useEffect(() => {
-    fetchCategories();
+    void fetchCategories();
   }, []);
 
   useEffect(() => {
-    fetchSubcategories(form.category3);
+    void fetchSubcategories(form.category3);
   }, [form.category3]);
 
   useEffect(() => {
-    fetchTypes(form.category3, form.category2);
+    void fetchTypes(form.category3, form.category2);
   }, [form.category3, form.category2]);
 
   useEffect(() => {
@@ -522,7 +639,7 @@ function StaffItemEditPageContent() {
       }
     };
 
-    fetchParentCategory2Options();
+    void fetchParentCategory2Options();
   }, [showNewCategoryPopup, newCategoryLevel, newParentCategory3]);
 
   const update =
@@ -532,7 +649,6 @@ function StaffItemEditPageContent() {
       setForm((prev) => ({ ...prev, [key]: value }));
     };
 
-  // For optional text fields: if user leaves it blank, convert to N/A
   const blurNA =
     <K extends keyof ItemForm>(key: K) =>
     () => {
@@ -542,17 +658,8 @@ function StaffItemEditPageContent() {
       }));
     };
 
-  const bumpStock = (delta: number) => {
-    setForm((prev) => {
-      const cur = Number(prev.quantityInStock || 0);
-      const next = Math.max(0, Math.trunc(cur + delta));
-      return { ...prev, quantityInStock: String(next) };
-    });
-  };
-
   async function saveChanges() {
     if (!isDirty || isSaving || isLoading || !!loadError) {
-      console.log("No changes detected. Nothing to save.");
       return;
     }
 
@@ -572,7 +679,6 @@ function StaffItemEditPageContent() {
       category2: prepared.category2,
       category1: prepared.category1,
       description: prepared.description,
-      imageUrls: prepared.imageUrls,
       quantityInStock: Math.max(
         0,
         Math.trunc(Number(prepared.quantityInStock)),
@@ -613,24 +719,38 @@ function StaffItemEditPageContent() {
             }
           }
         } catch {
-          // Keep fallback message when no JSON payload is available.
+          // Keep fallback message.
         }
 
         throw new Error(message);
       }
 
-      const result = (await response.json()) as CatalogApiResponse;
-      const savedItem = parseCatalogItem(result?.data);
+      const refreshedResponse = await fetch(`/api/catalog?id=${id}`, {
+        cache: "no-store",
+      });
 
-      if (savedItem) {
-        const nextForm = toForm(savedItem);
-        setForm(nextForm);
-        originalRef.current = structuredClone(nextForm);
-      } else {
-        // Fallback to local normalized values if the API response body shape changes.
-        setForm(prepared);
-        originalRef.current = structuredClone(prepared);
+      if (!refreshedResponse.ok) {
+        throw new Error(
+          `Failed to reload item after save (HTTP ${refreshedResponse.status}).`,
+        );
       }
+
+      const refreshedPayload = (await refreshedResponse.json()) as CatalogApiResponse;
+
+      if (!refreshedPayload?.success) {
+        throw new Error("Failed to reload saved item.");
+      }
+
+      const refreshedItem = parseCatalogItem(refreshedPayload.data);
+
+      if (!refreshedItem) {
+        throw new Error("Failed to parse refreshed item data.");
+      }
+
+      const nextForm = toForm(refreshedItem);
+      setForm(nextForm);
+      originalRef.current = structuredClone(nextForm);
+      setSelectedImageIndex(null);
       setSuccessMessage("Item edit changes saved.");
     } catch (error) {
       const message =
@@ -651,22 +771,77 @@ function StaffItemEditPageContent() {
     setForm(snapshot);
     setSelectedImageIndex(null);
     setSaveError(null);
+    setSuccessMessage(null);
   }
 
   function resetSuccessMessage() {
     setSuccessMessage(null);
   }
 
-  const removeImage = () => {
-    setForm((prev) => {
-      if (selectedImageIndex === null) return prev;
+  async function removeImage() {
+    if (selectedImageIndex === null || isDeletingImage) {
+      return;
+    }
 
-      const next = prev.imageUrls.filter((_, i) => i !== selectedImageIndex);
-      return { ...prev, imageUrls: next.length ? next : ["/FillerImage.webp"] };
-    });
+    const selectedImage = form.images[selectedImageIndex];
+    if (!selectedImage) {
+      return;
+    }
 
-    setSelectedImageIndex(null);
-  };
+    if (selectedImage.id == null) {
+      setForm((prev) => {
+        const nextImages = prev.images.filter((_, i) => i !== selectedImageIndex);
+        return { ...prev, images: withFallbackImage(nextImages) };
+      });
+      setSelectedImageIndex(null);
+      return;
+    }
+
+    setIsDeletingImage(true);
+    setSaveError(null);
+
+    try {
+      const response = await fetch("/api/catalog/staff/images", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageId: selectedImage.id,
+          deleteFromStorage: true,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+        details?: unknown;
+      };
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Failed to delete image (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      setForm((prev) => {
+        const nextImages = prev.images.filter((_, i) => i !== selectedImageIndex);
+        return { ...prev, images: withFallbackImage(nextImages) };
+      });
+      setSelectedImageIndex(null);
+      setSuccessMessage("Image unlinked successfully.");
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to delete image.",
+      );
+    } finally {
+      setIsDeletingImage(false);
+    }
+  }
 
   function openNewCategoryPopup(level: CategoryLevel) {
     setNewCategoryLevel(level);
@@ -781,6 +956,45 @@ function StaffItemEditPageContent() {
     }
   }
 
+  async function linkUploadedImage(fileKey: string) {
+    const response = await fetch("/api/catalog/staff/images", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        catalogItemId: id,
+        fileKey,
+      }),
+    });
+
+    const result = (await response.json()) as LinkImageApiResponse;
+
+    if (!response.ok || result?.success === false) {
+      const message =
+        typeof result?.error === "string"
+          ? result.error
+          : `Failed to link image (HTTP ${response.status}).`;
+      const details =
+        typeof result?.details === "string" ? ` ${result.details}` : "";
+      throw new Error(`${message}${details}`.trim());
+    }
+
+    const imageData = asRecord(result.data);
+    if (!imageData) {
+      throw new Error("Image link response did not include image data.");
+    }
+
+    return {
+      id: getNullableNumber(imageData.id),
+      s3Key: getNullableString(imageData.s3Key),
+      createdAt: getNullableString(imageData.createdAt),
+    };
+  }
+
+  const selectedImage =
+    selectedImageIndex !== null ? form.images[selectedImageIndex] ?? null : null;
+
   return (
     <div>
       <div className="staffTitle">Edit Catalog Item</div>
@@ -848,11 +1062,7 @@ function StaffItemEditPageContent() {
 
                 <label className="item-edit-field">
                   <div>
-                    <span
-                      className={fieldNameClass(
-                        isFieldDirty("quantityInStock"),
-                      )}
-                    >
+                    <span className={fieldNameClass(isFieldDirty("quantityInStock"))}>
                       Quantity In Stock *
                     </span>
                     <input
@@ -867,9 +1077,7 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span
-                    className={fieldNameClass(isFieldDirty("reorderLevel"))}
-                  >
+                  <span className={fieldNameClass(isFieldDirty("reorderLevel"))}>
                     Reorder Level *
                   </span>
                   <input
@@ -947,9 +1155,7 @@ function StaffItemEditPageContent() {
 
               <div className="item-edit-grid-3">
                 <label className="item-edit-field">
-                  <span
-                    className={fieldNameClass(isFieldDirty("unitOfMeasure"))}
-                  >
+                  <span className={fieldNameClass(isFieldDirty("unitOfMeasure"))}>
                     Unit Of Measure
                   </span>
                   <input
@@ -962,9 +1168,7 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span
-                    className={fieldNameClass(isFieldDirty("storageLocation"))}
-                  >
+                  <span className={fieldNameClass(isFieldDirty("storageLocation"))}>
                     Storage Location
                   </span>
                   <input
@@ -977,29 +1181,33 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span
-                    className={fieldNameClass(isFieldDirty("dateAcquired"))}
-                  >
+                  <span className={fieldNameClass(isFieldDirty("dateAcquired"))}>
                     Date Acquired
                   </span>
                   <input
                     className="item-search-page__search-input"
                     type="date"
-                    value={form.dateAcquired.split("T")[0]}
+                    value={
+                      form.dateAcquired && form.dateAcquired !== "N/A"
+                        ? form.dateAcquired.split("T")[0]
+                        : ""
+                    }
                     onChange={update("dateAcquired")}
                   />
                 </label>
 
                 <label className="item-edit-field">
-                  <span
-                    className={fieldNameClass(isFieldDirty("expirationDate"))}
-                  >
+                  <span className={fieldNameClass(isFieldDirty("expirationDate"))}>
                     Expiration Date
                   </span>
                   <input
                     className="item-search-page__search-input"
                     type="date"
-                    value={form.expirationDate.split("T")[0]}
+                    value={
+                      form.expirationDate && form.expirationDate !== "N/A"
+                        ? form.expirationDate.split("T")[0]
+                        : ""
+                    }
                     onChange={update("expirationDate")}
                   />
                 </label>
@@ -1034,26 +1242,61 @@ function StaffItemEditPageContent() {
               </label>
 
               <label className="item-edit-field">
-                <strong
-                  className={`item-edit-label ${fieldNameClass(isFieldDirty("imageUrls"))}`}
-                >
+                <strong className="item-edit-label">
                   Images:
                 </strong>
                 <div className="item-edit-actions">
-                  <Link
-                    href="/staff/image-upload-demo"
-                    className="staff-dev-pill item-edit-upload-image-button"
-                    aria-label="Upload new image"
-                    title="Upload an image to add to this item"
-                  >
-                    Upload Image
-                  </Link>
+                  <div style={{ width: "100%" }}>
+                    <ImageUpload
+                      uploadButtonText="Upload Image"
+                      onUploadSuccess={async (fileUrl, fileKey) => {
+                        try {
+                          const linkedImage = await linkUploadedImage(fileKey);
+
+                          setForm((prev) => {
+                            const nextImages =
+                              prev.images.length === 1 &&
+                              prev.images[0]?.url === "/FillerImage.webp"
+                                ? []
+                                : prev.images;
+
+                            return {
+                              ...prev,
+                              images: [
+                                ...nextImages,
+                                {
+                                  id: linkedImage.id,
+                                  s3Key: linkedImage.s3Key,
+                                  url: fileUrl,
+                                  createdAt: linkedImage.createdAt,
+                                },
+                              ],
+                            };
+                          });
+
+                          setSuccessMessage("Image uploaded and linked successfully.");
+                          setSaveError(null);
+                        } catch (error) {
+                          setSaveError(
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to link uploaded image.",
+                          );
+                        }
+                      }}
+                      onUploadError={(message) => {
+                        setSaveError(message);
+                      }}
+                    />
+                  </div>
                   <button
                     type="button"
-                    onClick={removeImage}
+                    onClick={() => void removeImage()}
                     className="staff-dev-pill item-edit-remove-image-button"
                     aria-label="Remove selected image"
-                    disabled={selectedImageIndex === null}
+                    disabled={
+                      selectedImageIndex === null || isDeletingImage || isSaving
+                    }
                     title={
                       selectedImageIndex === null
                         ? "Click an image to select it first"
@@ -1061,16 +1304,17 @@ function StaffItemEditPageContent() {
                     }
                     style={{ opacity: selectedImageIndex === null ? 0.6 : 1 }}
                   >
-                    Delete Image
+                    {isDeletingImage ? "Deleting..." : "Delete Image"}
                   </button>
                 </div>
+
                 <div className="item-image-grid">
-                  {form.imageUrls.map((img, i) => {
+                  {form.images.map((img, i) => {
                     const isSelected = selectedImageIndex === i;
 
                     return (
                       <button
-                        key={i}
+                        key={`${img.id ?? "temp"}-${img.url}-${i}`}
                         type="button"
                         onClick={() =>
                           setSelectedImageIndex((cur) => (cur === i ? null : i))
@@ -1081,8 +1325,8 @@ function StaffItemEditPageContent() {
                       >
                         <Image
                           className={`product-carousel-thumb-img item-image-thumb${isSelected ? " item-image-thumb--selected" : ""}`}
-                          src={img}
-                          alt={`Image ${i + 1} of ${form.itemName}`}
+                          src={img.url}
+                          alt={`Image ${i + 1} of ${form.itemName || "item"}`}
                           width={1000}
                           height={1000}
                           priority
@@ -1092,7 +1336,7 @@ function StaffItemEditPageContent() {
                   })}
                 </div>
 
-                {selectedImageIndex !== null && (
+                {selectedImageIndex !== null && selectedImage && (
                   <div className="item-edit-selected-images">
                     Selected image: {selectedImageIndex + 1}
                   </div>
@@ -1112,7 +1356,7 @@ function StaffItemEditPageContent() {
                 type="button"
                 className="staff-dev-pill"
                 onClick={resetChanges}
-                disabled={isSaving}
+                disabled={isSaving || isDeletingImage}
                 title="Reset all changes"
               >
                 Reset Form
@@ -1122,11 +1366,17 @@ function StaffItemEditPageContent() {
                 onClick={saveChanges}
                 onPointerDown={resetSuccessMessage}
                 className={`staff-dev-pill${isDirty ? " staff-dev-pill--ready" : ""}`}
-                disabled={isLoading || !!loadError || isSaving || !isDirty}
+                disabled={
+                  isLoading || !!loadError || isSaving || isDeletingImage || !isDirty
+                }
                 title={isDirty ? "Save changes" : "No new changes to save"}
               >
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
+            </div>
+
+            <div style={{ marginTop: "16px" }}>
+              <Link href={backToItemSearchHref}>Back to Item Search</Link>
             </div>
           </form>
         </div>

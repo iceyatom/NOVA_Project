@@ -34,6 +34,7 @@ model CatalogItem {
   category2Ref Category2? @relation("CatalogItemCategory2", fields: [category2], references: [id], onDelete: SetNull, onUpdate: Cascade)
   category1Ref Category1? @relation("CatalogItemCategory1", fields: [category1], references: [id], onDelete: SetNull, onUpdate: Cascade)
   ticketLines  TicketLine[]
+  images       CatalogItemImage[]
 
   @@index([category1])
   @@index([category2])
@@ -41,6 +42,18 @@ model CatalogItem {
   @@index([price])
   @@index([updatedAt])
   @@index([quantityInStock])
+}
+
+model CatalogItemImage {
+  id            Int         @id @default(autoincrement())
+  catalogItemId Int
+  s3Key         String
+  createdAt     DateTime    @default(now())
+
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([catalogItemId])
+  @@index([s3Key])
 }
 
 model Category3 {

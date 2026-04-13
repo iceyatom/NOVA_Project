@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import CategoryCombo from "@/app/components/CategoryCombo";
 import { useMemo, useState, useEffect } from "react";
@@ -13,7 +12,6 @@ type CreateItemForm = {
   category2: string;
   category1: string;
   description: string;
-  imageUrls: string[];
   quantityInStock: string;
   unitOfMeasure: string;
   storageLocation: string;
@@ -32,7 +30,6 @@ const INITIAL_FORM: CreateItemForm = {
   category2: "",
   category1: "",
   description: "",
-  imageUrls: ["/FillerImage.webp"],
   quantityInStock: "0",
   unitOfMeasure: "",
   storageLocation: "",
@@ -93,9 +90,6 @@ export default function StaffItemCreatePage() {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryError, setNewCategoryError] = useState<string | null>(null);
   const [newCategorySuccess, setNewCategorySuccess] = useState<string | null>(
-    null,
-  );
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
   );
   const [isSaving, setIsSaving] = useState(false);
@@ -282,19 +276,8 @@ export default function StaffItemCreatePage() {
 
   function resetForm() {
     setForm(INITIAL_FORM);
-    setSelectedImageIndex(null);
     setError(null);
     setSuccessMessage(null);
-  }
-
-  function removeImage() {
-    setForm((prev) => {
-      if (selectedImageIndex === null) return prev;
-
-      const next = prev.imageUrls.filter((_, i) => i !== selectedImageIndex);
-      return { ...prev, imageUrls: next.length ? next : ["/FillerImage.webp"] };
-    });
-    setSelectedImageIndex(null);
   }
 
   function openNewCategoryPopup(level: CategoryLevel) {
@@ -429,7 +412,6 @@ export default function StaffItemCreatePage() {
       category2: asNullableString(form.category2),
       category1: asNullableString(form.category1),
       description: asNullableString(form.description),
-      imageUrls: form.imageUrls.length ? form.imageUrls : ["/FillerImage.webp"],
       quantityInStock: asPositiveIntegerOrZero(form.quantityInStock),
       unitOfMeasure: asNullableString(form.unitOfMeasure),
       storageLocation: asNullableString(form.storageLocation),
@@ -471,7 +453,6 @@ export default function StaffItemCreatePage() {
           : "Item created successfully.",
       );
       setForm(INITIAL_FORM);
-      setSelectedImageIndex(null);
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -675,71 +656,6 @@ export default function StaffItemCreatePage() {
                 onChange={update("storageConditions")}
               />
             </label>
-
-            <div className="item-edit-box">
-              <strong className="item-edit-label">Images:</strong>
-              <br />
-
-              <div>
-                <Link
-                  href="/staff/image-upload-demo"
-                  className="staff-dev-pill item-edit-upload-image-button"
-                  aria-label="Upload new image"
-                >
-                  Upload Image
-                </Link>
-                &nbsp;
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="staff-dev-pill item-edit-remove-image-button"
-                  aria-label="Remove selected image"
-                  disabled={selectedImageIndex === null}
-                  title={
-                    selectedImageIndex === null
-                      ? "Click an image to select it first"
-                      : "Delete selected image"
-                  }
-                  style={{ opacity: selectedImageIndex === null ? 0.6 : 1 }}
-                >
-                  Delete Image
-                </button>
-              </div>
-
-              <div className="item-image-grid">
-                {form.imageUrls.map((img, i) => {
-                  const isSelected = selectedImageIndex === i;
-
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() =>
-                        setSelectedImageIndex((cur) => (cur === i ? null : i))
-                      }
-                      aria-pressed={isSelected}
-                      aria-label={`Select image ${i + 1}`}
-                      className={`item-image-thumb-button${isSelected ? " item-image-thumb-button--selected" : ""}`}
-                    >
-                      <Image
-                        className={`product-carousel-thumb-img item-image-thumb${isSelected ? " item-image-thumb--selected" : ""}`}
-                        src={img}
-                        alt={`Image ${i + 1} of ${form.itemName || "new item"}`}
-                        width={1000}
-                        height={1000}
-                        priority
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-
-              {selectedImageIndex !== null && (
-                <div className="item-edit-selected-images">
-                  Selected image: {selectedImageIndex + 1}
-                </div>
-              )}
-            </div>
 
             {error && <div className="item-create-status error">{error}</div>}
             {successMessage && (

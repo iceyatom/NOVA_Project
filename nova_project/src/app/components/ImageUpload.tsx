@@ -1,27 +1,18 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 
 type Props = {
-  /** Optional label for the upload area */
   label?: string;
-  /** Optional custom button text for initial state */
   uploadButtonText?: string;
-  /** Optional handler called when a file is selected (without uploading) */
   onFileSelected?: (file: File, previewUrl: string) => void;
-  /** Optional handler called when file is cleared */
   onFileCleared?: () => void;
-  /** Optional handler called when upload succeeds with the file URL */
   onUploadSuccess?: (fileUrl: string, fileKey: string) => void;
-  /** Optional handler called when upload fails */
   onUploadError?: (error: string) => void;
-  /** Maximum file size in bytes (default: 10MB) */
   maxSizeBytes?: number;
-  /** Optional error handler for invalid files */
   onError?: (error: string) => void;
-  /** Whether to enable automatic upload after file selection (default: true) */
   autoUpload?: boolean;
 };
 
@@ -46,28 +37,39 @@ export default function ImageUpload({
   autoUpload = true,
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [error, setError] = useState<string>("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [error, setError] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState("");
+  const [uploadedFileKey, setUploadedFileKey] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
     };
   }, [previewUrl]);
 
-  const processFile = (file: File | null) => {
+  function resetUploadState() {
     setError("");
     setUploadStatus("idle");
     setUploadProgress(0);
     setUploadedFileUrl("");
+    setUploadedFileKey("");
+  }
+
+  function processFile(file: File | null) {
+    resetUploadState();
 
     if (!file) {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
       setSelectedFile(null);
       setPreviewUrl("");
       return;
@@ -88,23 +90,29 @@ export default function ImageUpload({
       return;
     }
 
-    const url = URL.createObjectURL(file);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(file);
     setSelectedFile(file);
-    setPreviewUrl(url);
-    onFileSelected?.(file, url);
+    setPreviewUrl(nextPreviewUrl);
+    onFileSelected?.(file, nextPreviewUrl);
 
     if (autoUpload) {
       void handleUpload(file);
     }
-  };
+  }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
     processFile(file);
-  };
+  }
 
-  const handleClear = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  function handleClear() {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
 
     setSelectedFile(null);
     setPreviewUrl("");
@@ -112,17 +120,20 @@ export default function ImageUpload({
     setUploadStatus("idle");
     setUploadProgress(0);
     setUploadedFileUrl("");
+    setUploadedFileKey("");
     setIsDragging(false);
     onFileCleared?.();
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  };
+  }
 
-  const handleUpload = async (file: File = selectedFile!) => {
-    if (!file) return;
+  async function handleUpload(fileOverride?: File) {
+    const file = fileOverride ?? selectedFile;
+    if (!file || uploadStatus === "uploading") return;
 
+    setError("");
     setUploadStatus("uploading");
     setUploadProgress(0);
 
@@ -141,15 +152,18 @@ export default function ImageUpload({
         }),
       });
 
-      if (!presignedResponse.ok) {
-        const errorData: PresignedUrlResponse = await presignedResponse.json();
-        throw new Error(errorData.error || "Failed to get presigned URL");
+      const presignedData =
+        (await presignedResponse.json()) as PresignedUrlResponse;
+
+      if (!presignedResponse.ok || !presignedData.success) {
+        throw new Error(
+          presignedData.error || "Failed to get presigned upload URL.",
+        );
       }
 
-      const { presignedUrl, fileUrl, fileKey }: PresignedUrlResponse =
-        await presignedResponse.json();
+      const { presignedUrl, fileUrl, fileKey } = presignedData;
 
-      setUploadProgress(30);
+      setUploadProgress(35);
 
       const uploadResponse = await fetch(presignedUrl, {
         method: "PUT",
@@ -160,33 +174,36 @@ export default function ImageUpload({
       });
 
       if (!uploadResponse.ok) {
-        throw new Error("Failed to upload file to S3");
+        throw new Error("Failed to upload file to S3.");
       }
 
       setUploadProgress(100);
       setUploadStatus("success");
       setUploadedFileUrl(fileUrl);
+      setUploadedFileKey(fileKey);
+      setError("");
       onUploadSuccess?.(fileUrl, fileKey);
     } catch (err) {
       const errorMsg =
         err instanceof Error ? err.message : "Upload failed. Please try again.";
       setError(errorMsg);
       setUploadStatus("error");
+      setUploadProgress(0);
       onUploadError?.(errorMsg);
     }
-  };
+  }
 
-  const formatFileSize = (bytes: number): string => {
+  function formatFileSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} bytes`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  }
 
-  const handleButtonClick = () => {
+  function handleButtonClick() {
     fileInputRef.current?.click();
-  };
+  }
 
-  const getUploadStatusText = (): string => {
+  function getUploadStatusText(): string {
     switch (uploadStatus) {
       case "uploading":
         return `Uploading... ${uploadProgress}%`;
@@ -197,24 +214,24 @@ export default function ImageUpload({
       default:
         return "Image ready";
     }
-  };
+  }
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setIsDragging(true);
-  };
+  }
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setIsDragging(false);
-  };
+  }
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0] ?? null;
     processFile(file);
-  };
+  }
 
   const dropzoneStyle: React.CSSProperties = {
     position: "relative",
@@ -479,6 +496,7 @@ export default function ImageUpload({
                 type="button"
                 onClick={handleClear}
                 aria-label="Remove image"
+                disabled={uploadStatus === "uploading"}
                 style={{
                   width: "42px",
                   height: "42px",
@@ -489,7 +507,8 @@ export default function ImageUpload({
                   color: "#374151",
                   display: "grid",
                   placeItems: "center",
-                  cursor: "pointer",
+                  cursor: uploadStatus === "uploading" ? "not-allowed" : "pointer",
+                  opacity: uploadStatus === "uploading" ? 0.6 : 1,
                 }}
               >
                 <svg
@@ -567,7 +586,7 @@ export default function ImageUpload({
 
               {uploadStatus === "success" && uploadedFileUrl && (
                 <p
-                  title={uploadedFileUrl}
+                  title={uploadedFileKey}
                   style={{
                     margin: 0,
                     fontSize: "0.95rem",
@@ -577,7 +596,7 @@ export default function ImageUpload({
                     textOverflow: "ellipsis",
                   }}
                 >
-                  Uploaded URL: {uploadedFileUrl.slice(0, 52)}...
+                  Uploaded key: {uploadedFileKey}
                 </p>
               )}
             </div>
@@ -630,6 +649,7 @@ export default function ImageUpload({
               <button
                 type="button"
                 onClick={handleButtonClick}
+                disabled={uploadStatus === "uploading"}
                 style={{
                   padding: "11px 17px",
                   borderRadius: "999px",
@@ -638,7 +658,8 @@ export default function ImageUpload({
                   color: "#1f2937",
                   font: "inherit",
                   fontWeight: 700,
-                  cursor: "pointer",
+                  cursor: uploadStatus === "uploading" ? "not-allowed" : "pointer",
+                  opacity: uploadStatus === "uploading" ? 0.6 : 1,
                 }}
               >
                 Choose Different Image
