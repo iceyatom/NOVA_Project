@@ -58,9 +58,7 @@ export default function SidebarNav() {
 
       <Section
         title="Tasks"
-        items={[
-          { label: "Employee Task Monitor", href: "/staff/adminTaskView" },
-        ]}
+        items={[{ label: "Employee Task Monitor", href: "/staff/adminTaskView" }]}
       />
 
       <Section

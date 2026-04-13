@@ -349,7 +349,9 @@ function TaskCard({
             <div className="staffTaskRow">
               <span className="staffTaskLabel">Completed At:</span>
               <span className="staffTaskValue">
-                {task.isCompleted ? task.completedAt : "—"}
+                {task.isCompleted
+                  ? task.completedAt
+                  : "—"}
               </span>
             </div>
 
@@ -401,7 +403,7 @@ export default function StaffTaskViewPage() {
         acc[task.employeeName].push(task);
         return acc;
       },
-      {},
+      {}
     );
 
     return Object.entries(grouped);
@@ -432,7 +434,7 @@ export default function StaffTaskViewPage() {
   function toggleEmployeeCollapse(taskIds: number[]) {
     setCollapsedTaskIds((currentIds) => {
       const areAllEmployeeTasksCollapsed = taskIds.every((taskId) =>
-        currentIds.includes(taskId),
+        currentIds.includes(taskId)
       );
 
       if (areAllEmployeeTasksCollapsed) {
@@ -479,10 +481,7 @@ export default function StaffTaskViewPage() {
         <div className="staffCard col4">
           <div className="staffCardLabel">Late</div>
           <div className="staffCardValue staffTaskSummaryValue">
-            {
-              mockTasks.filter((task) => task.currentStatus === "expired")
-                .length
-            }
+            {mockTasks.filter((task) => task.currentStatus === "expired").length}
           </div>
           <div className="staffCardHint">Tasks past deadline.</div>
         </div>
@@ -531,7 +530,7 @@ export default function StaffTaskViewPage() {
         {groupedTasks.map(([employeeName, tasks]) => {
           const employeeTaskIds = tasks.map((task) => task.id);
           const areEmployeeTasksCollapsed = employeeTaskIds.every((taskId) =>
-            collapsedTaskIds.includes(taskId),
+            collapsedTaskIds.includes(taskId)
           );
 
           return (
