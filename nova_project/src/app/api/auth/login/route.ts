@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/passwordHash";
-import {
-  generateMfaCode,
-  hashMfaCode,
-  deliverMfaCode,
-  MFA_CODE_DURATION_MS,
-} from "@/lib/auth/session";
+import { randomBytes } from "crypto";
+
+const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -266,54 +263,56 @@ export async function POST(request: Request) {
       where: { id: account.id },
       data: {
         ...(nextPasswordHash ? { passwordHash: nextPasswordHash } : {}),
+        lastLoginAt: new Date(),
         failedLoginAttempts: 0,
         lockoutUntil: null,
       },
     });
 
-    // Invalidate any active MFA challenges for this account
-    await prisma.mfaChallenge.updateMany({
-      where: {
-        accountId: account.id,
-        usedAt: null,
-        invalidatedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      data: { invalidatedAt: new Date() },
-    });
-
-    // Create a new MFA challenge
-    const mfaCode = generateMfaCode();
-    const codeHash = hashMfaCode(mfaCode);
-    const mfaNow = new Date();
-    const expiresAt = new Date(mfaNow.getTime() + MFA_CODE_DURATION_MS);
-
-    const challenge = await prisma.mfaChallenge.create({
-      data: {
-        accountId: account.id,
-        codeHash,
-        expiresAt,
-      },
-    });
-
-    const delivery = deliverMfaCode({
+    console.log("[auth/login] login succeeded", {
       accountId: account.id,
       email: account.email,
-      code: mfaCode,
     });
 
-    console.log("[auth/login] MFA challenge created", {
-      accountId: account.id,
-      email: account.email,
-      challengeId: challenge.id,
-    });
-
-    return jsonResponse({
+    const response = jsonResponse({
       ok: true,
-      mfaRequired: true,
-      challengeId: challenge.id,
-      ...delivery,
+      account: {
+        email: account.email,
+        displayName: account.displayName,
+        role: account.role,
+      },
+      role: account.role,
     });
+
+    try {
+      const sessionToken = randomBytes(32).toString("hex");
+      const sessionExpiresAt = new Date(
+        Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
+      );
+
+      await prisma.session.create({
+        data: {
+          token: sessionToken,
+          accountId: account.id,
+          expiresAt: sessionExpiresAt,
+        },
+      });
+
+      response.cookies.set("session", sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: SESSION_MAX_AGE_SECONDS,
+        path: "/",
+      });
+    } catch (sessionError) {
+      console.warn(
+        "[auth/login] session persistence unavailable (run prisma migrate):",
+        sessionError,
+      );
+    }
+
+    return response;
   } catch (error) {
     console.error("[auth/login] route failed", error);
     return errorResponse("Unable to process login request.", 500);

@@ -17,12 +17,24 @@ export default function Header() {
 
   const pathname = usePathname();
   const router = useRouter();
-  const { loggedIn, account, accountEmail, userRole, logout } =
-    useLoginStatus();
+  const {
+    loggedIn,
+    account,
+    accountEmail,
+    userRole,
+    setLoggedIn,
+    setAccount,
+    setAccountEmail,
+    setUserRole,
+  } = useLoginStatus();
   const normalizedRole = userRole ? userRole.toUpperCase() : "";
 
   const handleLogout = async () => {
-    await logout();
+    await fetch("/api/auth/logout", { method: "POST" });
+    setLoggedIn(false);
+    setAccount("");
+    setAccountEmail("");
+    setUserRole("");
     setShowProfile(false);
     router.push("/login");
   };

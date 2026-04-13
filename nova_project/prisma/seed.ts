@@ -20,12 +20,9 @@ async function main() {
   ];
 
   for (const category of category3Items) {
-    await prisma.category3.upsert({
-      where: { name: category.name },
-      update: {},
-      create: category,
-    });
+    await prisma.category3.create({ data: category });
   }
+
   const category2Items = [
     { name: "Dissecting Supplies", category3Name: "Laboratory Supplies" },
     { name: "Microscopy Supplies", category3Name: "Laboratory Supplies" },
@@ -121,15 +118,8 @@ async function main() {
       );
     }
 
-    await prisma.category2.upsert({
-      where: {
-        category3Id_name: {
-          category3Id: parentCategory3.id,
-          name: category.name,
-        },
-      },
-      update: {},
-      create: {
+    await prisma.category2.create({
+      data: {
         name: category.name,
         category3Id: parentCategory3.id,
       },
@@ -1122,15 +1112,8 @@ async function main() {
       );
     }
 
-    await prisma.category1.upsert({
-      where: {
-        category2Id_name: {
-          category2Id: parentCategory2.id,
-          name: category.name,
-        },
-      },
-      update: {},
-      create: {
+    await prisma.category1.create({
+      data: {
         name: category.name,
         category2Id: parentCategory2.id,
       },

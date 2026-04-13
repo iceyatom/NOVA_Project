@@ -11,26 +11,12 @@ type LoginResponse = {
   error?: string;
   locked?: boolean;
   lockoutUntil?: string;
-  mfaRequired?: boolean;
-  challengeId?: number;
-  debugCode?: string;
-};
-
-type MfaVerifyResponse = {
-  ok?: boolean;
-  error?: string;
+  role?: string;
   account?: {
     email?: string;
     displayName?: string | null;
     role?: string;
   };
-};
-
-type MfaResendResponse = {
-  ok?: boolean;
-  error?: string;
-  challengeId?: number;
-  debugCode?: string;
 };
 
 const MIN_AUTH_DELAY_MS = 3000;
@@ -76,15 +62,6 @@ export default function LoginSignIn() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {},
   );
-
-  // MFA step state
-  const [mfaStep, setMfaStep] = useState(false);
-  const [challengeId, setChallengeId] = useState<number | null>(null);
-  const [debugCode, setDebugCode] = useState<string | null>(null);
-  const [mfaCode, setMfaCode] = useState("");
-  const [mfaError, setMfaError] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isResending, setIsResending] = useState(false);
 
   const activeRequestRef = useRef(false);
 
@@ -206,19 +183,11 @@ export default function LoginSignIn() {
 
       window.localStorage.removeItem(getLockoutStorageKey(email));
       setLockoutUntil(null);
-
-      // Transition to MFA step
-      if (data.mfaRequired && data.challengeId) {
-        setChallengeId(data.challengeId);
-        setDebugCode(data.debugCode ?? null);
-        setMfaStep(true);
-        return;
-      }
-
-      // Fallback (shouldn't happen with new flow, but safe)
       setLoggedIn(true);
-      setAccount(username);
-      setAccountEmail(email);
+      setAccount(data.account?.displayName || data.account?.email || username);
+      setAccountEmail(data.account?.email || email);
+      setUserRole(data.role || data.account?.role || "");
+      setAuthError("");
       router.push("/account");
     } catch {
       await delayPromise;
@@ -233,163 +202,8 @@ export default function LoginSignIn() {
     }
   };
 
-  const handleMfaVerify = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (isVerifying || !challengeId) return;
-
-    const trimmed = mfaCode.trim();
-    if (!/^\d{6}$/.test(trimmed)) {
-      setMfaError("Please enter a valid 6-digit code.");
-      return;
-    }
-
-    setIsVerifying(true);
-    setMfaError("");
-
-    try {
-      const res = await fetch("/api/auth/mfa/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challengeId, code: trimmed }),
-      });
-
-      const data = (await res.json()) as MfaVerifyResponse;
-
-      if (!res.ok || !data.ok) {
-        setMfaError(data.error ?? "Verification failed.");
-        return;
-      }
-
-      setLoggedIn(true);
-      setAccount(data.account?.displayName || data.account?.email || username);
-      setAccountEmail(data.account?.email || normalizedEmail);
-      setUserRole(data.account?.role || "");
-      router.push("/account");
-    } catch {
-      setMfaError("Unable to verify code. Please try again.");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const handleMfaResend = async () => {
-    if (isResending || !challengeId) return;
-
-    setIsResending(true);
-    setMfaError("");
-
-    try {
-      const res = await fetch("/api/auth/mfa/resend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challengeId }),
-      });
-
-      const data = (await res.json()) as MfaResendResponse;
-
-      if (!res.ok || !data.ok) {
-        setMfaError(data.error ?? "Unable to resend code.");
-        return;
-      }
-
-      setChallengeId(data.challengeId ?? challengeId);
-      setDebugCode(data.debugCode ?? null);
-      setMfaCode("");
-      setMfaError("");
-    } catch {
-      setMfaError("Unable to resend code. Please try again.");
-    } finally {
-      setIsResending(false);
-    }
-  };
-
-  const handleBackToLogin = () => {
-    setMfaStep(false);
-    setChallengeId(null);
-    setDebugCode(null);
-    setMfaCode("");
-    setMfaError("");
-  };
-
   if (isSubmitting) {
     return <LoginLoading />;
-  }
-
-  // MFA verification step
-  if (mfaStep) {
-    return (
-      <section className="loginCard" aria-label="MFA Verification">
-        <h1 className="loginTitle">Verification Code</h1>
-        <p
-          style={{
-            textAlign: "center",
-            color: "var(--muted)",
-            marginBottom: "1rem",
-          }}
-        >
-          Enter the 6-digit code sent to your device.
-        </p>
-
-        <form className="loginForm" onSubmit={handleMfaVerify} noValidate>
-          <label className="loginLabel">
-            6-Digit Code
-            <input
-              className="loginInput mfaCodeInput"
-              type="text"
-              inputMode="numeric"
-              pattern="\d{6}"
-              maxLength={6}
-              value={mfaCode}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-                setMfaCode(val);
-                setMfaError("");
-              }}
-              autoFocus
-              autoComplete="one-time-code"
-              disabled={isVerifying}
-            />
-          </label>
-
-          {mfaError && <p className="errorText">{mfaError}</p>}
-
-          {debugCode && (
-            <div className="mfaDebugCallout">
-              Dev code: <strong>{debugCode}</strong>
-            </div>
-          )}
-
-          <div className="mfaActions">
-            <button
-              className="loginButton"
-              type="submit"
-              disabled={isVerifying || mfaCode.length !== 6}
-            >
-              {isVerifying ? "Verifying..." : "Verify"}
-            </button>
-            <button
-              className="loginButton"
-              type="button"
-              style={{ background: "#6b7280" }}
-              disabled={isResending}
-              onClick={handleMfaResend}
-            >
-              {isResending ? "Sending..." : "Resend Code"}
-            </button>
-          </div>
-
-          <button
-            className="loginButton"
-            type="button"
-            style={{ marginTop: "0.5rem", background: "#e53e3e" }}
-            onClick={handleBackToLogin}
-          >
-            Back to Login
-          </button>
-        </form>
-      </section>
-    );
   }
 
   return (
@@ -483,7 +297,8 @@ export default function LoginSignIn() {
             className="loginButton"
             type="button"
             style={{ marginTop: "0.5rem", background: "#e53e3e" }}
-            onClick={() => {
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
               setLoggedIn(false);
               setAccount("");
               setAccountEmail("");

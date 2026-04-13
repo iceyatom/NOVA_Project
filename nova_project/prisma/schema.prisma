@@ -95,10 +95,19 @@ model Account {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasks          Task[]          @relation("AccountTasks")
-  authSessions   AuthSession[]
-  mfaChallenges  MfaChallenge[]
-  sensitiveUpdatedAt  DateTime?
+  tasks               Task[]               @relation("AccountTasks")
+  pendingVerification PendingVerification?
+  sessions            Session[]
+}
+
+model PendingVerification {
+  id        Int      @id @default(autoincrement())
+  accountId Int      @unique
+  codeHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model Ticket {
@@ -144,34 +153,14 @@ model Task {
   @@index([expiresAt])
 }
 
-model AuthSession {
-  id         Int       @id @default(autoincrement())
-  accountId  Int
-  tokenHash  String    @unique
-  createdAt  DateTime  @default(now())
-  lastUsedAt DateTime  @default(now())
-  expiresAt  DateTime
-  revokedAt  DateTime?
+model Session {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  accountId Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([tokenHash])
-  @@index([accountId])
-  @@index([expiresAt])
-}
-
-model MfaChallenge {
-  id             Int       @id @default(autoincrement())
-  accountId      Int
-  codeHash       String
-  createdAt      DateTime  @default(now())
-  expiresAt      DateTime
-  usedAt         DateTime?
-  invalidatedAt  DateTime?
-  attemptCount   Int       @default(0)
-
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
-  @@index([expiresAt])
 }
