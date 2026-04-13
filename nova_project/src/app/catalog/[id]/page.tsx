@@ -80,7 +80,9 @@ function getDisplayImages(images?: CatalogItemImage[] | null): string[] {
 
   const urls = images
     .map((img) => img?.url)
-    .filter((url): url is string => typeof url === "string" && url.trim() !== "");
+    .filter(
+      (url): url is string => typeof url === "string" && url.trim() !== "",
+    );
 
   return urls.length > 0 ? urls : ["/FillerImage.webp"];
 }

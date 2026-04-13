@@ -493,7 +493,9 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     const region = process.env.AWS_REGION;
 
     if (!bucket) {
-      throw new Error("S3_BUCKET_NAME is required to build catalog image URLs.");
+      throw new Error(
+        "S3_BUCKET_NAME is required to build catalog image URLs.",
+      );
     }
 
     if (!region || region === "us-east-1") {

@@ -51,10 +51,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      { success: true, data: image },
-      { status: 201 },
-    );
+    return NextResponse.json({ success: true, data: image }, { status: 201 });
   } catch (error) {
     console.error("Error linking image:", error);
 

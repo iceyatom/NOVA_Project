@@ -375,7 +375,9 @@ export default function CatalogPageClient() {
 
         const normalizedItems =
           payload.data?.map((item) => {
-            const images = parseItemImages((item as { images?: unknown }).images);
+            const images = parseItemImages(
+              (item as { images?: unknown }).images,
+            );
 
             return {
               ...item,

@@ -507,7 +507,8 @@ export default function ImageUpload({
                   color: "#374151",
                   display: "grid",
                   placeItems: "center",
-                  cursor: uploadStatus === "uploading" ? "not-allowed" : "pointer",
+                  cursor:
+                    uploadStatus === "uploading" ? "not-allowed" : "pointer",
                   opacity: uploadStatus === "uploading" ? 0.6 : 1,
                 }}
               >
@@ -658,7 +659,8 @@ export default function ImageUpload({
                   color: "#1f2937",
                   font: "inherit",
                   fontWeight: 700,
-                  cursor: uploadStatus === "uploading" ? "not-allowed" : "pointer",
+                  cursor:
+                    uploadStatus === "uploading" ? "not-allowed" : "pointer",
                   opacity: uploadStatus === "uploading" ? 0.6 : 1,
                 }}
               >

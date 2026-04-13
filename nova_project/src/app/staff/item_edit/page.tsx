@@ -113,7 +113,8 @@ function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
 
   if (Array.isArray(legacyImageUrls)) {
     const urls = legacyImageUrls.filter(
-      (entry): entry is string => typeof entry === "string" && entry.trim() !== "",
+      (entry): entry is string =>
+        typeof entry === "string" && entry.trim() !== "",
     );
 
     if (urls.length > 0) {
@@ -735,7 +736,8 @@ function StaffItemEditPageContent() {
         );
       }
 
-      const refreshedPayload = (await refreshedResponse.json()) as CatalogApiResponse;
+      const refreshedPayload =
+        (await refreshedResponse.json()) as CatalogApiResponse;
 
       if (!refreshedPayload?.success) {
         throw new Error("Failed to reload saved item.");
@@ -790,7 +792,9 @@ function StaffItemEditPageContent() {
 
     if (selectedImage.id == null) {
       setForm((prev) => {
-        const nextImages = prev.images.filter((_, i) => i !== selectedImageIndex);
+        const nextImages = prev.images.filter(
+          (_, i) => i !== selectedImageIndex,
+        );
         return { ...prev, images: withFallbackImage(nextImages) };
       });
       setSelectedImageIndex(null);
@@ -829,7 +833,9 @@ function StaffItemEditPageContent() {
       }
 
       setForm((prev) => {
-        const nextImages = prev.images.filter((_, i) => i !== selectedImageIndex);
+        const nextImages = prev.images.filter(
+          (_, i) => i !== selectedImageIndex,
+        );
         return { ...prev, images: withFallbackImage(nextImages) };
       });
       setSelectedImageIndex(null);
@@ -993,7 +999,9 @@ function StaffItemEditPageContent() {
   }
 
   const selectedImage =
-    selectedImageIndex !== null ? form.images[selectedImageIndex] ?? null : null;
+    selectedImageIndex !== null
+      ? (form.images[selectedImageIndex] ?? null)
+      : null;
 
   return (
     <div>
@@ -1062,7 +1070,11 @@ function StaffItemEditPageContent() {
 
                 <label className="item-edit-field">
                   <div>
-                    <span className={fieldNameClass(isFieldDirty("quantityInStock"))}>
+                    <span
+                      className={fieldNameClass(
+                        isFieldDirty("quantityInStock"),
+                      )}
+                    >
                       Quantity In Stock *
                     </span>
                     <input
@@ -1077,7 +1089,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("reorderLevel"))}>
+                  <span
+                    className={fieldNameClass(isFieldDirty("reorderLevel"))}
+                  >
                     Reorder Level *
                   </span>
                   <input
@@ -1155,7 +1169,9 @@ function StaffItemEditPageContent() {
 
               <div className="item-edit-grid-3">
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("unitOfMeasure"))}>
+                  <span
+                    className={fieldNameClass(isFieldDirty("unitOfMeasure"))}
+                  >
                     Unit Of Measure
                   </span>
                   <input
@@ -1168,7 +1184,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("storageLocation"))}>
+                  <span
+                    className={fieldNameClass(isFieldDirty("storageLocation"))}
+                  >
                     Storage Location
                   </span>
                   <input
@@ -1181,7 +1199,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("dateAcquired"))}>
+                  <span
+                    className={fieldNameClass(isFieldDirty("dateAcquired"))}
+                  >
                     Date Acquired
                   </span>
                   <input
@@ -1197,7 +1217,9 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("expirationDate"))}>
+                  <span
+                    className={fieldNameClass(isFieldDirty("expirationDate"))}
+                  >
                     Expiration Date
                   </span>
                   <input
@@ -1242,9 +1264,7 @@ function StaffItemEditPageContent() {
               </label>
 
               <label className="item-edit-field">
-                <strong className="item-edit-label">
-                  Images:
-                </strong>
+                <strong className="item-edit-label">Images:</strong>
                 <div className="item-edit-actions">
                   <div style={{ width: "100%" }}>
                     <ImageUpload
@@ -1274,7 +1294,9 @@ function StaffItemEditPageContent() {
                             };
                           });
 
-                          setSuccessMessage("Image uploaded and linked successfully.");
+                          setSuccessMessage(
+                            "Image uploaded and linked successfully.",
+                          );
                           setSaveError(null);
                         } catch (error) {
                           setSaveError(
@@ -1367,7 +1389,11 @@ function StaffItemEditPageContent() {
                 onPointerDown={resetSuccessMessage}
                 className={`staff-dev-pill${isDirty ? " staff-dev-pill--ready" : ""}`}
                 disabled={
-                  isLoading || !!loadError || isSaving || isDeletingImage || !isDirty
+                  isLoading ||
+                  !!loadError ||
+                  isSaving ||
+                  isDeletingImage ||
+                  !isDirty
                 }
                 title={isDirty ? "Save changes" : "No new changes to save"}
               >
