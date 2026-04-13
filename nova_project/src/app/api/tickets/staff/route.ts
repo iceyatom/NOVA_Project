@@ -48,6 +48,18 @@ function parsePositiveInt(value: unknown): number | null {
   return parsed;
 }
 
+function parseNonNegativeInt(value: unknown, fallback: number): number {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value, 10)
+        : Number.NaN;
+
+  if (!Number.isInteger(parsed) || parsed < 0) return fallback;
+  return parsed;
+}
+
 function parseBody(body: CreateTicketRequestBody): {
   type: "ORDER" | "SUPPLY" | "SPOILAGE";
   note: string;
@@ -110,6 +122,99 @@ function parseBody(body: CreateTicketRequestBody): {
     createdByEmail,
     lines: parsedLines,
   };
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const rawPageSize = parseNonNegativeInt(searchParams.get("pageSize"), 10);
+  const pageSize = Math.min(rawPageSize, 20);
+  const offset = parseNonNegativeInt(searchParams.get("offset"), 0);
+
+  try {
+    const [tickets, totalCount] = await Promise.all([
+      prisma.ticket.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: offset,
+        take: pageSize,
+        select: {
+          id: true,
+          type: true,
+          note: true,
+          createdAt: true,
+          createdByAccountId: true,
+          ticketLines: {
+            select: {
+              id: true,
+              catalogItemId: true,
+              countDelta: true,
+              catalogItem: {
+                select: {
+                  itemName: true,
+                  sku: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.ticket.count(),
+    ]);
+
+    const creatorAccountIds = [
+      ...new Set(tickets.map((t) => t.createdByAccountId)),
+    ];
+
+    const creators = await prisma.account.findMany({
+      where: { id: { in: creatorAccountIds } },
+      select: { id: true, displayName: true, email: true },
+    });
+
+    const creatorById = new Map(creators.map((c) => [c.id, c]));
+
+    const data = tickets.map((ticket) => {
+      const creator = creatorById.get(ticket.createdByAccountId);
+      const creatorName =
+        creator?.displayName?.trim() || creator?.email || "Unknown";
+
+      const lines = ticket.ticketLines.map((line) => ({
+        id: line.id,
+        catalogItemId: line.catalogItemId,
+        itemName: line.catalogItem.itemName,
+        sku: line.catalogItem.sku,
+        countDelta: line.countDelta,
+      }));
+
+      const entryCount = lines.length;
+      const netQuantityDelta = lines.reduce((sum, l) => sum + l.countDelta, 0);
+      const absoluteQuantityMoved = lines.reduce(
+        (sum, l) => sum + Math.abs(l.countDelta),
+        0,
+      );
+
+      return {
+        id: ticket.id,
+        type: ticket.type,
+        note: ticket.note,
+        createdAt: ticket.createdAt.toISOString(),
+        creatorName,
+        lines,
+        entryCount,
+        netQuantityDelta,
+        absoluteQuantityMoved,
+      };
+    });
+
+    return jsonResponse({
+      success: true,
+      data,
+      totalCount,
+      pageSize,
+      offset,
+    });
+  } catch (error) {
+    console.error("[tickets/staff] GET failed", error);
+    return errorResponse("Failed to fetch tickets.", 500);
+  }
 }
 
 export async function POST(request: NextRequest) {

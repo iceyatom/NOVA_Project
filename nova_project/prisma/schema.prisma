@@ -108,6 +108,10 @@ model PendingVerification {
   createdAt DateTime @default(now())
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tasks          Task[]          @relation("AccountTasks")
+  authSessions   AuthSession[]
+  mfaChallenges  MfaChallenge[]
+  sensitiveUpdatedAt  DateTime?
 }
 
 model Ticket {
@@ -163,4 +167,34 @@ model Session {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
+model AuthSession {
+  id         Int       @id @default(autoincrement())
+  accountId  Int
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tokenHash])
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+model MfaChallenge {
+  id             Int       @id @default(autoincrement())
+  accountId      Int
+  codeHash       String
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  usedAt         DateTime?
+  invalidatedAt  DateTime?
+  attemptCount   Int       @default(0)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([accountId])
+  @@index([expiresAt])
 }

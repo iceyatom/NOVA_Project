@@ -17,16 +17,8 @@ export default function Header() {
 
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    loggedIn,
-    account,
-    accountEmail,
-    userRole,
-    setLoggedIn,
-    setAccount,
-    setAccountEmail,
-    setUserRole,
-  } = useLoginStatus();
+  const { loggedIn, account, accountEmail, userRole, logout } =
+    useLoginStatus();
   const normalizedRole = userRole ? userRole.toUpperCase() : "";
 
   const handleLogout = async () => {
@@ -35,6 +27,7 @@ export default function Header() {
     setAccount("");
     setAccountEmail("");
     setUserRole("");
+    await logout();
     setShowProfile(false);
     router.push("/login");
   };
