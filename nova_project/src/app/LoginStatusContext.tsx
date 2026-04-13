@@ -1,31 +1,15 @@
 "use client";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-
-type AuthStatus = "loading" | "authenticated" | "anonymous";
-
-type SessionAccount = {
-  email: string;
-  displayName: string | null;
-  role: string;
-};
+import { createContext, useContext, useState, useEffect } from "react";
 
 const LoginStatusContext = createContext({
   loggedIn: false,
-  setLoggedIn: (_v: boolean) => {},
+  setLoggedIn: (v: boolean) => {},
   account: "",
-  setAccount: (_v: string) => {},
+  setAccount: (v: string) => {},
   accountEmail: "",
-  setAccountEmail: (_v: string) => {},
+  setAccountEmail: (v: string) => {},
   userRole: "",
-  setUserRole: (_v: string) => {},
-  authStatus: "loading" as AuthStatus,
-  logout: () => {},
+  setUserRole: (v: string) => {},
 });
 
 export function useLoginStatus() {
@@ -56,58 +40,6 @@ export function LoginStatusProvider({
       .catch(() => {});
   }, []);
 
-  const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
-
-  const hydrateAuth = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/session", {
-        method: "GET",
-        credentials: "include",
-      });
-      const data = (await res.json()) as {
-        authenticated: boolean;
-        account?: SessionAccount;
-      };
-
-      if (data.authenticated && data.account) {
-        setLoggedIn(true);
-        setAccount(data.account.displayName || data.account.email);
-        setAccountEmail(data.account.email);
-        setUserRole(data.account.role);
-        setAuthStatus("authenticated");
-      } else {
-        setLoggedIn(false);
-        setAccount("");
-        setAccountEmail("");
-        setUserRole("");
-        setAuthStatus("anonymous");
-      }
-    } catch {
-      setLoggedIn(false);
-      setAccount("");
-      setAccountEmail("");
-      setUserRole("");
-      setAuthStatus("anonymous");
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // Cookie will be cleared client-side regardless
-    }
-    setLoggedIn(false);
-    setAccount("");
-    setAccountEmail("");
-    setUserRole("");
-    setAuthStatus("anonymous");
-  }, []);
-
-  useEffect(() => {
-    hydrateAuth();
-  }, [hydrateAuth]);
-
   return (
     <LoginStatusContext.Provider
       value={{
@@ -119,8 +51,6 @@ export function LoginStatusProvider({
         setAccountEmail,
         userRole,
         setUserRole,
-        authStatus,
-        logout,
       }}
     >
       {children}

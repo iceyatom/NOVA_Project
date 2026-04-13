@@ -59,20 +59,13 @@ export default function SidebarNav() {
       <Section
         title="Tasks"
         items={[
-<<<<<<< HEAD
-=======
-          { label: "Create Task", href: "/staff/task_create" },
->>>>>>> e18996e245216cebeaf42e28be9a786facbd34d0
           { label: "Employee Task Monitor", href: "/staff/adminTaskView" },
         ]}
       />
 
       <Section
         title="Support"
-        items={[
-          { label: "Create Ticket", href: "/staff/ticket_create" },
-          { label: "View Tickets", href: "/staff/tickets" },
-        ]}
+        items={[{ label: "Create Ticket", href: "/staff/ticket_create" }]}
       />
 
       <Section
