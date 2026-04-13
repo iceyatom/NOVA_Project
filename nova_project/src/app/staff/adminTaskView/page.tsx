@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import AdminTaskCard, { EmployeeTask, TaskStatus } from "@/app/components/AdminTaskCard";
+import AdminTaskCard, {
+  EmployeeTask,
+  TaskStatus,
+  getStatusLabel,
+} from "@/app/components/AdminTaskCard";
 
 const mockTasks: EmployeeTask[] = [
   {
@@ -248,10 +252,10 @@ export function statusPriority(task: EmployeeTask) {
         return 4;
     }
   }
-};
+}
 
 function getCompletionStateLabel(task: EmployeeTask) {
-  return task.isCompleted ? "Completed" : "Not Completed";
+  return task.currentStatus === "completed" ? "Completed" : "Not Completed";
 }
 
 function TaskCard({
@@ -330,7 +334,9 @@ function TaskCard({
             <div className="staffTaskRow">
               <span className="staffTaskLabel">Expiration Status:</span>
               <span className="staffTaskValue">
-                {task.currentStatus === "expired" ? "Expired" : "Active"}
+                {new Date(task.expiresAt.replace("-", "")) < new Date()
+                  ? "Expired"
+                  : "Active"}
               </span>
             </div>
 
@@ -344,7 +350,7 @@ function TaskCard({
             <div className="staffTaskRow">
               <span className="staffTaskLabel">Completed At:</span>
               <span className="staffTaskValue">
-                {task.isCompleted ? task.completedAt : "—"}
+                {task.currentStatus === "completed" ? task.completedAt : "—"}
               </span>
             </div>
 
@@ -466,7 +472,10 @@ export default function StaffTaskViewPage() {
         <div className="staffCard col4">
           <div className="staffCardLabel">Completed</div>
           <div className="staffCardValue staffTaskSummaryValue">
-            {mockTasks.filter((task) => task.currentStatus === "completed").length}
+            {
+              mockTasks.filter((task) => task.currentStatus === "completed")
+                .length
+            }
           </div>
           <div className="staffCardHint">Tasks marked complete.</div>
         </div>
@@ -475,12 +484,16 @@ export default function StaffTaskViewPage() {
           <div className="staffCardLabel">Late</div>
           <div className="staffCardValue staffTaskSummaryValue">
             {
-              mockTasks.filter((task) => task.currentStatus === "expired")
-                .length
+              mockTasks.filter(
+                (task) =>
+                  task.currentStatus !== "completed" &&
+                  new Date(task.expiresAt.replace("-", "")) < new Date(),
+              ).length
             }
-            {mockTasks.filter((task) => (!(task.currentStatus === "completed") && new Date(task.expiresAt.replace("-", "")) < new Date())).length}
           </div>
-          <div className="staffCardHint">Tasks not completed and past deadline.</div>
+          <div className="staffCardHint">
+            Tasks not completed and past deadline.
+          </div>
         </div>
       </div>
 
@@ -513,8 +526,9 @@ export default function StaffTaskViewPage() {
           onClick={toggleCollapseAll}
         >
           <span
-            className={`staffActionButtonIcon ${areAllCollapsed ? "collapsed" : ""
-              }`}
+            className={`staffActionButtonIcon ${
+              areAllCollapsed ? "collapsed" : ""
+            }`}
           >
             ▾
           </span>
@@ -545,8 +559,9 @@ export default function StaffTaskViewPage() {
                   onClick={() => toggleEmployeeCollapse(employeeTaskIds)}
                 >
                   <span
-                    className={`staffActionButtonIcon ${areEmployeeTasksCollapsed ? "collapsed" : ""
-                      }`}
+                    className={`staffActionButtonIcon ${
+                      areEmployeeTasksCollapsed ? "collapsed" : ""
+                    }`}
                   >
                     ▾
                   </span>

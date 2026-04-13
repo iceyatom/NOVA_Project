@@ -48,7 +48,12 @@ export async function POST(req: NextRequest) {
       // Re-registration while still pending — update credentials
       account = await prisma.account.update({
         where: { id: existing.id },
-        data: { passwordHash, role: safeRole, displayName: displayName || null, phone: phone || null },
+        data: {
+          passwordHash,
+          role: safeRole,
+          displayName: displayName || null,
+          phone: phone || null,
+        },
       });
     } else {
       account = await prisma.account.create({
@@ -75,11 +80,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Send the verification email
-    await sendVerificationEmail(
-      normalizedEmail,
-      displayName || "there",
-      code,
-    );
+    await sendVerificationEmail(normalizedEmail, displayName || "there", code);
 
     return NextResponse.json({ success: true, email: normalizedEmail });
   } catch (error) {

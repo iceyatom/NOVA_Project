@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    email =
+      typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   } catch {
     return NextResponse.json(
       { ok: false, error: "Invalid JSON body." },

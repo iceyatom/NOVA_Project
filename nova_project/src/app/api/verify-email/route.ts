@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    email =
+      typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     code = typeof body.code === "string" ? body.code.trim() : "";
   } catch {
     return NextResponse.json(
@@ -40,7 +41,11 @@ export async function POST(req: NextRequest) {
       include: { pendingVerification: true },
     });
 
-    if (!account || account.status !== "pending" || !account.pendingVerification) {
+    if (
+      !account ||
+      account.status !== "pending" ||
+      !account.pendingVerification
+    ) {
       return invalid();
     }
 
