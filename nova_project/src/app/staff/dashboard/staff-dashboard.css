@@ -202,6 +202,13 @@
   color: #64748b;
 }
 
+.employeeCardHint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #64748b;
+  cursor: pointer;
+}
+
 .col4 {
   grid-column: span 4;
 }

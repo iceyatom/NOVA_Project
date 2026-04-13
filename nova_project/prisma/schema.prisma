@@ -142,14 +142,12 @@ model Task {
   description         String?  @db.Text
   assignedToAccountId Int
   createdAt           DateTime @default(now())
-  isCompleted         Boolean  @default(false)
   completedAt         DateTime?
   expiresAt           DateTime
 
   assignedTo Account @relation("AccountTasks", fields: [assignedToAccountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([assignedToAccountId])
-  @@index([isCompleted])
   @@index([expiresAt])
 }
 
