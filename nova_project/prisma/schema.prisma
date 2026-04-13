@@ -1,12 +1,10 @@
 generator client {
   provider = "prisma-client-js"
-  // output not needed; default is fine
 }
 
 datasource db {
   provider          = "mysql"
   url               = env("DATABASE_URL")
-  // keep this only if you will run prisma migrate
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
@@ -14,7 +12,7 @@ model CatalogItem {
   id                Int       @id @default(autoincrement())
   sku               String?
   itemName          String
-  price             Decimal   @default(0) @db.Decimal(10, 2)
+  price             Decimal   @default(0.00) @db.Decimal(10, 2)
   category3         Int?
   category2         Int?
   category1         Int?
@@ -26,14 +24,13 @@ model CatalogItem {
   expirationDate    DateTime?
   dateAcquired      DateTime?
   reorderLevel      Int       @default(0)
-  unitCost          Decimal   @default(0) @db.Decimal(10, 2)
+  unitCost          Decimal   @default(0.00) @db.Decimal(10, 2)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   category3Ref Category3? @relation("CatalogItemCategory3", fields: [category3], references: [id], onDelete: SetNull, onUpdate: Cascade)
   category2Ref Category2? @relation("CatalogItemCategory2", fields: [category2], references: [id], onDelete: SetNull, onUpdate: Cascade)
   category1Ref Category1? @relation("CatalogItemCategory1", fields: [category1], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  ticketLines  TicketLine[]
 
   @@index([category1])
   @@index([category2])
@@ -47,8 +44,8 @@ model Category3 {
   id   Int    @id @default(autoincrement())
   name String @unique
 
-  category2s   Category2[]
-  catalogItems CatalogItem[] @relation("CatalogItemCategory3")
+  category2Items  Category2[]
+  catalogItems    CatalogItem[] @relation("CatalogItemCategory3")
 }
 
 model Category2 {
@@ -56,9 +53,9 @@ model Category2 {
   name        String
   category3Id Int
 
-  category3    Category3     @relation(fields: [category3Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  category1s   Category1[]
-  catalogItems CatalogItem[] @relation("CatalogItemCategory2")
+  category3   Category3 @relation(fields: [category3Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category1Items Category1[]
+  catalogItems   CatalogItem[] @relation("CatalogItemCategory2")
 
   @@unique([category3Id, name])
   @@index([category3Id])
@@ -69,7 +66,7 @@ model Category1 {
   name        String
   category2Id Int
 
-  category2    Category2     @relation(fields: [category2Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category2    Category2 @relation(fields: [category2Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   catalogItems CatalogItem[] @relation("CatalogItemCategory1")
 
   @@unique([category2Id, name])
@@ -77,35 +74,30 @@ model Category1 {
 }
 
 model Account {
-  id           Int     @id @default(autoincrement())
-  email        String  @unique
-  passwordHash String
-  status       String  @default("active")
-  role         String
-  displayName  String?
-  phone        String?
-  notes        String?
-
-  lastLoginAt DateTime?
-  deletedAt   DateTime?
-
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  passwordHash        String
+  status              String    @default("active")
+  role                String
+  displayName         String?
+  phone               String?
+  notes               String?
+  lastLoginAt         DateTime?
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
   failedLoginAttempts Int       @default(0)
   lockoutUntil        DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tasks Task[] @relation("AccountTasks")
+  sensitiveUpdatedAt  DateTime?
 }
 
 model Ticket {
-  id                Int      @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   createdByAccountId Int
-  type              String
-  note              String?  @db.Text
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  ticketLines      TicketLine[]
+  type               String
+  note               String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@index([createdByAccountId])
   @@index([createdAt])
@@ -117,24 +109,19 @@ model TicketLine {
   catalogItemId Int
   countDelta    Int
 
-  ticket      Ticket      @relation(fields: [ticketId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
   @@index([ticketId])
   @@index([catalogItemId])
 }
 
 model Task {
-  id                  Int      @id @default(autoincrement())
+  id                  Int       @id @default(autoincrement())
   title               String
-  description         String?  @db.Text
+  description         String?   @db.Text
   assignedToAccountId Int
-  createdAt           DateTime @default(now())
-  isCompleted         Boolean  @default(false)
+  createdAt           DateTime  @default(now())
+  isCompleted         Boolean   @default(false)
   completedAt         DateTime?
   expiresAt           DateTime
-
-  assignedTo Account @relation("AccountTasks", fields: [assignedToAccountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([assignedToAccountId])
   @@index([isCompleted])

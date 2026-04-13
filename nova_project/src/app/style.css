@@ -4319,3 +4319,162 @@ body:has(.loginPage) main {
     grid-template-columns: 1fr;
   }
 }
+
+.accountSettingsLayout {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.25fr 0.9fr;
+  gap: 20px;
+}
+
+.accountForm {
+  display: grid;
+  gap: 1rem;
+}
+
+.accountFormRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.accountField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.accountFieldLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.accountInput {
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+.accountInput:focus {
+  outline: none;
+  border-color: var(--brand-focus);
+}
+
+.accountHelperText {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.accountRestrictionText {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #b45309;
+  font-weight: 600;
+}
+
+.accountSensitiveSection {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.accountSensitiveSection h3,
+.accountDangerZone h3 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.accountActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.accountPrimaryButton {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  background: var(--brand-teal);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.accountPrimaryButton:hover {
+  background: var(--brand-teal-dark);
+}
+
+.accountPrimaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.accountDangerButton {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  background: #dc2626;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.accountDangerButton:hover {
+  background: #b91c1c;
+}
+
+.accountDangerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.accountInfoGrid {
+  display: grid;
+  gap: 0.75rem;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.accountDangerZone {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  display: grid;
+  gap: 1rem;
+}
+
+.accountStatusMessage {
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+}
+
+.accountStatusMessage.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.accountStatusMessage.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+@media (max-width: 900px) {
+  .accountSettingsLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .accountFormRow {
+    grid-template-columns: 1fr;
+  }
+}
