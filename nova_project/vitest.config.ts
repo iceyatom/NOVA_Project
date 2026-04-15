@@ -5,7 +5,6 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["vitest-scripts/**/*.test.ts"],
-    environmentMatchGlobs: [["vitest-scripts/**/*Page.test.ts", "jsdom"]],
     globals: true,
     setupFiles: ["./vitest/setup.ts"],
     env: {

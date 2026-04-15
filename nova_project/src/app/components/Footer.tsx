@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useLoginStatus } from "../LoginStatusContext";
 
 /* Footer: company info on left, columns of page links on right */
 export default function Footer() {
   const year = new Date().getFullYear();
+  const { loggedIn } = useLoginStatus();
+  const loginHref = loggedIn ? "/account" : "/login";
 
   // If already on page, scroll to top. Otherwise let Next.js navigate.
   const onHomeClick: React.MouseEventHandler<HTMLAnchorElement> = (e) => {
@@ -24,11 +27,9 @@ export default function Footer() {
             9296 Elder Creek Road, Sacramento, CA 95829
           </address>
           <p className="footer-contact">
-            <a href="mailto:nilesbio.monty@gmail.com">
-              nilesbio.monty@gmail.com
-            </a>
+            <a href="mailto:ted@nilesbio.com">ted@nilesbio.com</a>
             {" · "}
-            <a href="tel:+19167201814">(916) 720-1814</a>
+            <a href="tel:+19163862665">(916) 386-2665</a>
           </p>
         </div>
 
@@ -88,9 +89,9 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a className="footer-link" href="#">
+                <Link className="footer-link" href={loginHref}>
                   Log In
-                </a>
+                </Link>
               </li>
               <li>
                 <a className="footer-link" href="#">
