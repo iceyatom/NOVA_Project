@@ -86,16 +86,6 @@ export default function HomePage() {
                   {missionCta.label}
                 </Link>
               </div>
-
-              <div className="hero-cta-center">
-                <Link
-                  className="button-secondary"
-                  href="/staff"
-                  aria-label="Open Staff Dev Hub"
-                >
-                  Staff Dev
-                </Link>
-              </div>
             </div>
             {missionDetailParagraphs.map((detail, index) => (
               <p className="hero-detail" key={`mission-detail-${index}`}>

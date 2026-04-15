@@ -554,8 +554,8 @@ const StaffItemSearchPageContent = () => {
           <h1 className="item-search-page__title">Inventory Management</h1>
 
           <div className="staff-dev-back-wrapper">
-            <Link href="/staff" className="staff-dev-pill">
-              &larr; Back to Staff Hub
+            <Link href="/staff/dashboard" className="staff-dev-pill">
+              &larr; Back to Staff Dashboard
             </Link>
           </div>
         </div>

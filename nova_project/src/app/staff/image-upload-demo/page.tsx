@@ -57,8 +57,8 @@ export default function StaffImageUploadDemoPage() {
         </div>
 
         <div className="staff-dev-back-wrapper">
-          <Link href="/staff" className="staff-dev-pill">
-            {"\u2190 Back to Staff Dev Hub"}
+          <Link href="/staff/dashboard" className="staff-dev-pill">
+            {"\u2190 Back to Staff Dashboard"}
           </Link>
         </div>
       </div>

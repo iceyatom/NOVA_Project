@@ -94,7 +94,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a className="footer-link" href="#">
+                <a className="footer-link" href="/create_account">
                   Sign Up
                 </a>
               </li>
