@@ -92,6 +92,8 @@ export default function StaffItemCreatePage() {
   const [newCategorySuccess, setNewCategorySuccess] = useState<string | null>(
     null,
   );
+  const [showCreateConfirmation, setShowCreateConfirmation] = useState(false);
+  const [createConfirmChecked, setCreateConfirmChecked] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -285,6 +287,8 @@ export default function StaffItemCreatePage() {
     setNewCategoryName("");
     setNewCategoryError(null);
     setNewCategorySuccess(null);
+    setShowCreateConfirmation(false);
+    setCreateConfirmChecked(false);
 
     if (level === "category3") {
       setNewParentCategory3("");
@@ -305,29 +309,43 @@ export default function StaffItemCreatePage() {
     setShowNewCategoryPopup(false);
     setNewCategoryError(null);
     setNewCategorySuccess(null);
+    setShowCreateConfirmation(false);
+    setCreateConfirmChecked(false);
   }
 
-  async function handleCreateCategory(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setNewCategoryError(null);
-    setNewCategorySuccess(null);
-
+  function getCreateValidationError(): string | null {
     const name = newCategoryName.trim();
     if (!name) {
-      setNewCategoryError("Category name is required.");
-      return;
+      return "Category name is required.";
     }
 
     if (newCategoryLevel !== "category3" && !newParentCategory3.trim()) {
-      setNewCategoryError("Parent Category is required.");
-      return;
+      return "Parent Category is required.";
     }
 
     if (newCategoryLevel === "category1" && !newParentCategory2.trim()) {
-      setNewCategoryError("Parent Subcategory is required.");
+      return "Parent Subcategory is required.";
+    }
+
+    return null;
+  }
+
+  async function handleCreateCategory() {
+    setNewCategoryError(null);
+    setNewCategorySuccess(null);
+
+    const validationError = getCreateValidationError();
+    if (validationError) {
+      setNewCategoryError(validationError);
       return;
     }
 
+    if (!createConfirmChecked) {
+      setNewCategoryError("Please confirm before creating.");
+      return;
+    }
+
+    const name = newCategoryName.trim();
     const payload = {
       level: newCategoryLevel,
       name,
@@ -338,6 +356,7 @@ export default function StaffItemCreatePage() {
     };
 
     setIsCreatingCategory(true);
+    setShowCreateConfirmation(false);
 
     try {
       const response = await fetch("/api/catalog/staff/categories", {
@@ -693,7 +712,7 @@ export default function StaffItemCreatePage() {
           aria-label="Create New Category"
           className="item-category-modal"
         >
-          <div className="item-category-modal__content">
+          <div className="item-category-modal__content category-mgmt-edit-modal__content">
             <div className="item-category-modal__title">
               Creating New{" "}
               {newCategoryLevel === "category3"
@@ -705,7 +724,20 @@ export default function StaffItemCreatePage() {
 
             <form
               className="item-category-form"
-              onSubmit={handleCreateCategory}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const validationError = getCreateValidationError();
+                if (validationError) {
+                  setNewCategoryError(validationError);
+                  setNewCategorySuccess(null);
+                  setShowCreateConfirmation(false);
+                  return;
+                }
+                setNewCategoryError(null);
+                setNewCategorySuccess(null);
+                setCreateConfirmChecked(false);
+                setShowCreateConfirmation(true);
+              }}
               noValidate
             >
               <label className="item-category-form__field">
@@ -775,7 +807,7 @@ export default function StaffItemCreatePage() {
                 </div>
               )}
 
-              <div className="item-category-form__actions">
+              <div className="item-category-form__actions category-mgmt-edit-modal__actions">
                 <button
                   type="button"
                   onClick={closeNewCategoryPopup}
@@ -793,6 +825,65 @@ export default function StaffItemCreatePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showNewCategoryPopup && showCreateConfirmation && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Create Category"
+          className="item-category-modal"
+          onClick={() => setShowCreateConfirmation(false)}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Creation</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to create this{" "}
+              {newCategoryLevel === "category3"
+                ? "category"
+                : newCategoryLevel === "category2"
+                  ? "subcategory"
+                  : "type"}
+              ?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>
+                New entry:{" "}
+                <strong>{newCategoryName.trim() || "Unnamed"}</strong>
+              </p>
+            </div>
+            <label className="category-mgmt-delete-confirm">
+              <input
+                type="checkbox"
+                checked={createConfirmChecked}
+                onChange={(event) =>
+                  setCreateConfirmChecked(event.target.checked)
+                }
+              />
+              Yes, I&apos;m sure.
+            </label>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={() => setShowCreateConfirmation(false)}
+                disabled={isCreatingCategory}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--ready"
+                onClick={() => void handleCreateCategory()}
+                disabled={isCreatingCategory}
+              >
+                {isCreatingCategory ? "Creating..." : "Confirm"}
+              </button>
+            </div>
           </div>
         </div>
       )}
