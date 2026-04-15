@@ -13,8 +13,8 @@ export default function StaffLoginPage() {
         </div>
 
         <div className="staff-dev-back-wrapper">
-          <Link href="/staff" className="staff-dev-pill">
-            ← Back to Staff Dev Hub
+          <Link href="/staff/dashboard" className="staff-dev-pill">
+            ← Back to Staff Dashboard
           </Link>
         </div>
       </div>

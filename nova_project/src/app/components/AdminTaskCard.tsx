@@ -53,7 +53,7 @@ export default function AdminTaskCard({
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   const expiredStatus =
-    task.currentStatus !== "completed" &&
+    task.currentStatus === "not-started" &&
     new Date(task.expiresAt.replace("-", "")) < new Date()
       ? "expired"
       : task.currentStatus;

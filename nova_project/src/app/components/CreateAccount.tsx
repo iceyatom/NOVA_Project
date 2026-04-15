@@ -9,7 +9,6 @@ type Errors = {
   email?: string;
   password?: string;
   confirmPassword?: string;
-  role?: string;
 };
 
 type Step = "form" | "verify" | "success";
@@ -20,7 +19,8 @@ export default function CreateAccountPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("CUSTOMER");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,7 +91,7 @@ export default function CreateAccountPage() {
       const res = await fetch("/api/create_account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName, phone, email, password, role }),
+        body: JSON.stringify({ displayName, phone, email, password }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -297,49 +297,96 @@ export default function CreateAccountPage() {
 
           <label className="loginLabel">
             Password
-            <input
-              className={`loginInput ${errors.password ? "inputError" : ""}`}
-              type="password"
-              value={password}
-              autoComplete="new-password"
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setErrors((p) => ({ ...p, password: undefined }));
-              }}
-            />
+            <div className="passwordInputWrap">
+              <input
+                className={`loginInput passwordInput ${
+                  errors.password ? "inputError" : ""
+                }`}
+                type={showPassword ? "text" : "password"}
+                value={password}
+                autoComplete="new-password"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (!e.target.value) {
+                    setShowPassword(false);
+                  }
+                  setErrors((p) => ({ ...p, password: undefined }));
+                }}
+              />
+              {password.length > 0 && (
+                <button
+                  type="button"
+                  className="passwordToggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 3l18 18" />
+                      <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                      <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
             {errors.password && <p className="errorText">{errors.password}</p>}
           </label>
 
           <label className="loginLabel">
             Confirm Password
-            <input
-              className={`loginInput ${
-                errors.confirmPassword ? "inputError" : ""
-              }`}
-              type="password"
-              value={confirmPassword}
-              autoComplete="new-password"
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setErrors((p) => ({ ...p, confirmPassword: undefined }));
-              }}
-            />
+            <div className="passwordInputWrap">
+              <input
+                className={`loginInput passwordInput ${
+                  errors.confirmPassword ? "inputError" : ""
+                }`}
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                autoComplete="new-password"
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (!e.target.value) {
+                    setShowConfirmPassword(false);
+                  }
+                  setErrors((p) => ({ ...p, confirmPassword: undefined }));
+                }}
+              />
+              {confirmPassword.length > 0 && (
+                <button
+                  type="button"
+                  className="passwordToggle"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  aria-label={
+                    showConfirmPassword ? "Hide password" : "Show password"
+                  }
+                  aria-pressed={showConfirmPassword}
+                >
+                  {showConfirmPassword ? (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 3l18 18" />
+                      <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                      <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
             {errors.confirmPassword && (
               <p className="errorText">{errors.confirmPassword}</p>
             )}
-          </label>
-
-          <label className="loginLabel">
-            Account Role
-            <select
-              className="loginInput"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="CUSTOMER">Customer</option>
-              <option value="STAFF">Staff</option>
-              <option value="ADMIN">Admin</option>
-            </select>
           </label>
 
           <button className="loginButton" type="submit" disabled={isSubmitting}>

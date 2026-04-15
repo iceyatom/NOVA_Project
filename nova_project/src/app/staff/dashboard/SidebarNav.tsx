@@ -50,10 +50,7 @@ export default function SidebarNav() {
 
       <Section
         title="Items"
-        items={[
-          { label: "Create Item", href: "/staff/item_create" },
-          { label: "Edit Item", href: "/staff/item_edit" },
-        ]}
+        items={[{ label: "Create Item", href: "/staff/item_create" }]}
       />
 
       <Section

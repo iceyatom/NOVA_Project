@@ -92,7 +92,7 @@ export default function EmployeeTaskCard({
   }
 
   const expiredStatus =
-    status !== "completed" &&
+    status === "not-started" &&
     new Date(task.expiresAt.replace("-", "")) < new Date()
       ? "expired"
       : status;
