@@ -28,19 +28,17 @@ function roleToPosition(role: string): string {
   return role;
 }
 
-function inferTaskStatus(task: {
-  completedAt: Date | null;
-  createdAt: Date;
-  expiresAt: Date;
-}): TaskStatus {
-  if (task.completedAt) return "completed";
-
-  const now = new Date();
-  const durationMs = task.expiresAt.getTime() - task.createdAt.getTime();
-  const halfwayPointMs = task.createdAt.getTime() + durationMs / 2;
-
-  if (now.getTime() >= halfwayPointMs) return "in-progress";
-  return "not-started";
+function mapDbTaskStatus(status: string): TaskStatus {
+  switch (status) {
+    case "NOT_STARTED":
+      return "not-started";
+    case "IN_PROGRESS":
+      return "in-progress";
+    case "COMPLETE":
+      return "completed";
+    default:
+      return "not-started";
+  }
 }
 
 export default async function StaffTaskViewPage() {
@@ -63,6 +61,7 @@ export default async function StaffTaskViewPage() {
           id: true,
           title: true,
           description: true,
+          status: true,
           assignedToAccountId: true,
           createdAt: true,
           completedAt: true,
@@ -88,7 +87,7 @@ export default async function StaffTaskViewPage() {
         ? formatCardDate(task.completedAt)
         : undefined,
       expiresAt: formatCardDate(task.expiresAt),
-      currentStatus: inferTaskStatus(task),
+      currentStatus: mapDbTaskStatus(task.status),
     }));
 
     return {

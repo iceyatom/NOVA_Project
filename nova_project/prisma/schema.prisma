@@ -153,6 +153,7 @@ model Task {
   id                  Int      @id @default(autoincrement())
   title               String
   description         String?  @db.Text
+  status              TaskStatus @default(NOT_STARTED)
   assignedToAccountId Int
   createdAt           DateTime @default(now())
   completedAt         DateTime?
@@ -162,6 +163,12 @@ model Task {
 
   @@index([assignedToAccountId])
   @@index([expiresAt])
+}
+
+enum TaskStatus {
+  NOT_STARTED @map("Not Started")
+  IN_PROGRESS @map("In Progress")
+  COMPLETE    @map("Complete")
 }
 
 model Session {

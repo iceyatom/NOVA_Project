@@ -4092,6 +4092,27 @@ body:has(.loginPage) main {
   margin-bottom: 20px;
 }
 
+.staffTaskLegendActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.staffTaskCreateModal {
+  max-width: 560px;
+}
+
+.staffTaskCreateForm__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.staffTaskCreateForm__textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
 .staffTaskLegend {
   display: flex;
   flex-wrap: wrap;
@@ -4418,9 +4439,19 @@ body:has(.loginPage) main {
     align-items: stretch;
   }
 
+  .staffTaskLegendActions {
+    justify-content: flex-end;
+  }
+
   .staffEmployeeGroupHeader {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 700px) {
+  .staffTaskCreateForm__row {
+    grid-template-columns: 1fr;
   }
 }
 

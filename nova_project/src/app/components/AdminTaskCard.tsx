@@ -79,14 +79,14 @@ export default function AdminTaskCard({
             onClick={onToggleCollapse}
             aria-label={isCollapsed ? "Expand task" : "Collapse task"}
           >
+            {isCollapsed ? "Expand" : "Collapse"}
             <span
               className={`staffTaskCollapseIcon ${
                 isCollapsed ? "collapsed" : ""
               }`}
             >
-              ▾
+              {"\u25BE"}
             </span>
-            {isCollapsed ? "Expand" : "Collapse"}
           </button>
 
           <div className={`staffTaskStatusBadge ${expiredStatus}`}>
@@ -103,49 +103,6 @@ export default function AdminTaskCard({
           <div className="staffTaskDivider" />
 
           <div className="staffTaskBody">
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Assigned Employee:</span>
-              <span className="staffTaskValue">{task.employeeName}</span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Assigned Account ID:</span>
-              <span className="staffTaskValue">{task.assignedToAccountId}</span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Created At:</span>
-              <span className="staffTaskValue">{task.createdAt}</span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Expires At:</span>
-              <span className="staffTaskValue">{task.expiresAt}</span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Expiration Status:</span>
-              <span className="staffTaskValue">
-                {new Date(task.expiresAt.replace("-", "")) < new Date()
-                  ? "Expired"
-                  : "Active"}
-              </span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Current Status:</span>
-              <span className="staffTaskValue">
-                {getStatusLabel(task.currentStatus)}
-              </span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Completed At:</span>
-              <span className="staffTaskValue">
-                {task.currentStatus === "completed" ? task.completedAt : "—"}
-              </span>
-            </div>
-
             <div className="staffTaskDescriptionBlock">
               <span className="staffTaskLabel">Description:</span>
 
@@ -168,6 +125,30 @@ export default function AdminTaskCard({
                   {descriptionExpanded ? "Show less" : "Show more"}
                 </button>
               )}
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Created At:</span>
+              <span className="staffTaskValue">{task.createdAt}</span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Expires At:</span>
+              <span className="staffTaskValue">{task.expiresAt}</span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Current Status:</span>
+              <span className="staffTaskValue">
+                {getStatusLabel(task.currentStatus)}
+              </span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Completed At:</span>
+              <span className="staffTaskValue">
+                {task.currentStatus === "completed" ? task.completedAt : "—"}
+              </span>
             </div>
           </div>
         </>

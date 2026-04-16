@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import AdminTaskCard, { EmployeeTask } from "@/app/components/AdminTaskCard";
 import { statusPriority } from "@/app/lib/taskStatus";
 
@@ -11,11 +12,20 @@ export type EmployeeTaskGroup = {
   tasks: EmployeeTask[];
 };
 
+function toDateTimeLocalValue(date: Date): string {
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function AdminTaskViewClient({
   taskGroups,
 }: {
   taskGroups: EmployeeTaskGroup[];
 }) {
+  const router = useRouter();
+
   const allTaskIds = useMemo(
     () => taskGroups.flatMap((group) => group.tasks.map((task) => task.id)),
     [taskGroups],
@@ -23,6 +33,13 @@ export default function AdminTaskViewClient({
 
   const [collapsedTaskIds, setCollapsedTaskIds] =
     useState<number[]>(allTaskIds);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [createTaskTitle, setCreateTaskTitle] = useState("");
+  const [createTaskDescription, setCreateTaskDescription] = useState("");
+  const [createTaskAssigneeId, setCreateTaskAssigneeId] = useState("");
+  const [createTaskDueAt, setCreateTaskDueAt] = useState("");
+  const [createTaskError, setCreateTaskError] = useState<string | null>(null);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   const sortedTaskGroups = useMemo(() => {
     return taskGroups.map((group) => ({
@@ -32,6 +49,36 @@ export default function AdminTaskViewClient({
       ),
     }));
   }, [taskGroups]);
+
+  const allTasks = useMemo(
+    () => sortedTaskGroups.flatMap((group) => group.tasks),
+    [sortedTaskGroups],
+  );
+
+  const assigneeOptions = useMemo(
+    () =>
+      taskGroups.map((group) => ({
+        accountId: group.accountId,
+        label: `${group.employeeName} (${group.employeePosition})`,
+      })),
+    [taskGroups],
+  );
+
+  const areAllCollapsed =
+    allTaskIds.length > 0 && collapsedTaskIds.length === allTaskIds.length;
+
+  useEffect(() => {
+    if (!isCreateTaskOpen) return;
+
+    const defaultDueAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    setCreateTaskTitle("");
+    setCreateTaskDescription("");
+    setCreateTaskAssigneeId(
+      assigneeOptions.length > 0 ? String(assigneeOptions[0].accountId) : "",
+    );
+    setCreateTaskDueAt(toDateTimeLocalValue(defaultDueAt));
+    setCreateTaskError(null);
+  }, [isCreateTaskOpen, assigneeOptions]);
 
   function toggleTaskCollapse(taskId: number) {
     setCollapsedTaskIds((currentIds) => {
@@ -45,9 +92,9 @@ export default function AdminTaskViewClient({
 
   function toggleCollapseAll() {
     setCollapsedTaskIds((currentIds) => {
-      const areAllCollapsed = currentIds.length === allTaskIds.length;
+      const areAllCollapsedNow = currentIds.length === allTaskIds.length;
 
-      if (areAllCollapsed) {
+      if (areAllCollapsedNow) {
         return [];
       }
 
@@ -75,13 +122,85 @@ export default function AdminTaskViewClient({
     });
   }
 
-  const allTasks = useMemo(
-    () => sortedTaskGroups.flatMap((group) => group.tasks),
-    [sortedTaskGroups],
-  );
+  function openCreateTaskModal() {
+    setIsCreateTaskOpen(true);
+  }
 
-  const areAllCollapsed =
-    allTaskIds.length > 0 && collapsedTaskIds.length === allTaskIds.length;
+  function closeCreateTaskModal() {
+    if (isCreatingTask) return;
+    setIsCreateTaskOpen(false);
+  }
+
+  async function handleCreateTask(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const title = createTaskTitle.trim();
+    const description = createTaskDescription.trim();
+    const assignedToAccountId = Number.parseInt(createTaskAssigneeId, 10);
+    const expiresAt = new Date(createTaskDueAt);
+
+    if (!title) {
+      setCreateTaskError("Task title is required.");
+      return;
+    }
+
+    if (!description) {
+      setCreateTaskError("Task description is required.");
+      return;
+    }
+
+    if (!Number.isFinite(assignedToAccountId)) {
+      setCreateTaskError("Assigned employee is required.");
+      return;
+    }
+
+    if (!createTaskDueAt || Number.isNaN(expiresAt.getTime())) {
+      setCreateTaskError("Valid due date is required.");
+      return;
+    }
+
+    setCreateTaskError(null);
+    setIsCreatingTask(true);
+
+    try {
+      const response = await fetch("/api/tasks/staff", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          assignedToAccountId,
+          expiresAt: expiresAt.toISOString(),
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+      };
+
+      if (!response.ok || payload.success === false) {
+        const message =
+          typeof payload.error === "string"
+            ? payload.error
+            : `Create task failed (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      setIsCreateTaskOpen(false);
+      router.refresh();
+    } catch (createError) {
+      setCreateTaskError(
+        createError instanceof Error
+          ? createError.message
+          : "Failed to create task.",
+      );
+    } finally {
+      setIsCreatingTask(false);
+    }
+  }
 
   return (
     <div>
@@ -171,21 +290,31 @@ export default function AdminTaskViewClient({
           </div>
         </div>
 
-        <button
-          type="button"
-          className="staffActionButton"
-          onClick={toggleCollapseAll}
-          disabled={allTaskIds.length === 0}
-        >
-          <span
-            className={`staffActionButtonIcon ${
-              areAllCollapsed ? "collapsed" : ""
-            }`}
+        <div className="staffTaskLegendActions">
+          <button
+            type="button"
+            className="staffActionButton createTaskButton"
+            onClick={openCreateTaskModal}
           >
-            ▼
-          </span>
-          {areAllCollapsed ? "Expand All" : "Collapse All"}
-        </button>
+            Create Task +
+          </button>
+
+          <button
+            type="button"
+            className="staffActionButton"
+            onClick={toggleCollapseAll}
+            disabled={allTaskIds.length === 0}
+          >
+            {areAllCollapsed ? "Expand All" : "Collapse All"}
+            <span
+              className={`staffActionButtonIcon ${
+                areAllCollapsed ? "collapsed" : ""
+              }`}
+            >
+              {"\u25BE"}
+            </span>
+          </button>
+        </div>
       </div>
 
       <div className="staffTaskGroups">
@@ -215,16 +344,16 @@ export default function AdminTaskViewClient({
                   onClick={() => toggleEmployeeCollapse(employeeTaskIds)}
                   disabled={employeeTaskIds.length === 0}
                 >
+                  {areEmployeeTasksCollapsed
+                    ? "Expand Section"
+                    : "Collapse Section"}
                   <span
                     className={`staffActionButtonIcon ${
                       areEmployeeTasksCollapsed ? "collapsed" : ""
                     }`}
                   >
-                    ▼
+                    {"\u25BE"}
                   </span>
-                  {areEmployeeTasksCollapsed
-                    ? "Expand Section"
-                    : "Collapse Section"}
                 </button>
               </div>
 
@@ -246,6 +375,118 @@ export default function AdminTaskViewClient({
           );
         })}
       </div>
+
+      {isCreateTaskOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Create New Task"
+          className="item-category-modal"
+          onClick={closeCreateTaskModal}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Create New Task</div>
+
+            <form
+              className="item-category-form"
+              onSubmit={(event) => void handleCreateTask(event)}
+              noValidate
+            >
+              <label className="item-category-form__field">
+                <span className="item-category-form__label">Task Title</span>
+                <input
+                  className="item-search-page__search-input"
+                  type="text"
+                  value={createTaskTitle}
+                  onChange={(event) => setCreateTaskTitle(event.target.value)}
+                  placeholder="Enter task title"
+                  disabled={isCreatingTask}
+                />
+              </label>
+
+              <div className="staffTaskCreateForm__row">
+                <label className="item-category-form__field">
+                  <span className="item-category-form__label">
+                    Assigned Employee
+                  </span>
+                  <select
+                    className="item-search-page__select"
+                    value={createTaskAssigneeId}
+                    onChange={(event) =>
+                      setCreateTaskAssigneeId(event.target.value)
+                    }
+                    disabled={isCreatingTask || assigneeOptions.length === 0}
+                  >
+                    {assigneeOptions.length === 0 ? (
+                      <option value="">No employees available</option>
+                    ) : (
+                      assigneeOptions.map((option) => (
+                        <option
+                          key={option.accountId}
+                          value={String(option.accountId)}
+                        >
+                          {option.label}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+
+                <label className="item-category-form__field">
+                  <span className="item-category-form__label">Due Date</span>
+                  <input
+                    className="item-search-page__search-input"
+                    type="datetime-local"
+                    value={createTaskDueAt}
+                    onChange={(event) => setCreateTaskDueAt(event.target.value)}
+                    disabled={isCreatingTask}
+                  />
+                </label>
+              </div>
+
+              <label className="item-category-form__field">
+                <span className="item-category-form__label">Description</span>
+                <textarea
+                  className="item-search-page__search-input staffTaskCreateForm__textarea"
+                  value={createTaskDescription}
+                  onChange={(event) =>
+                    setCreateTaskDescription(event.target.value)
+                  }
+                  placeholder="Add task details"
+                  disabled={isCreatingTask}
+                />
+              </label>
+
+              {createTaskError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {createTaskError}
+                </div>
+              ) : null}
+
+              <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+                <button
+                  type="button"
+                  onClick={closeCreateTaskModal}
+                  className="staff-dev-pill"
+                  disabled={isCreatingTask}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="staff-dev-pill staff-dev-pill--ready"
+                  disabled={isCreatingTask || assigneeOptions.length === 0}
+                >
+                  {isCreatingTask ? "Creating..." : "Create Task"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
