@@ -124,6 +124,12 @@ function parseEditableRole(value: string): EditableRole | null {
   return null;
 }
 
+function rolePrivilegeRank(role: EditableRole): number {
+  if (role === "ADMIN") return 3;
+  if (role === "STAFF") return 2;
+  return 1;
+}
+
 export default function StaffAccountManagementPage() {
   const [accounts, setAccounts] = useState<StaffAccountListItem[]>([]);
   const [offset, setOffset] = useState(0);
@@ -145,6 +151,7 @@ export default function StaffAccountManagementPage() {
   );
   const [editError, setEditError] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isSaveConfirmationOpen, setIsSaveConfirmationOpen] = useState(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState(false);
   const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false);
@@ -289,6 +296,14 @@ export default function StaffAccountManagementPage() {
     isDisplayNameDirty || isEmailDirty || isPhoneDirty || isRoleDirty;
   const isModalBusy = isSavingEdit || isDeletingAccount;
   const isViewerStaff = normalizeRole(viewerRole ?? "STAFF") === "STAFF";
+  const nextEditableRole = parseEditableRole(normalizedRoleInput);
+  const roleChangeWarning =
+    editInitial && nextEditableRole && editInitial.role !== nextEditableRole
+      ? rolePrivilegeRank(nextEditableRole) >
+        rolePrivilegeRank(editInitial.role)
+        ? `Warning: Changing role from ${editInitial.role} to ${nextEditableRole} grants increased privileges to this account.`
+        : `Warning: Changing role from ${editInitial.role} to ${nextEditableRole} removes privileges from this account.`
+      : null;
 
   function handlePageChange(nextOffset: number) {
     const clampedOffset = Math.max(0, Math.min(nextOffset, maxOffset));
@@ -329,6 +344,7 @@ export default function StaffAccountManagementPage() {
     setEditRole("CUSTOMER");
     setEditInitial(null);
     setEditError(null);
+    setIsSaveConfirmationOpen(false);
     setIsDeleteConfirmationOpen(false);
     setDeleteConfirmChecked(false);
   }
@@ -356,6 +372,7 @@ export default function StaffAccountManagementPage() {
       role: normalizedAccountRole,
     });
     setEditError(null);
+    setIsSaveConfirmationOpen(false);
     setIsDeleteConfirmationOpen(false);
     setDeleteConfirmChecked(false);
   }
@@ -374,6 +391,7 @@ export default function StaffAccountManagementPage() {
     }
 
     setIsDeleteConfirmationOpen(true);
+    setIsSaveConfirmationOpen(false);
     setDeleteConfirmChecked(false);
     setEditError(null);
   }
@@ -383,6 +401,21 @@ export default function StaffAccountManagementPage() {
       return;
     }
 
+    setIsDeleteConfirmationOpen(false);
+    setDeleteConfirmChecked(false);
+  }
+
+  function clearEditChanges() {
+    if (isModalBusy || !editInitial) {
+      return;
+    }
+
+    setEditDisplayName(editInitial.displayName);
+    setEditEmail(editInitial.email);
+    setEditPhone(editInitial.phone);
+    setEditRole(editInitial.role);
+    setEditError(null);
+    setIsSaveConfirmationOpen(false);
     setIsDeleteConfirmationOpen(false);
     setDeleteConfirmChecked(false);
   }
@@ -412,6 +445,39 @@ export default function StaffAccountManagementPage() {
     const nextRole = parseEditableRole(normalizedRoleInput);
     if (!nextRole) {
       setEditError("Role must be ADMIN, STAFF, or CUSTOMER.");
+      return;
+    }
+
+    setEditError(null);
+    setIsSaveConfirmationOpen(true);
+  }
+
+  async function confirmSaveEdit() {
+    if (!editAccount || !editInitial || !isAnyEditDirty) {
+      return;
+    }
+
+    if (!normalizedEmailInput || !isValidEmail(normalizedEmailInput)) {
+      setEditError("A valid email address is required.");
+      setIsSaveConfirmationOpen(false);
+      return;
+    }
+
+    if (normalizedPhoneInput && !isValidPhone(normalizedPhoneInput)) {
+      const phoneDigitsLength = getPhoneDigitsLength(normalizedPhoneInput);
+      setEditError(
+        phoneDigitsLength > 10
+          ? "Phone number is too long. Use exactly 10 digits."
+          : "Phone number is too short. Use exactly 10 digits.",
+      );
+      setIsSaveConfirmationOpen(false);
+      return;
+    }
+
+    const nextRole = parseEditableRole(normalizedRoleInput);
+    if (!nextRole) {
+      setEditError("Role must be ADMIN, STAFF, or CUSTOMER.");
+      setIsSaveConfirmationOpen(false);
       return;
     }
 
@@ -843,6 +909,14 @@ export default function StaffAccountManagementPage() {
                 </button>
                 <button
                   type="button"
+                  onClick={clearEditChanges}
+                  className="staff-dev-pill"
+                  disabled={isModalBusy || !isAnyEditDirty}
+                >
+                  Clear Changes
+                </button>
+                <button
+                  type="button"
                   onClick={openDeleteConfirmation}
                   className="staff-dev-pill staff-dev-pill--danger"
                   disabled={isModalBusy}
@@ -911,6 +985,49 @@ export default function StaffAccountManagementPage() {
                 disabled={isDeletingAccount}
               >
                 {isDeletingAccount ? "Deleting..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {editAccount && isSaveConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Save Account Changes"
+          className="item-category-modal"
+          onClick={() => setIsSaveConfirmationOpen(false)}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Changes</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to save these changes?
+            </p>
+            {roleChangeWarning ? (
+              <div className="category-mgmt-delete-warning">
+                <p>{roleChangeWarning}</p>
+              </div>
+            ) : null}
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={() => setIsSaveConfirmationOpen(false)}
+                disabled={isSavingEdit}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--ready"
+                onClick={() => void confirmSaveEdit()}
+                disabled={isSavingEdit}
+              >
+                {isSavingEdit ? "Saving..." : "Confirm"}
               </button>
             </div>
           </div>
