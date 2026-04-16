@@ -3694,6 +3694,16 @@ body:has(.loginPage) main {
   border-radius: 16px;
   background: #ffffff;
   padding: 18px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.staffEmployeeGroup.isDragOver {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.18);
 }
 
 .staffEmployeeGroupTitle {
@@ -3914,6 +3924,16 @@ body:has(.loginPage) main {
   border-radius: 16px;
   background: #ffffff;
   padding: 18px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.staffEmployeeGroup.isDragOver {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.18);
 }
 
 .staffEmployeeGroupTitle {
@@ -4201,6 +4221,16 @@ body:has(.loginPage) main {
   border-radius: 16px;
   background: #ffffff;
   padding: 18px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.staffEmployeeGroup.isDragOver {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.18);
 }
 
 .staffEmployeeGroupHeader {
@@ -4236,6 +4266,45 @@ body:has(.loginPage) main {
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
   min-width: 0;
   align-self: start;
+  cursor: grab;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.staffTaskCard:active {
+  cursor: grabbing;
+}
+
+.staffTaskCard.isPointerDragging {
+  visibility: hidden;
+}
+
+.staffTaskDragOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1200;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.staffTaskDragOverlay .staffTaskCard {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
+}
+
+.staffTaskDragOverlay--drop {
+  transition:
+    transform 170ms cubic-bezier(0.18, 0.9, 0.32, 1),
+    opacity 170ms ease-out;
+}
+
+.staffTaskDragOverlay--drop.isActive {
+  opacity: 0.88;
 }
 
 .staffTaskCard.isCollapsed {
@@ -4277,6 +4346,35 @@ body:has(.loginPage) main {
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
+}
+
+.staffTaskCardHeaderButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staffTaskEditButton {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #1f2937;
+  font-size: 0.92rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  transform: scaleX(-1);
+}
+
+.staffTaskEditButton:hover {
+  transform: scaleX(-1) scale(1.03);
+  background: rgba(248, 250, 252, 0.95);
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.14);
 }
 
 .staffTaskTitle {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { PointerEvent } from "react";
 
 export type TaskStatus = "not-started" | "in-progress" | "completed";
 
@@ -25,6 +26,7 @@ export type EmployeeTask = {
   createdAt: string;
   completedAt?: string;
   expiresAt: string;
+  expiresAtIso?: string;
   currentStatus: TaskStatus;
 };
 
@@ -45,10 +47,19 @@ export default function AdminTaskCard({
   task,
   isCollapsed,
   onToggleCollapse,
+  onEditTask,
+  isPointerDragging = false,
+  onPointerDown,
 }: {
   task: EmployeeTask;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  onEditTask?: (task: EmployeeTask) => void;
+  isPointerDragging?: boolean;
+  onPointerDown?: (
+    event: PointerEvent<HTMLDivElement>,
+    task: EmployeeTask,
+  ) => void;
 }) {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
@@ -62,7 +73,8 @@ export default function AdminTaskCard({
     <div
       className={`staffTaskCard ${expiredStatus} ${
         isCollapsed ? "isCollapsed" : ""
-      }`}
+      } ${isPointerDragging ? "isPointerDragging" : ""}`}
+      onPointerDown={(event) => onPointerDown?.(event, task)}
     >
       <div className="staffTaskCardHeader">
         <div className="staffTaskCardHeaderLeft">
@@ -73,21 +85,32 @@ export default function AdminTaskCard({
         </div>
 
         <div className="staffTaskCardHeaderRight">
-          <button
-            type="button"
-            className="staffTaskCollapseButton"
-            onClick={onToggleCollapse}
-            aria-label={isCollapsed ? "Expand task" : "Collapse task"}
-          >
-            {isCollapsed ? "Expand" : "Collapse"}
-            <span
-              className={`staffTaskCollapseIcon ${
-                isCollapsed ? "collapsed" : ""
-              }`}
+          <div className="staffTaskCardHeaderButtons">
+            <button
+              type="button"
+              className="staffTaskEditButton"
+              onClick={() => onEditTask?.(task)}
+              aria-label={`Edit task ${task.title}`}
             >
-              {"\u25BE"}
-            </span>
-          </button>
+              &#9998;
+            </button>
+
+            <button
+              type="button"
+              className="staffTaskCollapseButton"
+              onClick={onToggleCollapse}
+              aria-label={isCollapsed ? "Expand task" : "Collapse task"}
+            >
+              {isCollapsed ? "Expand" : "Collapse"}
+              <span
+                className={`staffTaskCollapseIcon ${
+                  isCollapsed ? "collapsed" : ""
+                }`}
+              >
+                {"\u25BE"}
+              </span>
+            </button>
+          </div>
 
           <div className={`staffTaskStatusBadge ${expiredStatus}`}>
             {task.currentStatus === "not-started" &&

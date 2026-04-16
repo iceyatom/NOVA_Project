@@ -87,6 +87,7 @@ export default async function StaffTaskViewPage() {
         ? formatCardDate(task.completedAt)
         : undefined,
       expiresAt: formatCardDate(task.expiresAt),
+      expiresAtIso: task.expiresAt.toISOString(),
       currentStatus: mapDbTaskStatus(task.status),
     }));
 

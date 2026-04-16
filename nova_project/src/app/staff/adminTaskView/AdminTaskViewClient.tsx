@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import AdminTaskCard, { EmployeeTask } from "@/app/components/AdminTaskCard";
+import AdminTaskCard, {
+  EmployeeTask,
+  TaskStatus,
+} from "@/app/components/AdminTaskCard";
 import { statusPriority } from "@/app/lib/taskStatus";
 
 export type EmployeeTaskGroup = {
@@ -12,11 +16,48 @@ export type EmployeeTaskGroup = {
   tasks: EmployeeTask[];
 };
 
+type PointerDragState = {
+  task: EmployeeTask;
+  sourceAccountId: number;
+  pointerX: number;
+  pointerY: number;
+  offsetX: number;
+  offsetY: number;
+  width: number;
+  isCollapsed: boolean;
+};
+
+type DropAnimationState = {
+  task: EmployeeTask;
+  width: number;
+  isCollapsed: boolean;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  started: boolean;
+  targetAccountId: number;
+};
+
+type EditTaskInitialState = {
+  title: string;
+  description: string;
+  assignedToAccountId: string;
+  dueAt: string;
+  status: TaskStatus;
+};
+
 function toDateTimeLocalValue(date: Date): string {
   const pad = (value: number) => value.toString().padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
     date.getDate(),
   )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseDisplayDueDate(rawValue: string): Date | null {
+  const normalized = rawValue.replace(" -", " ");
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 export default function AdminTaskViewClient({
@@ -40,6 +81,31 @@ export default function AdminTaskViewClient({
   const [createTaskDueAt, setCreateTaskDueAt] = useState("");
   const [createTaskError, setCreateTaskError] = useState<string | null>(null);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [editTask, setEditTask] = useState<EmployeeTask | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState("");
+  const [editTaskDescription, setEditTaskDescription] = useState("");
+  const [editTaskAssigneeId, setEditTaskAssigneeId] = useState("");
+  const [editTaskDueAt, setEditTaskDueAt] = useState("");
+  const [editTaskStatus, setEditTaskStatus] =
+    useState<TaskStatus>("not-started");
+  const [editTaskInitial, setEditTaskInitial] =
+    useState<EditTaskInitialState | null>(null);
+  const [editTaskError, setEditTaskError] = useState<string | null>(null);
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [pointerDrag, setPointerDrag] = useState<PointerDragState | null>(null);
+  const [dragOverAccountId, setDragOverAccountId] = useState<number | null>(
+    null,
+  );
+  const [reassignTaskError, setReassignTaskError] = useState<string | null>(
+    null,
+  );
+  const [isReassigningTaskId, setIsReassigningTaskId] = useState<number | null>(
+    null,
+  );
+  const [dropAnimation, setDropAnimation] = useState<DropAnimationState | null>(
+    null,
+  );
+  const employeeGroupRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const sortedTaskGroups = useMemo(() => {
     return taskGroups.map((group) => ({
@@ -79,6 +145,50 @@ export default function AdminTaskViewClient({
     setCreateTaskDueAt(toDateTimeLocalValue(defaultDueAt));
     setCreateTaskError(null);
   }, [isCreateTaskOpen, assigneeOptions]);
+
+  useEffect(() => {
+    if (!editTask) return;
+
+    setEditTaskTitle(editTask.title);
+    setEditTaskDescription(editTask.description);
+    setEditTaskAssigneeId(String(editTask.assignedToAccountId));
+    const sourceDueAt = editTask.expiresAtIso
+      ? new Date(editTask.expiresAtIso)
+      : parseDisplayDueDate(editTask.expiresAt);
+    const normalizedDueAt = sourceDueAt
+      ? toDateTimeLocalValue(sourceDueAt)
+      : toDateTimeLocalValue(new Date());
+
+    setEditTaskDueAt(normalizedDueAt);
+    setEditTaskStatus(editTask.currentStatus);
+    setEditTaskInitial({
+      title: editTask.title,
+      description: editTask.description,
+      assignedToAccountId: String(editTask.assignedToAccountId),
+      dueAt: normalizedDueAt,
+      status: editTask.currentStatus,
+    });
+    setEditTaskError(null);
+  }, [editTask]);
+
+  const isEditTitleDirty =
+    editTaskInitial !== null && editTaskTitle.trim() !== editTaskInitial.title;
+  const isEditDescriptionDirty =
+    editTaskInitial !== null &&
+    editTaskDescription.trim() !== editTaskInitial.description;
+  const isEditAssigneeDirty =
+    editTaskInitial !== null &&
+    editTaskAssigneeId !== editTaskInitial.assignedToAccountId;
+  const isEditDueAtDirty =
+    editTaskInitial !== null && editTaskDueAt !== editTaskInitial.dueAt;
+  const isEditStatusDirty =
+    editTaskInitial !== null && editTaskStatus !== editTaskInitial.status;
+  const isAnyEditTaskDirty =
+    isEditTitleDirty ||
+    isEditDescriptionDirty ||
+    isEditAssigneeDirty ||
+    isEditDueAtDirty ||
+    isEditStatusDirty;
 
   function toggleTaskCollapse(taskId: number) {
     setCollapsedTaskIds((currentIds) => {
@@ -129,6 +239,17 @@ export default function AdminTaskViewClient({
   function closeCreateTaskModal() {
     if (isCreatingTask) return;
     setIsCreateTaskOpen(false);
+  }
+
+  function openEditTaskModal(task: EmployeeTask) {
+    setEditTask(task);
+  }
+
+  function closeEditTaskModal() {
+    if (isEditingTask) return;
+    setEditTask(null);
+    setEditTaskInitial(null);
+    setEditTaskError(null);
   }
 
   async function handleCreateTask(event: React.FormEvent<HTMLFormElement>) {
@@ -201,6 +322,265 @@ export default function AdminTaskViewClient({
       setIsCreatingTask(false);
     }
   }
+
+  async function handleEditTask(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editTask) return;
+
+    const title = editTaskTitle.trim();
+    const description = editTaskDescription.trim();
+    const assignedToAccountId = Number.parseInt(editTaskAssigneeId, 10);
+    const expiresAt = new Date(editTaskDueAt);
+
+    if (!isAnyEditTaskDirty) {
+      return;
+    }
+
+    if (!title) {
+      setEditTaskError("Task title is required.");
+      return;
+    }
+
+    if (!description) {
+      setEditTaskError("Task description is required.");
+      return;
+    }
+
+    if (!Number.isFinite(assignedToAccountId)) {
+      setEditTaskError("Assigned employee is required.");
+      return;
+    }
+
+    if (!editTaskDueAt || Number.isNaN(expiresAt.getTime())) {
+      setEditTaskError("Valid due date is required.");
+      return;
+    }
+
+    setEditTaskError(null);
+    setIsEditingTask(true);
+
+    try {
+      const response = await fetch("/api/tasks/staff", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          taskId: editTask.id,
+          title,
+          description,
+          assignedToAccountId,
+          expiresAt: expiresAt.toISOString(),
+          status: editTaskStatus,
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+      };
+
+      if (!response.ok || payload.success === false) {
+        const message =
+          typeof payload.error === "string"
+            ? payload.error
+            : `Task update failed (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      setEditTask(null);
+      router.refresh();
+    } catch (updateError) {
+      setEditTaskError(
+        updateError instanceof Error
+          ? updateError.message
+          : "Failed to update task.",
+      );
+    } finally {
+      setIsEditingTask(false);
+    }
+  }
+
+  function getAccountIdAtPoint(
+    clientX: number,
+    clientY: number,
+  ): number | null {
+    for (const [accountId, element] of employeeGroupRefs.current.entries()) {
+      const rect = element.getBoundingClientRect();
+      if (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      ) {
+        return accountId;
+      }
+    }
+    return null;
+  }
+
+  const reassignTask = useCallback(
+    async (taskId: number, targetAccountId: number) => {
+      setIsReassigningTaskId(taskId);
+      setReassignTaskError(null);
+
+      try {
+        const response = await fetch("/api/tasks/staff", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            taskId,
+            assignedToAccountId: targetAccountId,
+          }),
+        });
+
+        const payload = (await response.json()) as {
+          success?: boolean;
+          error?: unknown;
+        };
+
+        if (!response.ok || payload.success === false) {
+          const message =
+            typeof payload.error === "string"
+              ? payload.error
+              : `Task reassignment failed (HTTP ${response.status}).`;
+          throw new Error(message);
+        }
+
+        router.refresh();
+      } catch (reassignError) {
+        setReassignTaskError(
+          reassignError instanceof Error
+            ? reassignError.message
+            : "Failed to reassign task.",
+        );
+      } finally {
+        setIsReassigningTaskId(null);
+      }
+    },
+    [router],
+  );
+
+  function handleTaskPointerDown(
+    event: ReactPointerEvent<HTMLDivElement>,
+    task: EmployeeTask,
+    sourceAccountId: number,
+    isCollapsed: boolean,
+  ) {
+    if (event.button !== 0) return;
+    if (isReassigningTaskId !== null) return;
+
+    const target = event.target as HTMLElement;
+    if (target.closest("button, input, select, textarea, a, label")) {
+      return;
+    }
+
+    const card = event.currentTarget;
+    const rect = card.getBoundingClientRect();
+
+    event.preventDefault();
+    setReassignTaskError(null);
+    setPointerDrag({
+      task,
+      sourceAccountId,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      width: rect.width,
+      isCollapsed,
+    });
+    setDragOverAccountId(sourceAccountId);
+  }
+
+  useEffect(() => {
+    if (!pointerDrag) return;
+
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setPointerDrag((current) =>
+        current
+          ? {
+              ...current,
+              pointerX: event.clientX,
+              pointerY: event.clientY,
+            }
+          : current,
+      );
+      setDragOverAccountId(getAccountIdAtPoint(event.clientX, event.clientY));
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const targetAccountId = getAccountIdAtPoint(event.clientX, event.clientY);
+      const currentDrag = pointerDrag;
+
+      const fromX = Math.round(currentDrag.pointerX - currentDrag.offsetX);
+      const fromY = Math.round(currentDrag.pointerY - currentDrag.offsetY);
+
+      setPointerDrag(null);
+      setDragOverAccountId(null);
+
+      if (!targetAccountId || isReassigningTaskId !== null) {
+        return;
+      }
+
+      if (currentDrag.sourceAccountId === targetAccountId) {
+        return;
+      }
+
+      const targetGroupElement = employeeGroupRefs.current.get(targetAccountId);
+      if (!targetGroupElement) {
+        void reassignTask(currentDrag.task.id, targetAccountId);
+        return;
+      }
+
+      const targetRect = targetGroupElement.getBoundingClientRect();
+      const toX = Math.round(
+        targetRect.left + Math.min(24, Math.max(12, targetRect.width * 0.08)),
+      );
+      const toY = Math.round(targetRect.top + 74);
+
+      setDropAnimation({
+        task: currentDrag.task,
+        width: currentDrag.width,
+        isCollapsed: currentDrag.isCollapsed,
+        fromX,
+        fromY,
+        toX,
+        toY,
+        started: false,
+        targetAccountId,
+      });
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+
+    return () => {
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [pointerDrag, isReassigningTaskId, reassignTask]);
+
+  useEffect(() => {
+    if (!dropAnimation || dropAnimation.started) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      setDropAnimation((current) =>
+        current ? { ...current, started: true } : current,
+      );
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [dropAnimation]);
 
   return (
     <div>
@@ -317,6 +697,12 @@ export default function AdminTaskViewClient({
         </div>
       </div>
 
+      {reassignTaskError ? (
+        <div className="item-category-form__status item-category-form__status--error">
+          {reassignTaskError}
+        </div>
+      ) : null}
+
       <div className="staffTaskGroups">
         {sortedTaskGroups.map((group) => {
           const employeeTaskIds = group.tasks.map((task) => task.id);
@@ -327,7 +713,19 @@ export default function AdminTaskViewClient({
             );
 
           return (
-            <div key={group.accountId} className="staffEmployeeGroup">
+            <div
+              key={group.accountId}
+              ref={(element) => {
+                if (element) {
+                  employeeGroupRefs.current.set(group.accountId, element);
+                  return;
+                }
+                employeeGroupRefs.current.delete(group.accountId);
+              }}
+              className={`staffEmployeeGroup ${
+                dragOverAccountId === group.accountId ? "isDragOver" : ""
+              }`}
+            >
               <div className="staffEmployeeGroupHeader">
                 <div>
                   <div className="staffEmployeeGroupTitle">
@@ -367,6 +765,16 @@ export default function AdminTaskViewClient({
                       task={task}
                       isCollapsed={collapsedTaskIds.includes(task.id)}
                       onToggleCollapse={() => toggleTaskCollapse(task.id)}
+                      onEditTask={openEditTaskModal}
+                      isPointerDragging={pointerDrag?.task.id === task.id}
+                      onPointerDown={(event, draggedTask) =>
+                        handleTaskPointerDown(
+                          event,
+                          draggedTask,
+                          group.accountId,
+                          collapsedTaskIds.includes(task.id),
+                        )
+                      }
                     />
                   ))}
                 </div>
@@ -375,6 +783,214 @@ export default function AdminTaskViewClient({
           );
         })}
       </div>
+
+      {pointerDrag ? (
+        <div
+          className="staffTaskDragOverlay"
+          style={{
+            width: `${pointerDrag.width}px`,
+            transform: `translate(${Math.round(pointerDrag.pointerX - pointerDrag.offsetX)}px, ${Math.round(pointerDrag.pointerY - pointerDrag.offsetY)}px)`,
+          }}
+        >
+          <AdminTaskCard
+            task={pointerDrag.task}
+            isCollapsed={pointerDrag.isCollapsed}
+            onToggleCollapse={() => {}}
+          />
+        </div>
+      ) : null}
+
+      {dropAnimation ? (
+        <div
+          className={`staffTaskDragOverlay staffTaskDragOverlay--drop ${
+            dropAnimation.started ? "isActive" : ""
+          }`}
+          style={{
+            width: `${dropAnimation.width}px`,
+            transform: `translate(${dropAnimation.started ? dropAnimation.toX : dropAnimation.fromX}px, ${dropAnimation.started ? dropAnimation.toY : dropAnimation.fromY}px)`,
+          }}
+          onTransitionEnd={() => {
+            if (!dropAnimation.started) return;
+            const { task, targetAccountId } = dropAnimation;
+            setDropAnimation(null);
+            void reassignTask(task.id, targetAccountId);
+          }}
+        >
+          <AdminTaskCard
+            task={dropAnimation.task}
+            isCollapsed={dropAnimation.isCollapsed}
+            onToggleCollapse={() => {}}
+          />
+        </div>
+      ) : null}
+
+      {editTask ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit Task"
+          className="item-category-modal"
+          onClick={closeEditTaskModal}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Edit Task</div>
+
+            <form
+              className="item-category-form"
+              onSubmit={(event) => void handleEditTask(event)}
+              noValidate
+            >
+              <label className="item-category-form__field">
+                <span
+                  className={`item-category-form__label ${
+                    isEditTitleDirty
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  Task Title
+                </span>
+                <input
+                  className="item-search-page__search-input"
+                  type="text"
+                  value={editTaskTitle}
+                  onChange={(event) => setEditTaskTitle(event.target.value)}
+                  placeholder="Enter task title"
+                  disabled={isEditingTask}
+                />
+              </label>
+
+              <div className="staffTaskCreateForm__row">
+                <label className="item-category-form__field">
+                  <span
+                    className={`item-category-form__label ${
+                      isEditAssigneeDirty
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    Assigned Employee
+                  </span>
+                  <select
+                    className="item-search-page__select"
+                    value={editTaskAssigneeId}
+                    onChange={(event) =>
+                      setEditTaskAssigneeId(event.target.value)
+                    }
+                    disabled={isEditingTask || assigneeOptions.length === 0}
+                  >
+                    {assigneeOptions.length === 0 ? (
+                      <option value="">No employees available</option>
+                    ) : (
+                      assigneeOptions.map((option) => (
+                        <option
+                          key={option.accountId}
+                          value={String(option.accountId)}
+                        >
+                          {option.label}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+
+                <label className="item-category-form__field">
+                  <span
+                    className={`item-category-form__label ${
+                      isEditDueAtDirty
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    Due Date
+                  </span>
+                  <input
+                    className="item-search-page__search-input"
+                    type="datetime-local"
+                    value={editTaskDueAt}
+                    onChange={(event) => setEditTaskDueAt(event.target.value)}
+                    disabled={isEditingTask}
+                  />
+                </label>
+              </div>
+
+              <label className="item-category-form__field">
+                <span
+                  className={`item-category-form__label ${
+                    isEditStatusDirty
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  Status
+                </span>
+                <select
+                  className="item-search-page__select"
+                  value={editTaskStatus}
+                  onChange={(event) =>
+                    setEditTaskStatus(event.target.value as TaskStatus)
+                  }
+                  disabled={isEditingTask}
+                >
+                  <option value="not-started">Not Started</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </label>
+
+              <label className="item-category-form__field">
+                <span
+                  className={`item-category-form__label ${
+                    isEditDescriptionDirty
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  Description
+                </span>
+                <textarea
+                  className="item-search-page__search-input staffTaskCreateForm__textarea"
+                  value={editTaskDescription}
+                  onChange={(event) =>
+                    setEditTaskDescription(event.target.value)
+                  }
+                  placeholder="Add task details"
+                  disabled={isEditingTask}
+                />
+              </label>
+
+              {editTaskError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {editTaskError}
+                </div>
+              ) : null}
+
+              <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+                <button
+                  type="button"
+                  onClick={closeEditTaskModal}
+                  className="staff-dev-pill"
+                  disabled={isEditingTask}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`staff-dev-pill${
+                    isAnyEditTaskDirty ? " staff-dev-pill--ready" : ""
+                  }`}
+                  disabled={isEditingTask || !isAnyEditTaskDirty}
+                >
+                  {isEditingTask ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {isCreateTaskOpen ? (
         <div
