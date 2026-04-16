@@ -25,7 +25,13 @@ type StaffAccountMutationResponse = {
   message?: unknown;
 };
 
-type SortColumn = "displayName" | "email" | "role" | "createdAt" | "lastLogin";
+type SortColumn =
+  | "id"
+  | "displayName"
+  | "email"
+  | "role"
+  | "createdAt"
+  | "lastLogin";
 
 type SortOrder = "asc" | "desc";
 
@@ -602,6 +608,19 @@ export default function StaffAccountManagementPage() {
                       <th className="item-search-page__th">
                         <button
                           className={`item-search-page__th-button${
+                            sortBy === "id"
+                              ? " item-search-page__th-button--active"
+                              : ""
+                          }`}
+                          onClick={() => handleSortChange("id")}
+                        >
+                          ID
+                          {getSortIndicator("id")}
+                        </button>
+                      </th>
+                      <th className="item-search-page__th">
+                        <button
+                          className={`item-search-page__th-button${
                             sortBy === "displayName"
                               ? " item-search-page__th-button--active"
                               : ""
@@ -671,19 +690,19 @@ export default function StaffAccountManagementPage() {
                   <tbody className="item-search-page__tbody">
                     {isLoading && accounts.length === 0 ? (
                       <tr className="item-search-page__tr">
-                        <td className="item-search-page__td" colSpan={6}>
+                        <td className="item-search-page__td" colSpan={7}>
                           Loading accounts...
                         </td>
                       </tr>
                     ) : loadError ? (
                       <tr className="item-search-page__tr">
-                        <td className="item-search-page__td" colSpan={6}>
+                        <td className="item-search-page__td" colSpan={7}>
                           {loadError}
                         </td>
                       </tr>
                     ) : accounts.length === 0 ? (
                       <tr className="item-search-page__tr">
-                        <td className="item-search-page__td" colSpan={6}>
+                        <td className="item-search-page__td" colSpan={7}>
                           No accounts found.
                         </td>
                       </tr>
@@ -691,6 +710,9 @@ export default function StaffAccountManagementPage() {
                       <>
                         {accounts.map((account) => (
                           <tr key={account.id} className="item-search-page__tr">
+                            <td className="item-search-page__td">
+                              {account.id}
+                            </td>
                             <td className="item-search-page__td">
                               {account.displayName?.trim() || "No display name"}
                             </td>

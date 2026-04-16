@@ -8,7 +8,13 @@ export const dynamic = "force-dynamic";
 const DEFAULT_LIMIT = 20;
 const MAX_PAGE_SIZE = 100;
 
-type SortColumn = "displayName" | "email" | "role" | "createdAt" | "lastLogin";
+type SortColumn =
+  | "id"
+  | "displayName"
+  | "email"
+  | "role"
+  | "createdAt"
+  | "lastLogin";
 type SortOrder = "asc" | "desc";
 type StaffRole = "ADMIN" | "STAFF";
 type AccountRole = "ADMIN" | "STAFF" | "CUSTOMER";
@@ -64,6 +70,7 @@ function parseNonNegativeInt(value: string | null, fallback: number): number {
 
 function parseSortColumn(value: string | null): SortColumn | null {
   if (
+    value === "id" ||
     value === "displayName" ||
     value === "email" ||
     value === "role" ||
@@ -175,7 +182,10 @@ function sortAccounts(
   }
 
   sorted.sort((left, right) => {
-    if (sortBy === "displayName") {
+    if (sortBy === "id") {
+      const byId = compareNumber(left.id, right.id, sortOrder);
+      if (byId !== 0) return byId;
+    } else if (sortBy === "displayName") {
       const leftName = left.displayName?.trim() || "";
       const rightName = right.displayName?.trim() || "";
       const byName = compareString(leftName, rightName, sortOrder);

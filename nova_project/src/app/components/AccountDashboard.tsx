@@ -63,7 +63,6 @@ export default function AccountDashboard() {
   const {
     loggedIn,
     setLoggedIn,
-    account,
     setAccount,
     setAccountId,
     accountEmail,
@@ -93,8 +92,8 @@ export default function AccountDashboard() {
   const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [showDeletePassword, setShowDeletePassword] = useState(false);
 
+  const [accountIdValue, setAccountIdValue] = useState<number | null>(null);
   const [role, setRole] = useState("");
-  const [status, setStatus] = useState("");
   const [createdAt, setCreatedAt] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
 
@@ -178,13 +177,15 @@ export default function AccountDashboard() {
         setDisplayName(data.account.displayName ?? "");
         setPhone(data.account.phone ?? "");
         setEmail(data.account.email ?? "");
+        setAccountIdValue(
+          typeof data.account.id === "number" ? data.account.id : null,
+        );
         setInitialProfile({
           displayName: (data.account.displayName ?? "").trim(),
           phone: (data.account.phone ?? "").trim(),
           email: (data.account.email ?? "").trim().toLowerCase(),
         });
         setRole(data.account.role ?? "");
-        setStatus(data.account.status ?? "");
         setCreatedAt(data.account.createdAt ?? "");
         setUpdatedAt(data.account.updatedAt ?? "");
         setLockInfo(
@@ -328,8 +329,10 @@ export default function AccountDashboard() {
         phone: (data.account.phone || "").trim(),
         email: (data.account.email || "").trim().toLowerCase(),
       });
+      setAccountIdValue(
+        typeof data.account.id === "number" ? data.account.id : null,
+      );
       setRole(data.account.role || "");
-      setStatus(data.account.status || "");
       setCreatedAt(data.account.createdAt || "");
       setUpdatedAt(data.account.updatedAt || "");
       setLockInfo(
@@ -738,16 +741,11 @@ export default function AccountDashboard() {
           <h2>Account Details</h2>
           <div className="accountInfoGrid">
             <div>
-              <strong>Signed in as:</strong> {account || "Account user"}
-            </div>
-            <div>
-              <strong>Email on file:</strong> {accountEmail || "Unavailable"}
+              <strong>Account ID:</strong>{" "}
+              {accountIdValue !== null ? accountIdValue : "Unavailable"}
             </div>
             <div>
               <strong>Role:</strong> {role || "Unavailable"}
-            </div>
-            <div>
-              <strong>Status:</strong> {status || "Unavailable"}
             </div>
             <div>
               <strong>Created:</strong>{" "}
