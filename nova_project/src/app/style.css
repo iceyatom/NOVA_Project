@@ -2638,6 +2638,69 @@ body:has(.loginPage) main {
   margin-top: 0.2rem;
 }
 
+.category-mgmt-confirm-modal__content {
+  max-width: 360px;
+  text-align: center;
+}
+
+.category-mgmt-confirm-modal__message {
+  margin: 0.85rem 0 0.35rem;
+  color: #334155;
+}
+
+.category-mgmt-confirm-modal__actions {
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.category-mgmt-delete-warning {
+  margin-top: 0.15rem;
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.9rem;
+}
+
+.category-mgmt-delete-warning p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.category-mgmt-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.account-delete-confirm-modal__content {
+  max-width: 520px;
+  padding: 28px 30px;
+}
+
+.account-delete-confirm-modal__content .item-category-modal__title {
+  font-size: 1.25rem;
+}
+
+.account-delete-confirm-modal__message {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.account-delete-confirm-modal__checkbox {
+  font-size: 0.98rem;
+}
+
+.account-delete-confirm-modal__checkbox input {
+  width: 18px;
+  height: 18px;
+}
+
 @media (max-width: 700px) {
   .item-search-page__filter-row {
     flex-direction: column;

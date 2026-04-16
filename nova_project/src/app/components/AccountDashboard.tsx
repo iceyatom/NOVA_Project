@@ -73,6 +73,9 @@ export default function AccountDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false);
+  const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
@@ -219,7 +222,8 @@ export default function AccountDashboard() {
     return null;
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
     setLoggedIn(false);
     setAccount("");
     setAccountId(0);
@@ -362,7 +366,7 @@ export default function AccountDashboard() {
     }
   };
 
-  const handleDelete = async () => {
+  const openDeleteConfirmation = () => {
     const nextErrors: typeof errors = {};
 
     if (!deletePassword) {
@@ -371,11 +375,22 @@ export default function AccountDashboard() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Are you sure you want to permanently delete your account?",
-    );
+    setDeleteConfirmChecked(false);
+    setIsDeleteConfirmationOpen(true);
+  };
 
-    if (!confirmed) return;
+  const closeDeleteConfirmation = () => {
+    if (isDeleting) return;
+    setIsDeleteConfirmationOpen(false);
+    setDeleteConfirmChecked(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirmChecked) {
+      setFeedback("Please confirm the deletion warning first.");
+      setFeedbackType("error");
+      return;
+    }
 
     setIsDeleting(true);
     setFeedback(null);
@@ -397,7 +412,8 @@ export default function AccountDashboard() {
         throw new Error(data.error || "Unable to delete account.");
       }
 
-      handleLogout();
+      setIsDeleteConfirmationOpen(false);
+      await handleLogout();
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : "Unable to delete account.",
@@ -432,244 +448,132 @@ export default function AccountDashboard() {
   };
 
   return (
-    <main className="accountDashboardPage">
-      <section className="accountDashboardHero">
-        <h1>Account Dashboard</h1>
-        <p>
-          Manage your account information, update your profile details, and
-          review restrictions on sensitive account changes.
-        </p>
-      </section>
+    <>
+      <main className="accountDashboardPage">
+        <section className="accountDashboardHero">
+          <h1>Account Dashboard</h1>
+          <p>
+            Manage your account information, update your profile details, and
+            review restrictions on sensitive account changes.
+          </p>
+        </section>
 
-      <section className="accountSettingsLayout">
-        <div className="accountCard">
-          <h2>Profile Settings</h2>
+        <section className="accountSettingsLayout">
+          <div className="accountCard">
+            <h2>Profile Settings</h2>
 
-          {isLoading ? (
-            <p>Loading account details...</p>
-          ) : (
-            <div className="accountForm">
-              <div className="accountFormRow">
-                <label className="accountField">
-                  <span className={fieldLabelClass(isDisplayNameDirty)}>
-                    Display Name
-                  </span>
-                  <input
-                    className={`accountInput ${errors.displayName ? "inputError" : ""}`}
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => {
-                      setDisplayName(e.target.value);
-                      setErrors((prev) => ({
-                        ...prev,
-                        displayName: undefined,
-                      }));
-                    }}
-                  />
-                  {errors.displayName && (
-                    <p className="errorText">{errors.displayName}</p>
-                  )}
-                </label>
-
-                <label className="accountField">
-                  <span className={fieldLabelClass(isPhoneDirty)}>
-                    Phone Number
-                  </span>
-                  <input
-                    className={`accountInput ${errors.phone ? "inputError" : ""}`}
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
-                      setErrors((prev) => ({ ...prev, phone: undefined }));
-                    }}
-                  />
-                  {errors.phone && <p className="errorText">{errors.phone}</p>}
-                </label>
-              </div>
-
-              <label className="accountField">
-                <span className={fieldLabelClass(isEmailDirty)}>
-                  Email Address
-                </span>
-                <input
-                  className={`accountInput ${errors.email ? "inputError" : ""}`}
-                  type="email"
-                  value={email}
-                  disabled={lockInfo.isLocked}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setErrors((prev) => ({ ...prev, email: undefined }));
-                  }}
-                />
-                {lockInfo.isLocked ? (
-                  <p className="accountRestrictionText">
-                    Email changes are locked until{" "}
-                    {formatLockDate(lockInfo.unlocksAt)}.
-                  </p>
-                ) : (
-                  <p className="accountHelperText">
-                    Changing email requires your current password.
-                  </p>
-                )}
-                {errors.email && <p className="errorText">{errors.email}</p>}
-              </label>
-
-              <div className="accountSensitiveSection">
-                <h3>Change Password</h3>
-
-                <label className="accountField">
-                  <span className={fieldLabelClass(isCurrentPasswordDirty)}>
-                    Current Password
-                  </span>
-                  <div className="passwordInputWrap">
+            {isLoading ? (
+              <p>Loading account details...</p>
+            ) : (
+              <div className="accountForm">
+                <div className="accountFormRow">
+                  <label className="accountField">
+                    <span className={fieldLabelClass(isDisplayNameDirty)}>
+                      Display Name
+                    </span>
                     <input
-                      className={`accountInput passwordInput ${
-                        errors.currentPassword ? "inputError" : ""
-                      }`}
-                      type={showCurrentPassword ? "text" : "password"}
-                      value={currentPassword}
+                      className={`accountInput ${errors.displayName ? "inputError" : ""}`}
+                      type="text"
+                      value={displayName}
                       onChange={(e) => {
-                        setCurrentPassword(e.target.value);
-                        if (!e.target.value) {
-                          setShowCurrentPassword(false);
-                        }
+                        setDisplayName(e.target.value);
                         setErrors((prev) => ({
                           ...prev,
-                          currentPassword: undefined,
+                          displayName: undefined,
                         }));
                       }}
                     />
-                    {currentPassword.length > 0 && (
-                      <button
-                        type="button"
-                        className="passwordToggle"
-                        onClick={() => setShowCurrentPassword((prev) => !prev)}
-                        aria-label={
-                          showCurrentPassword
-                            ? "Hide password"
-                            : "Show password"
-                        }
-                        aria-pressed={showCurrentPassword}
-                      >
-                        {showCurrentPassword ? (
-                          <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M3 3l18 18" />
-                            <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
-                            <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
-                            <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                  {errors.currentPassword && (
-                    <p className="errorText">{errors.currentPassword}</p>
-                  )}
-                </label>
-
-                <div className="accountFormRow">
-                  <label className="accountField">
-                    <span className={fieldLabelClass(isNewPasswordDirty)}>
-                      New Password
-                    </span>
-                    <div className="passwordInputWrap">
-                      <input
-                        className={`accountInput passwordInput ${
-                          errors.newPassword ? "inputError" : ""
-                        }`}
-                        type={showNewPassword ? "text" : "password"}
-                        value={newPassword}
-                        disabled={lockInfo.isLocked}
-                        onChange={(e) => {
-                          setNewPassword(e.target.value);
-                          if (!e.target.value) {
-                            setShowNewPassword(false);
-                          }
-                          setErrors((prev) => ({
-                            ...prev,
-                            newPassword: undefined,
-                          }));
-                        }}
-                      />
-                      {newPassword.length > 0 && (
-                        <button
-                          type="button"
-                          className="passwordToggle"
-                          onClick={() => setShowNewPassword((prev) => !prev)}
-                          aria-label={
-                            showNewPassword ? "Hide password" : "Show password"
-                          }
-                          aria-pressed={showNewPassword}
-                          disabled={lockInfo.isLocked}
-                        >
-                          {showNewPassword ? (
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                              <path d="M3 3l18 18" />
-                              <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
-                              <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
-                              <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                    {errors.newPassword && (
-                      <p className="errorText">{errors.newPassword}</p>
+                    {errors.displayName && (
+                      <p className="errorText">{errors.displayName}</p>
                     )}
                   </label>
 
                   <label className="accountField">
-                    <span
-                      className={fieldLabelClass(isConfirmNewPasswordDirty)}
-                    >
-                      Confirm New Password
+                    <span className={fieldLabelClass(isPhoneDirty)}>
+                      Phone Number
+                    </span>
+                    <input
+                      className={`accountInput ${errors.phone ? "inputError" : ""}`}
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        setErrors((prev) => ({ ...prev, phone: undefined }));
+                      }}
+                    />
+                    {errors.phone && (
+                      <p className="errorText">{errors.phone}</p>
+                    )}
+                  </label>
+                </div>
+
+                <label className="accountField">
+                  <span className={fieldLabelClass(isEmailDirty)}>
+                    Email Address
+                  </span>
+                  <input
+                    className={`accountInput ${errors.email ? "inputError" : ""}`}
+                    type="email"
+                    value={email}
+                    disabled={lockInfo.isLocked}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrors((prev) => ({ ...prev, email: undefined }));
+                    }}
+                  />
+                  {lockInfo.isLocked ? (
+                    <p className="accountRestrictionText">
+                      Email changes are locked until{" "}
+                      {formatLockDate(lockInfo.unlocksAt)}.
+                    </p>
+                  ) : (
+                    <p className="accountHelperText">
+                      Changing email requires your current password.
+                    </p>
+                  )}
+                  {errors.email && <p className="errorText">{errors.email}</p>}
+                </label>
+
+                <div className="accountSensitiveSection">
+                  <h3>Change Password</h3>
+
+                  <label className="accountField">
+                    <span className={fieldLabelClass(isCurrentPasswordDirty)}>
+                      Current Password
                     </span>
                     <div className="passwordInputWrap">
                       <input
                         className={`accountInput passwordInput ${
-                          errors.confirmNewPassword ? "inputError" : ""
+                          errors.currentPassword ? "inputError" : ""
                         }`}
-                        type={showConfirmNewPassword ? "text" : "password"}
-                        value={confirmNewPassword}
-                        disabled={lockInfo.isLocked}
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
                         onChange={(e) => {
-                          setConfirmNewPassword(e.target.value);
+                          setCurrentPassword(e.target.value);
                           if (!e.target.value) {
-                            setShowConfirmNewPassword(false);
+                            setShowCurrentPassword(false);
                           }
                           setErrors((prev) => ({
                             ...prev,
-                            confirmNewPassword: undefined,
+                            currentPassword: undefined,
                           }));
                         }}
                       />
-                      {confirmNewPassword.length > 0 && (
+                      {currentPassword.length > 0 && (
                         <button
                           type="button"
                           className="passwordToggle"
                           onClick={() =>
-                            setShowConfirmNewPassword((prev) => !prev)
+                            setShowCurrentPassword((prev) => !prev)
                           }
                           aria-label={
-                            showConfirmNewPassword
+                            showCurrentPassword
                               ? "Hide password"
                               : "Show password"
                           }
-                          aria-pressed={showConfirmNewPassword}
-                          disabled={lockInfo.isLocked}
+                          aria-pressed={showCurrentPassword}
                         >
-                          {showConfirmNewPassword ? (
+                          {showCurrentPassword ? (
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                               <path d="M3 3l18 18" />
                               <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
@@ -685,166 +589,340 @@ export default function AccountDashboard() {
                         </button>
                       )}
                     </div>
-                    {errors.confirmNewPassword && (
-                      <p className="errorText">{errors.confirmNewPassword}</p>
+                    {errors.currentPassword && (
+                      <p className="errorText">{errors.currentPassword}</p>
                     )}
                   </label>
+
+                  <div className="accountFormRow">
+                    <label className="accountField">
+                      <span className={fieldLabelClass(isNewPasswordDirty)}>
+                        New Password
+                      </span>
+                      <div className="passwordInputWrap">
+                        <input
+                          className={`accountInput passwordInput ${
+                            errors.newPassword ? "inputError" : ""
+                          }`}
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          disabled={lockInfo.isLocked}
+                          onChange={(e) => {
+                            setNewPassword(e.target.value);
+                            if (!e.target.value) {
+                              setShowNewPassword(false);
+                            }
+                            setErrors((prev) => ({
+                              ...prev,
+                              newPassword: undefined,
+                            }));
+                          }}
+                        />
+                        {newPassword.length > 0 && (
+                          <button
+                            type="button"
+                            className="passwordToggle"
+                            onClick={() => setShowNewPassword((prev) => !prev)}
+                            aria-label={
+                              showNewPassword
+                                ? "Hide password"
+                                : "Show password"
+                            }
+                            aria-pressed={showNewPassword}
+                            disabled={lockInfo.isLocked}
+                          >
+                            {showNewPassword ? (
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M3 3l18 18" />
+                                <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                                <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                                <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      {errors.newPassword && (
+                        <p className="errorText">{errors.newPassword}</p>
+                      )}
+                    </label>
+
+                    <label className="accountField">
+                      <span
+                        className={fieldLabelClass(isConfirmNewPasswordDirty)}
+                      >
+                        Confirm New Password
+                      </span>
+                      <div className="passwordInputWrap">
+                        <input
+                          className={`accountInput passwordInput ${
+                            errors.confirmNewPassword ? "inputError" : ""
+                          }`}
+                          type={showConfirmNewPassword ? "text" : "password"}
+                          value={confirmNewPassword}
+                          disabled={lockInfo.isLocked}
+                          onChange={(e) => {
+                            setConfirmNewPassword(e.target.value);
+                            if (!e.target.value) {
+                              setShowConfirmNewPassword(false);
+                            }
+                            setErrors((prev) => ({
+                              ...prev,
+                              confirmNewPassword: undefined,
+                            }));
+                          }}
+                        />
+                        {confirmNewPassword.length > 0 && (
+                          <button
+                            type="button"
+                            className="passwordToggle"
+                            onClick={() =>
+                              setShowConfirmNewPassword((prev) => !prev)
+                            }
+                            aria-label={
+                              showConfirmNewPassword
+                                ? "Hide password"
+                                : "Show password"
+                            }
+                            aria-pressed={showConfirmNewPassword}
+                            disabled={lockInfo.isLocked}
+                          >
+                            {showConfirmNewPassword ? (
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M3 3l18 18" />
+                                <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                                <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                                <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      {errors.confirmNewPassword && (
+                        <p className="errorText">{errors.confirmNewPassword}</p>
+                      )}
+                    </label>
+                  </div>
+
+                  {lockInfo.isLocked ? (
+                    <p className="accountRestrictionText">
+                      Password changes are locked until{" "}
+                      {formatLockDate(lockInfo.unlocksAt)}.
+                    </p>
+                  ) : (
+                    <p className="accountHelperText">
+                      Password must be at least 8 characters and include
+                      uppercase, lowercase, and a number.
+                    </p>
+                  )}
                 </div>
 
-                {lockInfo.isLocked ? (
-                  <p className="accountRestrictionText">
-                    Password changes are locked until{" "}
-                    {formatLockDate(lockInfo.unlocksAt)}.
-                  </p>
-                ) : (
-                  <p className="accountHelperText">
-                    Password must be at least 8 characters and include
-                    uppercase, lowercase, and a number.
-                  </p>
+                <div className="accountActionRow">
+                  <button
+                    type="button"
+                    className="accountSecondaryButton"
+                    disabled={isSaving || isLoading || !hasUnsavedChanges}
+                    onClick={handleDiscardChanges}
+                  >
+                    Discard Changes
+                  </button>
+                  <button
+                    type="button"
+                    className="accountPrimaryButton"
+                    disabled={isSaving || isLoading || !hasChangesToSave}
+                    onClick={handleSave}
+                  >
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+
+                {feedback && (
+                  <div
+                    className={`accountStatusMessage ${
+                      feedbackType === "success" ? "success" : "error"
+                    }`}
+                    role={feedbackType === "success" ? "status" : "alert"}
+                  >
+                    {feedback}
+                  </div>
                 )}
               </div>
+            )}
+          </div>
+
+          <div className="accountCard">
+            <h2>Account Details</h2>
+            <div className="accountInfoGrid">
+              <div>
+                <strong>Account ID:</strong>{" "}
+                {accountIdValue !== null ? accountIdValue : "Unavailable"}
+              </div>
+              <div>
+                <strong>Role:</strong> {role || "Unavailable"}
+              </div>
+              <div>
+                <strong>Created:</strong>{" "}
+                {createdAt
+                  ? new Date(createdAt).toLocaleString()
+                  : "Unavailable"}
+              </div>
+              <div>
+                <strong>Last updated:</strong>{" "}
+                {updatedAt
+                  ? new Date(updatedAt).toLocaleString()
+                  : "Unavailable"}
+              </div>
+            </div>
+
+            <div className="accountDangerZone">
+              <h3>Delete Account</h3>
+              <p>
+                This permanently marks your account as deleted. Enter your
+                password to confirm.
+              </p>
+
+              <label className="accountField">
+                <span className={fieldLabelClass(isDeletePasswordDirty)}>
+                  Confirm Password
+                </span>
+                <div className="passwordInputWrap">
+                  <input
+                    className={`accountInput passwordInput ${
+                      errors.deletePassword ? "inputError" : ""
+                    }`}
+                    type={showDeletePassword ? "text" : "password"}
+                    value={deletePassword}
+                    onChange={(e) => {
+                      setDeletePassword(e.target.value);
+                      if (!e.target.value) {
+                        setShowDeletePassword(false);
+                      }
+                      setErrors((prev) => ({
+                        ...prev,
+                        deletePassword: undefined,
+                      }));
+                    }}
+                  />
+                  {deletePassword.length > 0 && (
+                    <button
+                      type="button"
+                      className="passwordToggle"
+                      onClick={() => setShowDeletePassword((prev) => !prev)}
+                      aria-label={
+                        showDeletePassword ? "Hide password" : "Show password"
+                      }
+                      aria-pressed={showDeletePassword}
+                    >
+                      {showDeletePassword ? (
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M3 3l18 18" />
+                          <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                          <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                          <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                </div>
+                {errors.deletePassword && (
+                  <p className="errorText">{errors.deletePassword}</p>
+                )}
+              </label>
 
               <div className="accountActionRow">
                 <button
                   type="button"
-                  className="accountSecondaryButton"
-                  disabled={isSaving || isLoading || !hasUnsavedChanges}
-                  onClick={handleDiscardChanges}
+                  className="accountDangerButton"
+                  disabled={isDeleting}
+                  onClick={openDeleteConfirmation}
                 >
-                  Discard Changes
+                  {isDeleting ? "Deleting..." : "Delete Account"}
                 </button>
+
                 <button
                   type="button"
-                  className="accountPrimaryButton"
-                  disabled={isSaving || isLoading || !hasChangesToSave}
-                  onClick={handleSave}
+                  className="accountLogoutButton"
+                  onClick={handleLogout}
                 >
-                  {isSaving ? "Saving..." : "Save Changes"}
+                  Log out
                 </button>
               </div>
+            </div>
 
-              {feedback && (
-                <div
-                  className={`accountStatusMessage ${
-                    feedbackType === "success" ? "success" : "error"
-                  }`}
-                  role={feedbackType === "success" ? "status" : "alert"}
-                >
-                  {feedback}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="accountCard">
-          <h2>Account Details</h2>
-          <div className="accountInfoGrid">
-            <div>
-              <strong>Account ID:</strong>{" "}
-              {accountIdValue !== null ? accountIdValue : "Unavailable"}
-            </div>
-            <div>
-              <strong>Role:</strong> {role || "Unavailable"}
-            </div>
-            <div>
-              <strong>Created:</strong>{" "}
-              {createdAt ? new Date(createdAt).toLocaleString() : "Unavailable"}
-            </div>
-            <div>
-              <strong>Last updated:</strong>{" "}
-              {updatedAt ? new Date(updatedAt).toLocaleString() : "Unavailable"}
-            </div>
-          </div>
-
-          <div className="accountDangerZone">
-            <h3>Delete Account</h3>
-            <p>
-              This permanently marks your account as deleted. Enter your
-              password to confirm.
-            </p>
-
-            <label className="accountField">
-              <span className={fieldLabelClass(isDeletePasswordDirty)}>
-                Confirm Password
-              </span>
-              <div className="passwordInputWrap">
-                <input
-                  className={`accountInput passwordInput ${
-                    errors.deletePassword ? "inputError" : ""
-                  }`}
-                  type={showDeletePassword ? "text" : "password"}
-                  value={deletePassword}
-                  onChange={(e) => {
-                    setDeletePassword(e.target.value);
-                    if (!e.target.value) {
-                      setShowDeletePassword(false);
-                    }
-                    setErrors((prev) => ({
-                      ...prev,
-                      deletePassword: undefined,
-                    }));
-                  }}
-                />
-                {deletePassword.length > 0 && (
-                  <button
-                    type="button"
-                    className="passwordToggle"
-                    onClick={() => setShowDeletePassword((prev) => !prev)}
-                    aria-label={
-                      showDeletePassword ? "Hide password" : "Show password"
-                    }
-                    aria-pressed={showDeletePassword}
-                  >
-                    {showDeletePassword ? (
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M3 3l18 18" />
-                        <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
-                        <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
-                        <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
-                      </svg>
-                    ) : (
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
-                  </button>
-                )}
+            {hasSensitivePending && lockInfo.isLocked && (
+              <div className="accountStatusMessage error" role="alert">
+                Sensitive updates are currently blocked until{" "}
+                {formatLockDate(lockInfo.unlocksAt)}.
               </div>
-              {errors.deletePassword && (
-                <p className="errorText">{errors.deletePassword}</p>
-              )}
-            </label>
+            )}
+          </div>
+        </section>
+      </main>
 
-            <div className="accountActionRow">
-              <button
-                type="button"
-                className="accountDangerButton"
+      {isDeleteConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Delete Account"
+          className="item-category-modal"
+          onClick={closeDeleteConfirmation}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content account-delete-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Deletion</div>
+            <p className="category-mgmt-confirm-modal__message account-delete-confirm-modal__message">
+              Are you sure that you want to delete your account? This action
+              cannot be undone.
+            </p>
+            <label className="category-mgmt-delete-confirm account-delete-confirm-modal__checkbox">
+              <input
+                type="checkbox"
+                checked={deleteConfirmChecked}
+                onChange={(event) =>
+                  setDeleteConfirmChecked(event.target.checked)
+                }
                 disabled={isDeleting}
-                onClick={handleDelete}
-              >
-                {isDeleting ? "Deleting..." : "Delete Account"}
-              </button>
-
+              />
+              I understand this deletion impact.
+            </label>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
               <button
                 type="button"
-                className="accountLogoutButton"
-                onClick={handleLogout}
+                className="staff-dev-pill"
+                onClick={closeDeleteConfirmation}
+                disabled={isDeleting}
               >
-                Log out
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={() => void handleDelete()}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Confirm"}
               </button>
             </div>
           </div>
-
-          {hasSensitivePending && lockInfo.isLocked && (
-            <div className="accountStatusMessage error" role="alert">
-              Sensitive updates are currently blocked until{" "}
-              {formatLockDate(lockInfo.unlocksAt)}.
-            </div>
-          )}
         </div>
-      </section>
-    </main>
+      ) : null}
+    </>
   );
 }
