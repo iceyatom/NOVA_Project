@@ -2800,6 +2800,17 @@ body:has(.loginPage) main {
   accent-color: #2563eb;
 }
 
+.account-management__notes-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.account-management__notes-count {
+  margin-left: auto;
+}
+
 .item-search-page__th-button {
   display: inline-block;
   margin: 0;

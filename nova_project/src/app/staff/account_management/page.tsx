@@ -7,6 +7,7 @@ type StaffAccountListItem = {
   displayName: string | null;
   email: string;
   phone: string | null;
+  notes: string | null;
   role: string;
   createdAt: string;
   lastLoginAt: string | null;
@@ -41,12 +42,19 @@ type EditAccountInitial = {
   displayName: string;
   email: string;
   phone: string;
+  notes: string;
   role: EditableRole;
+};
+
+type BulkEditInitial = {
+  role: string;
+  roleMixed: boolean;
 };
 
 type SessionResponse = {
   ok?: boolean;
   account?: {
+    id?: unknown;
     role?: unknown;
   };
 };
@@ -56,6 +64,8 @@ type AccountRoleFilter = "all" | EditableRole;
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 const ACCOUNT_ROLE_OPTIONS: EditableRole[] = ["ADMIN", "STAFF", "CUSTOMER"];
+const MIXED_FIELD_VALUE = "__mixed__";
+const ACCOUNT_NOTES_MAX_LENGTH = 500;
 
 function parseAccountList(payload: unknown): StaffAccountListItem[] {
   if (!Array.isArray(payload)) {
@@ -80,6 +90,7 @@ function parseAccountList(payload: unknown): StaffAccountListItem[] {
           typeof account.displayName === "string" ? account.displayName : null,
         email: typeof account.email === "string" ? account.email : "",
         phone: typeof account.phone === "string" ? account.phone : null,
+        notes: typeof account.notes === "string" ? account.notes : null,
         role: typeof account.role === "string" ? account.role : "",
         createdAt:
           typeof account.createdAt === "string" ? account.createdAt : "",
@@ -156,6 +167,7 @@ export default function StaffAccountManagementPage() {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editNotes, setEditNotes] = useState("");
   const [editRole, setEditRole] = useState<EditableRole>("CUSTOMER");
   const [editInitial, setEditInitial] = useState<EditAccountInitial | null>(
     null,
@@ -168,8 +180,23 @@ export default function StaffAccountManagementPage() {
   const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
+  const [viewerAccountId, setViewerAccountId] = useState<number | null>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
+  const [selectedAccountSnapshots, setSelectedAccountSnapshots] = useState<
+    Record<number, StaffAccountListItem>
+  >({});
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [bulkRole, setBulkRole] = useState("");
+  const [bulkEditInitial, setBulkEditInitial] =
+    useState<BulkEditInitial | null>(null);
+  const [bulkEditError, setBulkEditError] = useState<string | null>(null);
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkSaveConfirmationOpen, setIsBulkSaveConfirmationOpen] =
+    useState(false);
+  const [showBulkDeleteConfirmation, setShowBulkDeleteConfirmation] =
+    useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -183,19 +210,28 @@ export default function StaffAccountManagementPage() {
         if (!response.ok) {
           if (isMounted) {
             setViewerRole(null);
+            setViewerAccountId(null);
           }
           return;
         }
 
         const payload = (await response.json()) as SessionResponse;
+        const nextAccountId =
+          typeof payload.account?.id === "number" &&
+          Number.isInteger(payload.account.id) &&
+          payload.account.id > 0
+            ? payload.account.id
+            : null;
         const nextRole =
           typeof payload.account?.role === "string" ? payload.account.role : "";
 
         if (!isMounted) return;
+        setViewerAccountId(nextAccountId);
         setViewerRole(nextRole);
       } catch {
         if (isMounted) {
           setViewerRole(null);
+          setViewerAccountId(null);
         }
       }
     };
@@ -286,10 +322,10 @@ export default function StaffAccountManagementPage() {
     return Math.max(1, Math.ceil(totalAccounts / pageSize));
   }, [pageSize, totalAccounts]);
 
-  const currentPage = useMemo(() => Math.floor(offset / pageSize) + 1, [
-    offset,
-    pageSize,
-  ]);
+  const currentPage = useMemo(
+    () => Math.floor(offset / pageSize) + 1,
+    [offset, pageSize],
+  );
   const maxOffset = useMemo(
     () => Math.max(0, (totalPages - 1) * pageSize),
     [pageSize, totalPages],
@@ -298,6 +334,7 @@ export default function StaffAccountManagementPage() {
   const normalizedDisplayNameInput = editDisplayName.trim();
   const normalizedEmailInput = editEmail.trim().toLowerCase();
   const normalizedPhoneInput = editPhone.trim();
+  const normalizedNotesInput = editNotes;
   const normalizedRoleInput = normalizeRole(editRole);
   const isDisplayNameDirty =
     editInitial !== null &&
@@ -306,15 +343,67 @@ export default function StaffAccountManagementPage() {
     editInitial !== null && normalizedEmailInput !== editInitial.email;
   const isPhoneDirty =
     editInitial !== null && normalizedPhoneInput !== editInitial.phone;
+  const isNotesDirty =
+    editInitial !== null && normalizedNotesInput !== editInitial.notes;
   const isRoleDirty =
     editInitial !== null && normalizedRoleInput !== editInitial.role;
   const isAnyEditDirty =
-    isDisplayNameDirty || isEmailDirty || isPhoneDirty || isRoleDirty;
+    isDisplayNameDirty ||
+    isEmailDirty ||
+    isPhoneDirty ||
+    isNotesDirty ||
+    isRoleDirty;
   const isModalBusy = isSavingEdit || isDeletingAccount;
   const isViewerStaff = normalizeRole(viewerRole ?? "STAFF") === "STAFF";
   const selectedAccountIdSet = useMemo(
     () => new Set(selectedAccountIds),
     [selectedAccountIds],
+  );
+  useEffect(() => {
+    if (selectedAccountIds.length === 0) {
+      if (Object.keys(selectedAccountSnapshots).length > 0) {
+        setSelectedAccountSnapshots({});
+      }
+      return;
+    }
+
+    let didChange = false;
+    const nextSnapshots = { ...selectedAccountSnapshots };
+    for (const account of accounts) {
+      if (!selectedAccountIdSet.has(account.id)) continue;
+      const existing = selectedAccountSnapshots[account.id];
+      if (
+        existing &&
+        existing.displayName === account.displayName &&
+        existing.email === account.email &&
+        existing.phone === account.phone &&
+        existing.notes === account.notes &&
+        existing.role === account.role &&
+        existing.createdAt === account.createdAt &&
+        existing.lastLoginAt === account.lastLoginAt
+      ) {
+        continue;
+      }
+
+      nextSnapshots[account.id] = account;
+      didChange = true;
+    }
+
+    if (didChange) {
+      setSelectedAccountSnapshots(nextSnapshots);
+    }
+  }, [
+    accounts,
+    selectedAccountIdSet,
+    selectedAccountIds.length,
+    selectedAccountSnapshots,
+  ]);
+  const selectedAccounts = useMemo(
+    () =>
+      selectedAccountIds
+        .map((accountId) => selectedAccountSnapshots[accountId])
+        .filter((account): account is StaffAccountListItem => Boolean(account)),
+    [selectedAccountIds, selectedAccountSnapshots],
   );
   const selectedAccountCount = selectedAccountIds.length;
   const tableColumnCount = 7 + (isSelectMode ? 1 : 0);
@@ -326,6 +415,96 @@ export default function StaffAccountManagementPage() {
         ? `Warning: Changing role from ${editInitial.role} to ${nextEditableRole} grants increased privileges to this account.`
         : `Warning: Changing role from ${editInitial.role} to ${nextEditableRole} removes privileges from this account.`
       : null;
+  const isBulkRoleDirty =
+    bulkEditInitial !== null &&
+    bulkRole !== bulkEditInitial.role &&
+    bulkRole !== MIXED_FIELD_VALUE;
+  const isAnyBulkFieldDirty = isBulkRoleDirty;
+  const showBulkRoleMixed =
+    bulkEditInitial?.roleMixed === true && bulkRole === MIXED_FIELD_VALUE;
+  const isBulkBusy = isBulkSaving || isBulkDeleting;
+  const normalizedBulkRoleInput = normalizeRole(bulkRole);
+  const bulkNextEditableRole = parseEditableRole(normalizedBulkRoleInput);
+  const bulkRoleChangeWarning = useMemo(() => {
+    if (!isBulkRoleDirty || !bulkNextEditableRole) {
+      return null;
+    }
+
+    let increasedPrivilegeCount = 0;
+    let decreasedPrivilegeCount = 0;
+    let changedCount = 0;
+    let firstFromRole: EditableRole | null = null;
+
+    for (const account of selectedAccounts) {
+      const currentRole = parseEditableRole(normalizeRole(account.role));
+      if (!currentRole || currentRole === bulkNextEditableRole) {
+        continue;
+      }
+
+      changedCount += 1;
+      if (firstFromRole === null) {
+        firstFromRole = currentRole;
+      }
+
+      if (
+        rolePrivilegeRank(bulkNextEditableRole) > rolePrivilegeRank(currentRole)
+      ) {
+        increasedPrivilegeCount += 1;
+      } else {
+        decreasedPrivilegeCount += 1;
+      }
+    }
+
+    if (changedCount === 0) {
+      return null;
+    }
+
+    if (changedCount === 1 && firstFromRole) {
+      return rolePrivilegeRank(bulkNextEditableRole) >
+        rolePrivilegeRank(firstFromRole)
+        ? `Warning: Changing role from ${firstFromRole} to ${bulkNextEditableRole} grants increased privileges to this account.`
+        : `Warning: Changing role from ${firstFromRole} to ${bulkNextEditableRole} removes privileges from this account.`;
+    }
+
+    if (increasedPrivilegeCount > 0 && decreasedPrivilegeCount === 0) {
+      return `Warning: Changing role to ${bulkNextEditableRole} grants increased privileges to ${increasedPrivilegeCount} selected account${increasedPrivilegeCount === 1 ? "" : "s"}.`;
+    }
+
+    if (decreasedPrivilegeCount > 0 && increasedPrivilegeCount === 0) {
+      return `Warning: Changing role to ${bulkNextEditableRole} removes privileges from ${decreasedPrivilegeCount} selected account${decreasedPrivilegeCount === 1 ? "" : "s"}.`;
+    }
+
+    return `Warning: Changing roles to ${bulkNextEditableRole} adjusts privileges across selected accounts (${increasedPrivilegeCount} increased, ${decreasedPrivilegeCount} decreased).`;
+  }, [bulkNextEditableRole, isBulkRoleDirty, selectedAccounts]);
+
+  useEffect(() => {
+    if (!isBulkEditOpen) return;
+    if (selectedAccountCount > 0) return;
+    setIsBulkEditOpen(false);
+    setBulkEditInitial(null);
+    setBulkEditError(null);
+    setIsBulkSaveConfirmationOpen(false);
+    setShowBulkDeleteConfirmation(false);
+  }, [isBulkEditOpen, selectedAccountCount]);
+
+  useEffect(() => {
+    if (!isBulkEditOpen || selectedAccountCount === 0) return;
+
+    const uniqueRoles = Array.from(
+      new Set(selectedAccounts.map((account) => normalizeRole(account.role))),
+    );
+    const singleRole = uniqueRoles.length === 1 ? uniqueRoles[0] : null;
+    const parsedSingleRole = singleRole ? parseEditableRole(singleRole) : null;
+    const roleMixed = parsedSingleRole === null;
+    const nextRole = roleMixed ? MIXED_FIELD_VALUE : parsedSingleRole;
+
+    setBulkRole(nextRole);
+    setBulkEditInitial({
+      role: nextRole,
+      roleMixed,
+    });
+    setBulkEditError(null);
+  }, [isBulkEditOpen, selectedAccountCount, selectedAccounts]);
 
   function handlePageChange(nextOffset: number) {
     const clampedOffset = Math.max(0, Math.min(nextOffset, maxOffset));
@@ -387,6 +566,12 @@ export default function StaffAccountManagementPage() {
       const nextValue = !currentValue;
       if (!nextValue) {
         setSelectedAccountIds([]);
+        setSelectedAccountSnapshots({});
+        setIsBulkEditOpen(false);
+        setBulkEditInitial(null);
+        setBulkEditError(null);
+        setIsBulkSaveConfirmationOpen(false);
+        setShowBulkDeleteConfirmation(false);
       }
       return nextValue;
     });
@@ -395,14 +580,263 @@ export default function StaffAccountManagementPage() {
   function toggleAccountSelection(accountId: number) {
     setSelectedAccountIds((currentIds) => {
       if (currentIds.includes(accountId)) {
+        setSelectedAccountSnapshots((currentSnapshots) => {
+          if (!(accountId in currentSnapshots)) {
+            return currentSnapshots;
+          }
+
+          const nextSnapshots = { ...currentSnapshots };
+          delete nextSnapshots[accountId];
+          return nextSnapshots;
+        });
         return currentIds.filter((id) => id !== accountId);
+      }
+
+      const account = accounts.find((entry) => entry.id === accountId);
+      if (account) {
+        setSelectedAccountSnapshots((currentSnapshots) => ({
+          ...currentSnapshots,
+          [accountId]: account,
+        }));
       }
       return [...currentIds, accountId];
     });
   }
 
   function handleEditSelectedClick() {
-    return;
+    if (isViewerStaff || selectedAccountCount === 0) {
+      return;
+    }
+
+    setIsBulkEditOpen(true);
+  }
+
+  function closeBulkEditModal() {
+    if (isBulkBusy) {
+      return;
+    }
+
+    setIsBulkEditOpen(false);
+    setSelectedAccountSnapshots({});
+    setBulkEditError(null);
+    setIsBulkSaveConfirmationOpen(false);
+    setShowBulkDeleteConfirmation(false);
+  }
+
+  function openBulkDeleteConfirmation() {
+    if (selectedAccountCount === 0) {
+      setBulkEditError("Select at least one account.");
+      return;
+    }
+
+    setBulkEditError(null);
+    setIsBulkSaveConfirmationOpen(false);
+    setShowBulkDeleteConfirmation(true);
+  }
+
+  function closeBulkDeleteConfirmation() {
+    if (isBulkBusy) {
+      return;
+    }
+
+    setShowBulkDeleteConfirmation(false);
+  }
+
+  async function handleBulkAccountUpdate(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (isViewerStaff) {
+      setBulkEditError("Only admins can edit account types.");
+      return;
+    }
+
+    if (selectedAccountCount === 0) {
+      setBulkEditError("Select at least one account.");
+      return;
+    }
+
+    if (!isAnyBulkFieldDirty) {
+      setBulkEditError("Choose at least one field to update.");
+      return;
+    }
+
+    const nextRole = parseEditableRole(normalizedBulkRoleInput);
+    if (!nextRole) {
+      setBulkEditError("Role must be ADMIN, STAFF, or CUSTOMER.");
+      return;
+    }
+
+    setBulkEditError(null);
+    setShowBulkDeleteConfirmation(false);
+    setIsBulkSaveConfirmationOpen(true);
+  }
+
+  function closeBulkSaveConfirmation() {
+    if (isBulkSaving) {
+      return;
+    }
+
+    setIsBulkSaveConfirmationOpen(false);
+  }
+
+  async function confirmBulkAccountUpdate() {
+    if (isViewerStaff) {
+      setBulkEditError("Only admins can edit account types.");
+      setIsBulkSaveConfirmationOpen(false);
+      return;
+    }
+
+    if (selectedAccountCount === 0) {
+      setBulkEditError("Select at least one account.");
+      setIsBulkSaveConfirmationOpen(false);
+      return;
+    }
+
+    if (!isAnyBulkFieldDirty) {
+      setBulkEditError("Choose at least one field to update.");
+      setIsBulkSaveConfirmationOpen(false);
+      return;
+    }
+
+    const nextRole = parseEditableRole(normalizedBulkRoleInput);
+    if (!nextRole) {
+      setBulkEditError("Role must be ADMIN, STAFF, or CUSTOMER.");
+      setIsBulkSaveConfirmationOpen(false);
+      return;
+    }
+
+    setBulkEditError(null);
+    setIsBulkSaving(true);
+
+    try {
+      for (const accountId of selectedAccountIds) {
+        const response = await fetch("/api/accounts/staff", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            accountId,
+            role: nextRole,
+          }),
+        });
+
+        let payload: StaffAccountMutationResponse | null = null;
+        try {
+          payload = (await response.json()) as StaffAccountMutationResponse;
+        } catch {
+          payload = null;
+        }
+
+        if (!response.ok || payload?.success === false) {
+          const message =
+            typeof payload?.error === "string"
+              ? payload.error
+              : `Bulk account update failed (HTTP ${response.status}).`;
+          throw new Error(message);
+        }
+      }
+
+      setIsBulkSaveConfirmationOpen(false);
+      setIsBulkEditOpen(false);
+      setShowBulkDeleteConfirmation(false);
+      setSelectedAccountIds([]);
+      setSelectedAccountSnapshots({});
+      setRefreshNonce((current) => current + 1);
+    } catch (error) {
+      setIsBulkSaveConfirmationOpen(false);
+      setBulkEditError(
+        error instanceof Error
+          ? error.message
+          : "Unable to update selected accounts.",
+      );
+    } finally {
+      setIsBulkSaving(false);
+    }
+  }
+
+  async function confirmBulkAccountDelete() {
+    if (isViewerStaff) {
+      setBulkEditError("Only admins can delete accounts.");
+      setShowBulkDeleteConfirmation(false);
+      return;
+    }
+
+    if (selectedAccountCount === 0) {
+      setBulkEditError("Select at least one account.");
+      setShowBulkDeleteConfirmation(false);
+      return;
+    }
+
+    if (
+      viewerAccountId !== null &&
+      selectedAccounts.some((account) => account.id === viewerAccountId)
+    ) {
+      setBulkEditError("You cannot delete your own account.");
+      setShowBulkDeleteConfirmation(false);
+      return;
+    }
+
+    setBulkEditError(null);
+    setIsBulkDeleting(true);
+
+    try {
+      for (const accountId of selectedAccountIds) {
+        const response = await fetch("/api/accounts/staff", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            accountId,
+          }),
+        });
+
+        let payload: StaffAccountMutationResponse | null = null;
+        try {
+          payload = (await response.json()) as StaffAccountMutationResponse;
+        } catch {
+          payload = null;
+        }
+
+        if (!response.ok || payload?.success === false) {
+          const message =
+            typeof payload?.error === "string"
+              ? payload.error
+              : `Bulk account deletion failed (HTTP ${response.status}).`;
+          throw new Error(message);
+        }
+      }
+
+      const selectedOnCurrentPageCount = accounts.filter((account) =>
+        selectedAccountIdSet.has(account.id),
+      ).length;
+      const shouldMoveToPreviousPage =
+        selectedOnCurrentPageCount === accounts.length &&
+        selectedOnCurrentPageCount === selectedAccountIds.length &&
+        offset > 0;
+      setShowBulkDeleteConfirmation(false);
+      setIsBulkEditOpen(false);
+      setSelectedAccountIds([]);
+      setSelectedAccountSnapshots({});
+
+      if (shouldMoveToPreviousPage) {
+        setOffset((currentOffset) => Math.max(0, currentOffset - pageSize));
+      } else {
+        setRefreshNonce((current) => current + 1);
+      }
+    } catch (error) {
+      setShowBulkDeleteConfirmation(false);
+      setBulkEditError(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete selected accounts.",
+      );
+    } finally {
+      setIsBulkDeleting(false);
+    }
   }
 
   function resetEditModalState() {
@@ -410,6 +844,7 @@ export default function StaffAccountManagementPage() {
     setEditDisplayName("");
     setEditEmail("");
     setEditPhone("");
+    setEditNotes("");
     setEditRole("CUSTOMER");
     setEditInitial(null);
     setEditError(null);
@@ -428,16 +863,19 @@ export default function StaffAccountManagementPage() {
     const normalizedAccountDisplayName = account.displayName?.trim() ?? "";
     const normalizedAccountEmail = account.email.trim().toLowerCase();
     const normalizedAccountPhone = account.phone?.trim() ?? "";
+    const normalizedAccountNotes = account.notes ?? "";
 
     setEditAccount(account);
     setEditDisplayName(normalizedAccountDisplayName);
     setEditEmail(normalizedAccountEmail);
     setEditPhone(normalizedAccountPhone);
+    setEditNotes(normalizedAccountNotes);
     setEditRole(normalizedAccountRole);
     setEditInitial({
       displayName: normalizedAccountDisplayName,
       email: normalizedAccountEmail,
       phone: normalizedAccountPhone,
+      notes: normalizedAccountNotes,
       role: normalizedAccountRole,
     });
     setEditError(null);
@@ -482,6 +920,7 @@ export default function StaffAccountManagementPage() {
     setEditDisplayName(editInitial.displayName);
     setEditEmail(editInitial.email);
     setEditPhone(editInitial.phone);
+    setEditNotes(editInitial.notes);
     setEditRole(editInitial.role);
     setEditError(null);
     setIsSaveConfirmationOpen(false);
@@ -564,6 +1003,7 @@ export default function StaffAccountManagementPage() {
           displayName: normalizedDisplayNameInput,
           email: normalizedEmailInput,
           phone: normalizedPhoneInput,
+          notes: normalizedNotesInput,
           role: nextRole,
         }),
       });
@@ -699,7 +1139,7 @@ export default function StaffAccountManagementPage() {
                 </button>
 
                 <div className="account-management__filter-actions">
-                  {selectedAccountCount > 0 ? (
+                  {!isViewerStaff && selectedAccountCount > 0 ? (
                     <button
                       type="button"
                       className="item-search-page__filter-button account-management__edit-selected-button"
@@ -712,12 +1152,18 @@ export default function StaffAccountManagementPage() {
                   <button
                     type="button"
                     className={`item-search-page__filter-button account-management__select-button ${
-                      isSelectMode ? "account-management__select-button--active" : ""
+                      isSelectMode
+                        ? "account-management__select-button--active"
+                        : ""
                     }`}
                     onClick={toggleSelectMode}
-                    disabled={isLoading || (accounts.length === 0 && !isSelectMode)}
+                    disabled={
+                      isLoading || (accounts.length === 0 && !isSelectMode)
+                    }
                   >
-                    {isSelectMode ? `Select (${selectedAccountCount})` : "Select"}
+                    {isSelectMode
+                      ? `Select (${selectedAccountCount})`
+                      : "Select"}
                   </button>
                 </div>
               </div>
@@ -855,7 +1301,9 @@ export default function StaffAccountManagementPage() {
                                   type="checkbox"
                                   className="account-management__select-checkbox"
                                   checked={selectedAccountIdSet.has(account.id)}
-                                  onChange={() => toggleAccountSelection(account.id)}
+                                  onChange={() =>
+                                    toggleAccountSelection(account.id)
+                                  }
                                   aria-label={`Select account ${account.email}`}
                                 />
                               </td>
@@ -1064,6 +1512,37 @@ export default function StaffAccountManagementPage() {
                 </select>
               </label>
 
+              <label className="item-category-form__field">
+                <div className="account-management__notes-label-row">
+                  <span
+                    className={`item-category-form__label ${
+                      isNotesDirty
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    Notes
+                  </span>
+                  <span
+                    className={`item-category-form__label account-management__notes-count ${
+                      isNotesDirty
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    {editNotes.length}/{ACCOUNT_NOTES_MAX_LENGTH}
+                  </span>
+                </div>
+                <textarea
+                  className="item-search-page__search-input staffTaskCreateForm__textarea"
+                  value={editNotes}
+                  onChange={(event) => setEditNotes(event.target.value)}
+                  placeholder="Add account notes"
+                  maxLength={ACCOUNT_NOTES_MAX_LENGTH}
+                  disabled={isModalBusy}
+                />
+              </label>
+
               {editError ? (
                 <div className="item-category-form__status item-category-form__status--error">
                   {editError}
@@ -1104,6 +1583,186 @@ export default function StaffAccountManagementPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isBulkEditOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bulk Edit Accounts"
+          className="item-category-modal"
+          onClick={closeBulkEditModal}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">
+              Edit Selected Accounts
+            </div>
+            <div className="staffCardHint staffBulkEditSummary">
+              {selectedAccountCount} account
+              {selectedAccountCount === 1 ? "" : "s"} selected.
+            </div>
+
+            <form
+              className="item-category-form"
+              onSubmit={(event) => void handleBulkAccountUpdate(event)}
+              noValidate
+            >
+              <label className="item-category-form__field">
+                <span
+                  className={`item-category-form__label ${
+                    isBulkRoleDirty
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  Account Type
+                </span>
+                <select
+                  className="item-search-page__select"
+                  value={bulkRole}
+                  onChange={(event) => setBulkRole(event.target.value)}
+                  disabled={isBulkBusy}
+                >
+                  {showBulkRoleMixed ? (
+                    <option value={MIXED_FIELD_VALUE}>--</option>
+                  ) : null}
+                  {ACCOUNT_ROLE_OPTIONS.map((roleOption) => (
+                    <option key={roleOption} value={roleOption}>
+                      {roleOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {showBulkRoleMixed ? (
+                <div className="staffCardHint">
+                  Fields showing -- currently have mixed values.
+                </div>
+              ) : null}
+
+              {bulkEditError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {bulkEditError}
+                </div>
+              ) : null}
+
+              <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+                <button
+                  type="button"
+                  onClick={closeBulkEditModal}
+                  className="staff-dev-pill"
+                  disabled={isBulkBusy}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="staff-dev-pill staff-dev-pill--danger"
+                  onClick={openBulkDeleteConfirmation}
+                  disabled={isBulkBusy || selectedAccountCount === 0}
+                >
+                  {isBulkDeleting ? "Deleting..." : "Delete Selected"}
+                </button>
+                <button
+                  type="submit"
+                  className={`staff-dev-pill${isAnyBulkFieldDirty ? " staff-dev-pill--ready" : ""}`}
+                  disabled={isBulkBusy || !isAnyBulkFieldDirty}
+                >
+                  {isBulkSaving ? "Saving..." : "Apply Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isBulkEditOpen && showBulkDeleteConfirmation ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Delete Selected Accounts"
+          className="item-category-modal"
+          onClick={closeBulkDeleteConfirmation}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Deletion</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to delete {selectedAccountCount} selected
+              account
+              {selectedAccountCount === 1 ? "" : "s"}?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>This action cannot be undone.</p>
+            </div>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeBulkDeleteConfirmation}
+                disabled={isBulkDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={() => void confirmBulkAccountDelete()}
+                disabled={isBulkDeleting}
+              >
+                {isBulkDeleting ? "Deleting..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isBulkEditOpen && isBulkSaveConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Save Account Role Changes"
+          className="item-category-modal"
+          onClick={closeBulkSaveConfirmation}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Changes</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to save these changes?
+            </p>
+            {bulkRoleChangeWarning ? (
+              <div className="category-mgmt-delete-warning">
+                <p>{bulkRoleChangeWarning}</p>
+              </div>
+            ) : null}
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeBulkSaveConfirmation}
+                disabled={isBulkSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--ready"
+                onClick={() => void confirmBulkAccountUpdate()}
+                disabled={isBulkSaving}
+              >
+                {isBulkSaving ? "Saving..." : "Confirm"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

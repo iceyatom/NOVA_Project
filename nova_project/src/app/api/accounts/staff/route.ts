@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 20;
 const MAX_PAGE_SIZE = 100;
+const ACCOUNT_NOTES_MAX_LENGTH = 500;
 
 type SortColumn =
   | "id"
@@ -24,6 +25,7 @@ type AccountRow = {
   displayName: string | null;
   email: string;
   phone: string | null;
+  notes: string | null;
   role: string;
   createdAt: Date;
   lastLoginAt: Date | null;
@@ -41,6 +43,7 @@ type StaffAccountUpdateBody = {
   displayName?: unknown;
   email?: unknown;
   phone?: unknown;
+  notes?: unknown;
   role?: unknown;
 };
 
@@ -100,6 +103,11 @@ function normalizePhone(value: string): string {
 }
 
 function normalizeDisplayName(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeNotes(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
@@ -180,12 +188,7 @@ function sortAccounts(
   const sorted = [...rows];
 
   if (!sortBy) {
-    sorted.sort((left, right) => {
-      if (left.createdAt.getTime() !== right.createdAt.getTime()) {
-        return right.createdAt.getTime() - left.createdAt.getTime();
-      }
-      return right.id - left.id;
-    });
+    sorted.sort((left, right) => left.id - right.id);
     return sorted;
   }
 
@@ -329,6 +332,7 @@ export async function GET(request: NextRequest) {
         displayName: true,
         email: true,
         phone: true,
+        notes: true,
         role: true,
         createdAt: true,
         lastLoginAt: true,
@@ -376,16 +380,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     const accountId = parsePositiveInt(body.accountId);
-    const incomingEmail =
-      typeof body.email === "string" ? normalizeEmail(body.email) : "";
-    const incomingPhone =
-      typeof body.phone === "string" ? normalizePhone(body.phone) : "";
-    const incomingRole =
-      typeof body.role === "string" ? normalizeRole(body.role) : "";
-    const displayName =
-      typeof body.displayName === "string"
-        ? normalizeDisplayName(body.displayName)
-        : null;
+    const hasDisplayName = typeof body.displayName === "string";
+    const hasEmail = typeof body.email === "string";
+    const hasPhone = typeof body.phone === "string";
+    const hasNotes = typeof body.notes === "string";
+    const hasRole = typeof body.role === "string";
+    const incomingEmail = hasEmail ? normalizeEmail(body.email as string) : "";
+    const incomingPhone = hasPhone ? normalizePhone(body.phone as string) : "";
+    const incomingRole = hasRole ? normalizeRole(body.role as string) : "";
+    const displayName = hasDisplayName
+      ? normalizeDisplayName(body.displayName as string)
+      : null;
+    const incomingNotes = hasNotes
+      ? normalizeNotes(body.notes as string)
+      : null;
 
     if (!accountId) {
       return jsonResponse(
@@ -394,14 +402,21 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (!incomingEmail || !isValidEmail(incomingEmail)) {
+    if (!hasDisplayName && !hasEmail && !hasPhone && !hasNotes && !hasRole) {
+      return jsonResponse(
+        { success: false, error: "Provide at least one field to update." },
+        400,
+      );
+    }
+
+    if (hasEmail && (!incomingEmail || !isValidEmail(incomingEmail))) {
       return jsonResponse(
         { success: false, error: "A valid email address is required." },
         400,
       );
     }
 
-    if (incomingPhone && !isValidPhone(incomingPhone)) {
+    if (hasPhone && incomingPhone && !isValidPhone(incomingPhone)) {
       const phoneDigitsLength = getPhoneDigitsLength(incomingPhone);
       const phoneError =
         phoneDigitsLength > 10
@@ -410,8 +425,22 @@ export async function PATCH(request: NextRequest) {
       return jsonResponse({ success: false, error: phoneError }, 400);
     }
 
-    const nextRole = parseAccountRole(incomingRole);
-    if (!nextRole) {
+    if (
+      hasNotes &&
+      incomingNotes &&
+      incomingNotes.length > ACCOUNT_NOTES_MAX_LENGTH
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          error: `Notes must be ${ACCOUNT_NOTES_MAX_LENGTH} characters or fewer.`,
+        },
+        400,
+      );
+    }
+
+    const nextRole = hasRole ? parseAccountRole(incomingRole) : null;
+    if (hasRole && !nextRole) {
       return jsonResponse(
         { success: false, error: "Role must be ADMIN, STAFF, or CUSTOMER." },
         400,
@@ -432,15 +461,7 @@ export async function PATCH(request: NextRequest) {
       return jsonResponse({ success: false, error: "Account not found." }, 404);
     }
 
-    const existingRole = parseAccountRole(normalizeRole(existingAccount.role));
-    if (!existingRole) {
-      return jsonResponse(
-        { success: false, error: "Target account has an invalid role." },
-        400,
-      );
-    }
-
-    if (incomingEmail !== existingAccount.email) {
+    if (hasEmail && incomingEmail !== existingAccount.email) {
       const emailConflict = await prisma.account.findUnique({
         where: { email: incomingEmail },
         select: {
@@ -464,19 +485,38 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    const updateData: {
+      displayName?: string | null;
+      email?: string;
+      phone?: string | null;
+      notes?: string | null;
+      role?: AccountRole;
+    } = {};
+    if (hasDisplayName) {
+      updateData.displayName = displayName;
+    }
+    if (hasEmail) {
+      updateData.email = incomingEmail;
+    }
+    if (hasPhone) {
+      updateData.phone = incomingPhone || null;
+    }
+    if (hasNotes) {
+      updateData.notes = incomingNotes;
+    }
+    if (hasRole && nextRole) {
+      updateData.role = nextRole;
+    }
+
     const updatedAccount = await prisma.account.update({
       where: { id: accountId },
-      data: {
-        displayName,
-        email: incomingEmail,
-        phone: incomingPhone || null,
-        role: nextRole,
-      },
+      data: updateData,
       select: {
         id: true,
         displayName: true,
         email: true,
         phone: true,
+        notes: true,
         role: true,
         createdAt: true,
         lastLoginAt: true,
