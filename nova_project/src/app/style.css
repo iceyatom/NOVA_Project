@@ -4433,3 +4433,18 @@ body:has(.loginPage) main {
     grid-template-columns: 1fr;
   }
 }
+
+.staffTaskSummaryRow {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.staffTaskSummaryCard {
+  grid-column: auto;
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .staffTaskSummaryRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

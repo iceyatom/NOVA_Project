@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { EmployeeTask } from "./AdminTaskCard";
 import PopUpContainer from "./PopUpContainer";
 import EmployeeTaskCard from "./EmployeeTaskCard";
-import { statusPriority } from "../staff/adminTaskView/page";
+import { statusPriority } from "@/app/lib/taskStatus";
 
 function getTasks(account: string) {
   // Search task model in database for the account and return tasks
