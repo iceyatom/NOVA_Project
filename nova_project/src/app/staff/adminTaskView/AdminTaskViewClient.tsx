@@ -47,6 +47,15 @@ type EditTaskInitialState = {
   status: TaskStatus;
 };
 
+type BulkEditInitialState = {
+  assigneeId: string;
+  dueAt: string;
+  assigneeMixed: boolean;
+  dueAtMixed: boolean;
+};
+
+const MIXED_FIELD_VALUE = "__mixed__";
+
 function toDateTimeLocalValue(date: Date): string {
   const pad = (value: number) => value.toString().padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
@@ -92,6 +101,18 @@ export default function AdminTaskViewClient({
     useState<EditTaskInitialState | null>(null);
   const [editTaskError, setEditTaskError] = useState<string | null>(null);
   const [isEditingTask, setIsEditingTask] = useState(false);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [bulkAssigneeId, setBulkAssigneeId] = useState("");
+  const [bulkDueAt, setBulkDueAt] = useState("");
+  const [bulkEditInitial, setBulkEditInitial] =
+    useState<BulkEditInitialState | null>(null);
+  const [bulkEditError, setBulkEditError] = useState<string | null>(null);
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkDeleteConfirmation, setShowBulkDeleteConfirmation] =
+    useState(false);
   const [pointerDrag, setPointerDrag] = useState<PointerDragState | null>(null);
   const [dragOverAccountId, setDragOverAccountId] = useState<number | null>(
     null,
@@ -121,6 +142,13 @@ export default function AdminTaskViewClient({
     [sortedTaskGroups],
   );
 
+  const selectedTasks = useMemo(() => {
+    const selectedIds = new Set(selectedTaskIds);
+    return allTasks.filter((task) => selectedIds.has(task.id));
+  }, [allTasks, selectedTaskIds]);
+
+  const selectedTaskCount = selectedTasks.length;
+
   const assigneeOptions = useMemo(
     () =>
       taskGroups.map((group) => ({
@@ -145,6 +173,64 @@ export default function AdminTaskViewClient({
     setCreateTaskDueAt(toDateTimeLocalValue(defaultDueAt));
     setCreateTaskError(null);
   }, [isCreateTaskOpen, assigneeOptions]);
+
+  useEffect(() => {
+    const validTaskIds = new Set(allTaskIds);
+    setSelectedTaskIds((currentIds) =>
+      currentIds.filter((taskId) => validTaskIds.has(taskId)),
+    );
+  }, [allTaskIds]);
+
+  useEffect(() => {
+    if (!isBulkEditOpen) return;
+    if (selectedTaskCount > 0) return;
+    setIsBulkEditOpen(false);
+    setShowBulkDeleteConfirmation(false);
+    setBulkEditInitial(null);
+    setBulkEditError(null);
+  }, [isBulkEditOpen, selectedTaskCount]);
+
+  useEffect(() => {
+    if (!isBulkEditOpen || selectedTaskCount === 0) return;
+
+    const assigneeIds = Array.from(
+      new Set(selectedTasks.map((task) => task.assignedToAccountId)),
+    );
+    const dueAtValues = Array.from(
+      new Set(
+        selectedTasks
+          .map((task) => {
+            const sourceDate = task.expiresAtIso
+              ? new Date(task.expiresAtIso)
+              : parseDisplayDueDate(task.expiresAt);
+
+            if (!sourceDate || Number.isNaN(sourceDate.getTime())) {
+              return "";
+            }
+
+            return toDateTimeLocalValue(sourceDate);
+          })
+          .filter((value) => value.length > 0),
+      ),
+    );
+
+    const assigneeMixed = assigneeIds.length !== 1;
+    const dueAtMixed = dueAtValues.length !== 1;
+    const nextAssigneeId = assigneeMixed
+      ? MIXED_FIELD_VALUE
+      : String(assigneeIds[0]);
+    const nextDueAt = dueAtMixed ? "" : dueAtValues[0];
+
+    setBulkAssigneeId(nextAssigneeId);
+    setBulkDueAt(nextDueAt);
+    setBulkEditInitial({
+      assigneeId: nextAssigneeId,
+      dueAt: nextDueAt,
+      assigneeMixed,
+      dueAtMixed,
+    });
+    setBulkEditError(null);
+  }, [isBulkEditOpen, selectedTaskCount, selectedTasks]);
 
   useEffect(() => {
     if (!editTask) return;
@@ -189,6 +275,19 @@ export default function AdminTaskViewClient({
     isEditAssigneeDirty ||
     isEditDueAtDirty ||
     isEditStatusDirty;
+  const isBulkAssigneeDirty =
+    bulkEditInitial !== null &&
+    bulkAssigneeId !== bulkEditInitial.assigneeId &&
+    bulkAssigneeId !== MIXED_FIELD_VALUE;
+  const isBulkDueAtDirty =
+    bulkEditInitial !== null && bulkDueAt !== bulkEditInitial.dueAt;
+  const isAnyBulkFieldDirty = isBulkAssigneeDirty || isBulkDueAtDirty;
+  const showBulkAssigneeMixed =
+    bulkEditInitial?.assigneeMixed === true &&
+    bulkAssigneeId === MIXED_FIELD_VALUE;
+  const showBulkDueAtMixed =
+    bulkEditInitial?.dueAtMixed === true && bulkDueAt.length === 0;
+  const isBulkBusy = isBulkSaving || isBulkDeleting;
 
   function toggleTaskCollapse(taskId: number) {
     setCollapsedTaskIds((currentIds) => {
@@ -236,9 +335,48 @@ export default function AdminTaskViewClient({
     setIsCreateTaskOpen(true);
   }
 
+  function toggleSelectMode() {
+    setIsSelectMode((currentValue) => {
+      const nextValue = !currentValue;
+      if (!nextValue) {
+        setSelectedTaskIds([]);
+        setIsBulkEditOpen(false);
+        setShowBulkDeleteConfirmation(false);
+      }
+      return nextValue;
+    });
+
+    setPointerDrag(null);
+    setDragOverAccountId(null);
+    setReassignTaskError(null);
+    setBulkEditError(null);
+  }
+
+  function toggleTaskSelection(taskId: number) {
+    setSelectedTaskIds((currentIds) => {
+      if (currentIds.includes(taskId)) {
+        return currentIds.filter((id) => id !== taskId);
+      }
+
+      return [...currentIds, taskId];
+    });
+  }
+
   function closeCreateTaskModal() {
     if (isCreatingTask) return;
     setIsCreateTaskOpen(false);
+  }
+
+  function openBulkEditModal() {
+    if (selectedTaskCount === 0) return;
+    setIsBulkEditOpen(true);
+  }
+
+  function closeBulkEditModal() {
+    if (isBulkBusy) return;
+    setIsBulkEditOpen(false);
+    setShowBulkDeleteConfirmation(false);
+    setBulkEditError(null);
   }
 
   function openEditTaskModal(task: EmployeeTask) {
@@ -402,6 +540,160 @@ export default function AdminTaskViewClient({
     }
   }
 
+  async function handleBulkTaskUpdate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const taskIds = [...selectedTaskIds];
+    if (taskIds.length === 0) {
+      setBulkEditError("Select at least one task.");
+      return;
+    }
+
+    const updates: {
+      assignedToAccountId?: number;
+      expiresAt?: string;
+    } = {};
+
+    if (isBulkAssigneeDirty) {
+      const assignedToAccountId = Number.parseInt(bulkAssigneeId, 10);
+      if (!Number.isInteger(assignedToAccountId) || assignedToAccountId <= 0) {
+        setBulkEditError("Assigned employee is required.");
+        return;
+      }
+      updates.assignedToAccountId = assignedToAccountId;
+    }
+
+    if (isBulkDueAtDirty) {
+      if (!bulkDueAt) {
+        setBulkEditError("Valid due date is required.");
+        return;
+      }
+
+      const expiresAt = new Date(bulkDueAt);
+      if (Number.isNaN(expiresAt.getTime())) {
+        setBulkEditError("Valid due date is required.");
+        return;
+      }
+      updates.expiresAt = expiresAt.toISOString();
+    }
+
+    if (Object.keys(updates).length === 0) {
+      setBulkEditError("Choose at least one field to update.");
+      return;
+    }
+
+    setBulkEditError(null);
+    setIsBulkSaving(true);
+
+    try {
+      for (const taskId of taskIds) {
+        const response = await fetch("/api/tasks/staff", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            taskId,
+            ...updates,
+          }),
+        });
+
+        const payload = (await response.json()) as {
+          success?: boolean;
+          error?: unknown;
+        };
+
+        if (!response.ok || payload.success === false) {
+          const message =
+            typeof payload.error === "string"
+              ? payload.error
+              : `Bulk task update failed (HTTP ${response.status}).`;
+          throw new Error(message);
+        }
+      }
+
+      setIsBulkEditOpen(false);
+      setSelectedTaskIds([]);
+      router.refresh();
+    } catch (updateError) {
+      setBulkEditError(
+        updateError instanceof Error
+          ? updateError.message
+          : "Failed to update selected tasks.",
+      );
+    } finally {
+      setIsBulkSaving(false);
+    }
+  }
+
+  function openBulkDeleteConfirmation() {
+    if (selectedTaskCount === 0) {
+      setBulkEditError("Select at least one task.");
+      return;
+    }
+
+    setBulkEditError(null);
+    setShowBulkDeleteConfirmation(true);
+  }
+
+  function closeBulkDeleteConfirmation() {
+    if (isBulkBusy) return;
+    setShowBulkDeleteConfirmation(false);
+  }
+
+  async function confirmBulkTaskDelete() {
+    const taskIds = [...selectedTaskIds];
+    if (taskIds.length === 0) {
+      setBulkEditError("Select at least one task.");
+      setShowBulkDeleteConfirmation(false);
+      return;
+    }
+
+    setBulkEditError(null);
+    setIsBulkDeleting(true);
+
+    try {
+      for (const taskId of taskIds) {
+        const response = await fetch("/api/tasks/staff", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            taskId,
+          }),
+        });
+
+        const payload = (await response.json()) as {
+          success?: boolean;
+          error?: unknown;
+        };
+
+        if (!response.ok || payload.success === false) {
+          const message =
+            typeof payload.error === "string"
+              ? payload.error
+              : `Task delete failed (HTTP ${response.status}).`;
+          throw new Error(message);
+        }
+      }
+
+      setShowBulkDeleteConfirmation(false);
+      setIsBulkEditOpen(false);
+      setSelectedTaskIds([]);
+      router.refresh();
+    } catch (deleteError) {
+      setShowBulkDeleteConfirmation(false);
+      setBulkEditError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete selected tasks.",
+      );
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }
+
   function getAccountIdAtPoint(
     clientX: number,
     clientY: number,
@@ -471,12 +763,20 @@ export default function AdminTaskViewClient({
     isCollapsed: boolean,
   ) {
     if (event.button !== 0) return;
-    if (isReassigningTaskId !== null) return;
 
     const target = event.target as HTMLElement;
     if (target.closest("button, input, select, textarea, a, label")) {
       return;
     }
+
+    if (isSelectMode) {
+      event.preventDefault();
+      setReassignTaskError(null);
+      toggleTaskSelection(task.id);
+      return;
+    }
+
+    if (isReassigningTaskId !== null) return;
 
     const card = event.currentTarget;
     const rect = card.getBoundingClientRect();
@@ -671,6 +971,27 @@ export default function AdminTaskViewClient({
         </div>
 
         <div className="staffTaskLegendActions">
+          {selectedTaskCount > 0 ? (
+            <button
+              type="button"
+              className="staffActionButton editSelectedButton"
+              onClick={openBulkEditModal}
+            >
+              Edit Selected ({selectedTaskCount})
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            className={`staffActionButton selectTasksButton ${
+              isSelectMode ? "isActive" : ""
+            }`}
+            onClick={toggleSelectMode}
+            disabled={allTaskIds.length === 0}
+          >
+            {isSelectMode ? `Select (${selectedTaskCount})` : "Select"}
+          </button>
+
           <button
             type="button"
             className="staffActionButton createTaskButton"
@@ -766,6 +1087,8 @@ export default function AdminTaskViewClient({
                       isCollapsed={collapsedTaskIds.includes(task.id)}
                       onToggleCollapse={() => toggleTaskCollapse(task.id)}
                       onEditTask={openEditTaskModal}
+                      isSelectMode={isSelectMode}
+                      isSelected={selectedTaskIds.includes(task.id)}
                       isPointerDragging={pointerDrag?.task.id === task.id}
                       onPointerDown={(event, draggedTask) =>
                         handleTaskPointerDown(
@@ -821,6 +1144,167 @@ export default function AdminTaskViewClient({
             isCollapsed={dropAnimation.isCollapsed}
             onToggleCollapse={() => {}}
           />
+        </div>
+      ) : null}
+
+      {isBulkEditOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bulk Edit Tasks"
+          className="item-category-modal"
+          onClick={closeBulkEditModal}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">
+              Edit Selected Tasks
+            </div>
+            <div className="staffCardHint staffBulkEditSummary">
+              {selectedTaskCount} task{selectedTaskCount === 1 ? "" : "s"}{" "}
+              selected.
+            </div>
+
+            <form
+              className="item-category-form"
+              onSubmit={(event) => void handleBulkTaskUpdate(event)}
+              noValidate
+            >
+              <div className="staffTaskCreateForm__row">
+                <label className="item-category-form__field">
+                  <span className="item-category-form__label">
+                    Assigned Employee
+                  </span>
+                  <select
+                    className="item-search-page__select"
+                    value={bulkAssigneeId}
+                    onChange={(event) => setBulkAssigneeId(event.target.value)}
+                    disabled={isBulkBusy || assigneeOptions.length === 0}
+                  >
+                    {showBulkAssigneeMixed ? (
+                      <option value={MIXED_FIELD_VALUE}>--</option>
+                    ) : null}
+                    {assigneeOptions.length === 0 ? (
+                      <option value="">No employees available</option>
+                    ) : (
+                      assigneeOptions.map((option) => (
+                        <option
+                          key={option.accountId}
+                          value={String(option.accountId)}
+                        >
+                          {option.label}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+
+                <label className="item-category-form__field">
+                  <span className="item-category-form__label">Due Date</span>
+                  <div
+                    className={`staffBulkDateInputWrapper ${
+                      showBulkDueAtMixed ? "isMixed" : ""
+                    }`}
+                  >
+                    <input
+                      className="item-search-page__search-input"
+                      type="datetime-local"
+                      value={bulkDueAt}
+                      onChange={(event) => setBulkDueAt(event.target.value)}
+                      disabled={isBulkBusy}
+                    />
+                    {showBulkDueAtMixed ? (
+                      <span className="staffBulkFieldDash">--</span>
+                    ) : null}
+                  </div>
+                </label>
+              </div>
+
+              {showBulkAssigneeMixed || showBulkDueAtMixed ? (
+                <div className="staffCardHint">
+                  Fields showing -- currently have mixed values.
+                </div>
+              ) : null}
+
+              {bulkEditError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {bulkEditError}
+                </div>
+              ) : null}
+
+              <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+                <button
+                  type="button"
+                  onClick={closeBulkEditModal}
+                  className="staff-dev-pill"
+                  disabled={isBulkBusy}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="staff-dev-pill staff-dev-pill--danger"
+                  onClick={openBulkDeleteConfirmation}
+                  disabled={isBulkBusy || selectedTaskCount === 0}
+                >
+                  {isBulkDeleting ? "Deleting..." : "Delete Selected"}
+                </button>
+                <button
+                  type="submit"
+                  className={`staff-dev-pill${
+                    isAnyBulkFieldDirty ? " staff-dev-pill--ready" : ""
+                  }`}
+                  disabled={isBulkBusy || !isAnyBulkFieldDirty}
+                >
+                  {isBulkSaving ? "Saving..." : "Apply Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isBulkEditOpen && showBulkDeleteConfirmation ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Delete Selected Tasks"
+          className="item-category-modal"
+          onClick={closeBulkDeleteConfirmation}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Deletion</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to delete {selectedTaskCount} selected task
+              {selectedTaskCount === 1 ? "" : "s"}?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>This action cannot be undone.</p>
+            </div>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeBulkDeleteConfirmation}
+                disabled={isBulkDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={() => void confirmBulkTaskDelete()}
+                disabled={isBulkDeleting}
+              >
+                {isBulkDeleting ? "Deleting..." : "Confirm"}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 

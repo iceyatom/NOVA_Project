@@ -20,6 +20,10 @@ type ReassignTaskPayload = {
   expiresAt?: unknown;
 };
 
+type DeleteTaskPayload = {
+  taskId?: unknown;
+};
+
 function withNoCache(resp: NextResponse) {
   resp.headers.set(
     "Cache-Control",
@@ -321,6 +325,57 @@ export async function PATCH(request: NextRequest) {
         {
           success: false,
           error: "Failed to update task.",
+        },
+        { status: 500 },
+      ),
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const payload = (await request.json()) as DeleteTaskPayload;
+    const taskId =
+      typeof payload.taskId === "number" ? payload.taskId : Number.NaN;
+
+    if (!Number.isInteger(taskId) || taskId <= 0) {
+      return badRequest("Task ID is required.");
+    }
+
+    const result = await prisma.task.deleteMany({
+      where: {
+        id: taskId,
+      },
+    });
+
+    if (result.count === 0) {
+      return withNoCache(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Task was not found.",
+          },
+          { status: 404 },
+        ),
+      );
+    }
+
+    return withNoCache(
+      NextResponse.json(
+        {
+          success: true,
+          taskId,
+        },
+        { status: 200 },
+      ),
+    );
+  } catch (error) {
+    console.error("DELETE /api/tasks/staff failed", error);
+    return withNoCache(
+      NextResponse.json(
+        {
+          success: false,
+          error: "Failed to delete task.",
         },
         { status: 500 },
       ),

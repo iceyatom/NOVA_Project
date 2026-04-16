@@ -49,6 +49,8 @@ export default function AdminTaskCard({
   onToggleCollapse,
   onEditTask,
   isPointerDragging = false,
+  isSelectMode = false,
+  isSelected = false,
   onPointerDown,
 }: {
   task: EmployeeTask;
@@ -56,6 +58,8 @@ export default function AdminTaskCard({
   onToggleCollapse: () => void;
   onEditTask?: (task: EmployeeTask) => void;
   isPointerDragging?: boolean;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
   onPointerDown?: (
     event: PointerEvent<HTMLDivElement>,
     task: EmployeeTask,
@@ -73,7 +77,10 @@ export default function AdminTaskCard({
     <div
       className={`staffTaskCard ${expiredStatus} ${
         isCollapsed ? "isCollapsed" : ""
-      } ${isPointerDragging ? "isPointerDragging" : ""}`}
+      } ${isPointerDragging ? "isPointerDragging" : ""} ${
+        isSelectMode ? "isSelectMode" : ""
+      } ${isSelected ? "isSelected" : ""}`}
+      aria-selected={isSelectMode ? isSelected : undefined}
       onPointerDown={(event) => onPointerDown?.(event, task)}
     >
       <div className="staffTaskCardHeader">
