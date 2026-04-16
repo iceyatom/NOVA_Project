@@ -388,11 +388,13 @@ const StaffItemSearchPageContent = () => {
       params.set("query", searchQueryParam);
     }
 
-    const nextSortOrder =
-      sortByParam === column && sortOrderParam === "asc" ? "desc" : "asc";
-
-    params.set("sortBy", column);
-    params.set("sortOrder", nextSortOrder);
+    if (sortByParam !== column) {
+      params.set("sortBy", column);
+      params.set("sortOrder", "asc");
+    } else if (sortOrderParam === "asc") {
+      params.set("sortBy", column);
+      params.set("sortOrder", "desc");
+    }
 
     router.push(`/staff/item_search?${params.toString()}`);
   };
