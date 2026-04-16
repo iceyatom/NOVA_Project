@@ -34,9 +34,26 @@ export default function CreateAccountPage() {
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
 
-  const isValidPhone = (value: string) => {
+  const getPhoneError = (value: string): string | undefined => {
     const digitsOnly = value.replace(/\D/g, "");
-    return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+
+    if (!digitsOnly) {
+      return "Phone number is required.";
+    }
+
+    if (digitsOnly.length === 11 && digitsOnly.startsWith("1")) {
+      return "Do not include a leading 1. Enter a 10-digit phone number.";
+    }
+
+    if (digitsOnly.length < 10) {
+      return "Phone number is too short. Use exactly 10 digits.";
+    }
+
+    if (digitsOnly.length > 10) {
+      return "Phone number is too long. Use exactly 10 digits.";
+    }
+
+    return undefined;
   };
 
   // Stricter email validation regex: basic check for user@domain.tld
@@ -54,11 +71,8 @@ export default function CreateAccountPage() {
       next.displayName = "Display name is required.";
     }
 
-    if (!phone.trim()) {
-      next.phone = "Phone number is required.";
-    } else if (!isValidPhone(phone)) {
-      next.phone = "Please enter a valid phone number.";
-    }
+    const phoneError = getPhoneError(phone);
+    if (phoneError) next.phone = phoneError;
 
     if (!email.trim()) {
       next.email = "Email address is required.";
@@ -270,9 +284,10 @@ export default function CreateAccountPage() {
                 value={phone}
                 autoComplete="tel"
                 inputMode="tel"
-                pattern="[0-9()+\-\s]*"
+                pattern="[0-9]*"
+                maxLength={11}
                 onChange={(e) => {
-                  setPhone(e.target.value);
+                  setPhone(e.target.value.replace(/\D/g, ""));
                   setErrors((p) => ({ ...p, phone: undefined }));
                 }}
               />

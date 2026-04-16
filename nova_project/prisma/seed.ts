@@ -7423,6 +7423,273 @@ async function main() {
       role: "CUSTOMER",
     },
   });
+
+  // Add second admin account
+  const adminOperationsPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "operations@nilesbio.com" },
+    update: {},
+    create: {
+      email: "operations@nilesbio.com",
+      displayName: "Operations Admin",
+      passwordHash: adminOperationsPasswordHash,
+      role: "ADMIN",
+    },
+  });
+
+  // Add additional staff accounts
+  const staffInventoryPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "inventory@nilesbio.com" },
+    update: {},
+    create: {
+      email: "inventory@nilesbio.com",
+      displayName: "Inventory Staff",
+      passwordHash: staffInventoryPasswordHash,
+      role: "STAFF",
+    },
+  });
+
+  const staffSupportPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "support@nilesbio.com" },
+    update: {},
+    create: {
+      email: "support@nilesbio.com",
+      displayName: "Support Staff",
+      passwordHash: staffSupportPasswordHash,
+      role: "STAFF",
+    },
+  });
+
+  // Add additional customer accounts
+  const customerAlexPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "alex@nilesbio.com" },
+    update: {},
+    create: {
+      email: "alex@nilesbio.com",
+      displayName: "Alex Customer",
+      passwordHash: customerAlexPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerJordanPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "jordan@nilesbio.com" },
+    update: {},
+    create: {
+      email: "jordan@nilesbio.com",
+      displayName: "Jordan Customer",
+      passwordHash: customerJordanPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerMorganPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "morgan@nilesbio.com" },
+    update: {},
+    create: {
+      email: "morgan@nilesbio.com",
+      displayName: "Morgan Customer",
+      passwordHash: customerMorganPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerTaylorPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "taylor@nilesbio.com" },
+    update: {},
+    create: {
+      email: "taylor@nilesbio.com",
+      displayName: "Taylor Customer",
+      passwordHash: customerTaylorPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerCaseyPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "casey@nilesbio.com" },
+    update: {},
+    create: {
+      email: "casey@nilesbio.com",
+      displayName: "Casey Customer",
+      passwordHash: customerCaseyPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerRileyPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "riley@nilesbio.com" },
+    update: {},
+    create: {
+      email: "riley@nilesbio.com",
+      displayName: "Riley Customer",
+      passwordHash: customerRileyPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerJamiePasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "jamie@nilesbio.com" },
+    update: {},
+    create: {
+      email: "jamie@nilesbio.com",
+      displayName: "Jamie Customer",
+      passwordHash: customerJamiePasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerDrewPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "drew@nilesbio.com" },
+    update: {},
+    create: {
+      email: "drew@nilesbio.com",
+      displayName: "Drew Customer",
+      passwordHash: customerDrewPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerBlakePasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "blake@nilesbio.com" },
+    update: {},
+    create: {
+      email: "blake@nilesbio.com",
+      displayName: "Blake Customer",
+      passwordHash: customerBlakePasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerParkerPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "parker@nilesbio.com" },
+    update: {},
+    create: {
+      email: "parker@nilesbio.com",
+      displayName: "Parker Customer",
+      passwordHash: customerParkerPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerQuinnPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "quinn@nilesbio.com" },
+    update: {},
+    create: {
+      email: "quinn@nilesbio.com",
+      displayName: "Quinn Customer",
+      passwordHash: customerQuinnPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerReesePasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "reese@nilesbio.com" },
+    update: {},
+    create: {
+      email: "reese@nilesbio.com",
+      displayName: "Reese Customer",
+      passwordHash: customerReesePasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerSkyePasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "skye@nilesbio.com" },
+    update: {},
+    create: {
+      email: "skye@nilesbio.com",
+      displayName: "Skye Customer",
+      passwordHash: customerSkyePasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerDevonPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "devon@nilesbio.com" },
+    update: {},
+    create: {
+      email: "devon@nilesbio.com",
+      displayName: "Devon Customer",
+      passwordHash: customerDevonPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerHaydenPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "hayden@nilesbio.com" },
+    update: {},
+    create: {
+      email: "hayden@nilesbio.com",
+      displayName: "Hayden Customer",
+      passwordHash: customerHaydenPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerRobinPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "robin@nilesbio.com" },
+    update: {},
+    create: {
+      email: "robin@nilesbio.com",
+      displayName: "Robin Customer",
+      passwordHash: customerRobinPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerSawyerPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "sawyer@nilesbio.com" },
+    update: {},
+    create: {
+      email: "sawyer@nilesbio.com",
+      displayName: "Sawyer Customer",
+      passwordHash: customerSawyerPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerPaytonPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "payton@nilesbio.com" },
+    update: {},
+    create: {
+      email: "payton@nilesbio.com",
+      displayName: "Payton Customer",
+      passwordHash: customerPaytonPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
+
+  const customerEmersonPasswordHash = await hashPassword("test");
+  await prisma.account.upsert({
+    where: { email: "emerson@nilesbio.com" },
+    update: {},
+    create: {
+      email: "emerson@nilesbio.com",
+      displayName: "Emerson Customer",
+      passwordHash: customerEmersonPasswordHash,
+      role: "CUSTOMER",
+    },
+  });
 }
 
 main()

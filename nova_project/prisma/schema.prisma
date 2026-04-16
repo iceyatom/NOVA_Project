@@ -97,7 +97,7 @@ model Account {
   role         String
   displayName  String?
   phone        String?
-  notes        String?
+  notes        String?  @db.VarChar(500)
 
   lastLoginAt DateTime?
   deletedAt   DateTime?

@@ -10,6 +10,30 @@ import { sendVerificationEmail } from "@/lib/email/emailService";
 
 export const runtime = "nodejs";
 
+function normalizePhone(value: unknown): string {
+  return typeof value === "string" ? value.replace(/\D/g, "") : "";
+}
+
+function getPhoneError(value: string): string | null {
+  if (!value) {
+    return "Phone number is required.";
+  }
+
+  if (value.length === 11 && value.startsWith("1")) {
+    return "Do not include a leading 1. Enter a 10-digit phone number.";
+  }
+
+  if (value.length < 10) {
+    return "Phone number is too short. Use exactly 10 digits.";
+  }
+
+  if (value.length > 10) {
+    return "Phone number is too long. Use exactly 10 digits.";
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password, displayName, phone, role } = await req.json();
@@ -21,6 +45,11 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedPhone = normalizePhone(phone);
+    const phoneError = getPhoneError(normalizedPhone);
+    if (phoneError) {
+      return NextResponse.json({ error: phoneError }, { status: 400 });
+    }
 
     // Reject if an active (verified) account already exists with this email
     const existing = await prisma.account.findUnique({
@@ -52,7 +81,7 @@ export async function POST(req: NextRequest) {
           passwordHash,
           role: safeRole,
           displayName: displayName || null,
-          phone: phone || null,
+          phone: normalizedPhone,
         },
       });
     } else {
@@ -63,7 +92,7 @@ export async function POST(req: NextRequest) {
           role: safeRole,
           status: "pending",
           displayName: displayName || null,
-          phone: phone || null,
+          phone: normalizedPhone,
         },
       });
     }

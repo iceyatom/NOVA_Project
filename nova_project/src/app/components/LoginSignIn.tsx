@@ -48,7 +48,6 @@ export default function LoginSignIn() {
   const {
     loggedIn,
     setLoggedIn,
-    account,
     setAccount,
     setAccountId,
     setAccountEmail,
@@ -326,13 +325,6 @@ export default function LoginSignIn() {
         <Link className="authLink" href="/create_account">
           Create Account
         </Link>
-      </div>
-
-      <div
-        style={{ marginTop: "2rem", color: loggedIn ? "#059669" : "#32486b" }}
-      >
-        <strong>Status:</strong>{" "}
-        {loggedIn ? `Logged in as ${account}` : "Logged out"}
       </div>
     </section>
   );

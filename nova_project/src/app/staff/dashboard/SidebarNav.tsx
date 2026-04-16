@@ -66,6 +66,16 @@ export default function SidebarNav() {
       />
 
       <Section
+        title="Accounts"
+        items={[
+          {
+            label: "Account Management",
+            href: "/staff/account_management",
+          },
+        ]}
+      />
+
+      <Section
         title="Categories"
         items={[
           {
