@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { PointerEvent } from "react";
 
 export type TaskStatus = "not-started" | "in-progress" | "completed";
 
@@ -25,6 +26,7 @@ export type EmployeeTask = {
   createdAt: string;
   completedAt?: string;
   expiresAt: string;
+  expiresAtIso?: string;
   currentStatus: TaskStatus;
 };
 
@@ -45,10 +47,23 @@ export default function AdminTaskCard({
   task,
   isCollapsed,
   onToggleCollapse,
+  onEditTask,
+  isPointerDragging = false,
+  isSelectMode = false,
+  isSelected = false,
+  onPointerDown,
 }: {
   task: EmployeeTask;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  onEditTask?: (task: EmployeeTask) => void;
+  isPointerDragging?: boolean;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onPointerDown?: (
+    event: PointerEvent<HTMLDivElement>,
+    task: EmployeeTask,
+  ) => void;
 }) {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
@@ -62,7 +77,11 @@ export default function AdminTaskCard({
     <div
       className={`staffTaskCard ${expiredStatus} ${
         isCollapsed ? "isCollapsed" : ""
-      }`}
+      } ${isPointerDragging ? "isPointerDragging" : ""} ${
+        isSelectMode ? "isSelectMode" : ""
+      } ${isSelected ? "isSelected" : ""}`}
+      aria-selected={isSelectMode ? isSelected : undefined}
+      onPointerDown={(event) => onPointerDown?.(event, task)}
     >
       <div className="staffTaskCardHeader">
         <div className="staffTaskCardHeaderLeft">
@@ -73,21 +92,32 @@ export default function AdminTaskCard({
         </div>
 
         <div className="staffTaskCardHeaderRight">
-          <button
-            type="button"
-            className="staffTaskCollapseButton"
-            onClick={onToggleCollapse}
-            aria-label={isCollapsed ? "Expand task" : "Collapse task"}
-          >
-            <span
-              className={`staffTaskCollapseIcon ${
-                isCollapsed ? "collapsed" : ""
-              }`}
+          <div className="staffTaskCardHeaderButtons">
+            <button
+              type="button"
+              className="staffTaskEditButton"
+              onClick={() => onEditTask?.(task)}
+              aria-label={`Edit task ${task.title}`}
             >
-              ▾
-            </span>
-            {isCollapsed ? "Expand" : "Collapse"}
-          </button>
+              &#9998;
+            </button>
+
+            <button
+              type="button"
+              className="staffTaskCollapseButton"
+              onClick={onToggleCollapse}
+              aria-label={isCollapsed ? "Expand task" : "Collapse task"}
+            >
+              {isCollapsed ? "Expand" : "Collapse"}
+              <span
+                className={`staffTaskCollapseIcon ${
+                  isCollapsed ? "collapsed" : ""
+                }`}
+              >
+                {"\u25BE"}
+              </span>
+            </button>
+          </div>
 
           <div className={`staffTaskStatusBadge ${expiredStatus}`}>
             {task.currentStatus === "not-started" &&
@@ -103,49 +133,6 @@ export default function AdminTaskCard({
           <div className="staffTaskDivider" />
 
           <div className="staffTaskBody">
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Assigned Employee:</span>
-              <span className="staffTaskValue">{task.employeeName}</span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Assigned Account ID:</span>
-              <span className="staffTaskValue">{task.assignedToAccountId}</span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Created At:</span>
-              <span className="staffTaskValue">{task.createdAt}</span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Expires At:</span>
-              <span className="staffTaskValue">{task.expiresAt}</span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Expiration Status:</span>
-              <span className="staffTaskValue">
-                {new Date(task.expiresAt.replace("-", "")) < new Date()
-                  ? "Expired"
-                  : "Active"}
-              </span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Current Status:</span>
-              <span className="staffTaskValue">
-                {getStatusLabel(task.currentStatus)}
-              </span>
-            </div>
-
-            <div className="staffTaskRow">
-              <span className="staffTaskLabel">Completed At:</span>
-              <span className="staffTaskValue">
-                {task.currentStatus === "completed" ? task.completedAt : "—"}
-              </span>
-            </div>
-
             <div className="staffTaskDescriptionBlock">
               <span className="staffTaskLabel">Description:</span>
 
@@ -168,6 +155,30 @@ export default function AdminTaskCard({
                   {descriptionExpanded ? "Show less" : "Show more"}
                 </button>
               )}
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Created At:</span>
+              <span className="staffTaskValue">{task.createdAt}</span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Expires At:</span>
+              <span className="staffTaskValue">{task.expiresAt}</span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Current Status:</span>
+              <span className="staffTaskValue">
+                {getStatusLabel(task.currentStatus)}
+              </span>
+            </div>
+
+            <div className="staffTaskRow">
+              <span className="staffTaskLabel">Completed At:</span>
+              <span className="staffTaskValue">
+                {task.currentStatus === "completed" ? task.completedAt : "—"}
+              </span>
             </div>
           </div>
         </>

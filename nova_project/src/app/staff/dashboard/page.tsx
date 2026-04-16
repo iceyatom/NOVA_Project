@@ -4,7 +4,7 @@ import TaskWidget from "@/app/components/TaskWidget";
 import { useLoginStatus } from "../../LoginStatusContext";
 
 export default function StaffDashboardHome() {
-  const { account } = useLoginStatus();
+  const { account, accountId } = useLoginStatus();
 
   return (
     <div>
@@ -44,7 +44,7 @@ export default function StaffDashboardHome() {
           </div>
         </div>
 
-        {TaskWidget(account)}
+        <TaskWidget accountId={accountId} />
 
         <div className="staffCard col12">
           <div className="staffCardLabel">Inventory Tracker</div>

@@ -2150,6 +2150,16 @@ body {
   background: #995b00;
 }
 
+.staff-dev-pill--danger {
+  background: #b42318;
+  border-color: rgba(102, 28, 28, 0.35);
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.18);
+}
+
+.staff-dev-pill--danger:hover {
+  background: #941b12;
+}
+
 .staff-dev-pill--reset-ready {
   background: #4a6fbe;
   border-color: rgba(28, 52, 102, 0.35);
@@ -3694,6 +3704,16 @@ body:has(.loginPage) main {
   border-radius: 16px;
   background: #ffffff;
   padding: 18px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.staffEmployeeGroup.isDragOver {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.18);
 }
 
 .staffEmployeeGroupTitle {
@@ -3847,6 +3867,21 @@ body:has(.loginPage) main {
   opacity: 0.95;
 }
 
+.selectTasksButton {
+  background: #2563eb;
+}
+
+.editSelectedButton {
+  background: #0f766e;
+}
+
+.selectTasksButton.isActive {
+  background: #1d4ed8;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.26),
+    0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
 .staffActionButtonIcon {
   display: inline-block;
   transition: transform 0.2s ease;
@@ -3914,6 +3949,16 @@ body:has(.loginPage) main {
   border-radius: 16px;
   background: #ffffff;
   padding: 18px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.staffEmployeeGroup.isDragOver {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.18);
 }
 
 .staffEmployeeGroupTitle {
@@ -4092,6 +4137,56 @@ body:has(.loginPage) main {
   margin-bottom: 20px;
 }
 
+.staffTaskLegendActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.staffTaskCreateModal {
+  max-width: 560px;
+}
+
+.staffBulkEditSummary {
+  margin: 8px 0 12px;
+}
+
+.staffTaskCreateForm__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.staffBulkDateInputWrapper {
+  position: relative;
+}
+
+.staffBulkDateInputWrapper .item-search-page__search-input {
+  position: relative;
+  z-index: 1;
+}
+
+.staffBulkDateInputWrapper.isMixed .item-search-page__search-input {
+  color: transparent;
+  text-shadow: none;
+}
+
+.staffBulkFieldDash {
+  position: absolute;
+  inset: 50% auto auto 14px;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.staffTaskCreateForm__textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
 .staffTaskLegend {
   display: flex;
   flex-wrap: wrap;
@@ -4180,6 +4275,16 @@ body:has(.loginPage) main {
   border-radius: 16px;
   background: #ffffff;
   padding: 18px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.staffEmployeeGroup.isDragOver {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  box-shadow: inset 0 0 0 1px rgba(107, 114, 128, 0.18);
 }
 
 .staffEmployeeGroupHeader {
@@ -4215,6 +4320,45 @@ body:has(.loginPage) main {
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
   min-width: 0;
   align-self: start;
+  cursor: grab;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.staffTaskCard:active {
+  cursor: grabbing;
+}
+
+.staffTaskCard.isPointerDragging {
+  visibility: hidden;
+}
+
+.staffTaskDragOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1200;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.staffTaskDragOverlay .staffTaskCard {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
+}
+
+.staffTaskDragOverlay--drop {
+  transition:
+    transform 170ms cubic-bezier(0.18, 0.9, 0.32, 1),
+    opacity 170ms ease-out;
+}
+
+.staffTaskDragOverlay--drop.isActive {
+  opacity: 0.88;
 }
 
 .staffTaskCard.isCollapsed {
@@ -4237,6 +4381,28 @@ body:has(.loginPage) main {
   background: #ffffff;
 }
 
+.staffTaskCard.isSelectMode {
+  cursor: pointer;
+}
+
+.staffTaskCard.isSelectMode:active {
+  cursor: pointer;
+}
+
+.staffTaskCard.isSelectMode:hover {
+  border-color: #60a5fa;
+  box-shadow:
+    0 10px 22px rgba(37, 99, 235, 0.14),
+    inset 0 0 0 999px rgba(59, 130, 246, 0.1);
+}
+
+.staffTaskCard.isSelected {
+  border-color: #2563eb;
+  box-shadow:
+    0 12px 24px rgba(37, 99, 235, 0.2),
+    inset 0 0 0 999px rgba(59, 130, 246, 0.18);
+}
+
 .staffTaskCardHeader {
   display: flex;
   justify-content: space-between;
@@ -4256,6 +4422,35 @@ body:has(.loginPage) main {
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
+}
+
+.staffTaskCardHeaderButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staffTaskEditButton {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #1f2937;
+  font-size: 0.92rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  transform: scaleX(-1);
+}
+
+.staffTaskEditButton:hover {
+  transform: scaleX(-1) scale(1.03);
+  background: rgba(248, 250, 252, 0.95);
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.14);
 }
 
 .staffTaskTitle {
@@ -4418,9 +4613,19 @@ body:has(.loginPage) main {
     align-items: stretch;
   }
 
+  .staffTaskLegendActions {
+    justify-content: flex-end;
+  }
+
   .staffEmployeeGroupHeader {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 700px) {
+  .staffTaskCreateForm__row {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -4431,5 +4636,20 @@ body:has(.loginPage) main {
 
   .staffEmployeeTaskGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+.staffTaskSummaryRow {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.staffTaskSummaryCard {
+  grid-column: auto;
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .staffTaskSummaryRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

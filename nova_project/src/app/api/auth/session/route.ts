@@ -46,6 +46,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       account: {
+        id: account.id,
         email: account.email,
         displayName: account.displayName,
         role: account.role,

@@ -13,6 +13,7 @@ type LoginResponse = {
   lockoutUntil?: string;
   role?: string;
   account?: {
+    id?: number;
     email?: string;
     displayName?: string | null;
     role?: string;
@@ -49,6 +50,7 @@ export default function LoginSignIn() {
     setLoggedIn,
     account,
     setAccount,
+    setAccountId,
     setAccountEmail,
     setUserRole,
   } = useLoginStatus();
@@ -160,6 +162,7 @@ export default function LoginSignIn() {
       if (!response.ok || !data.ok) {
         setLoggedIn(false);
         setAccount("");
+        setAccountId(0);
         setAccountEmail("");
         setUserRole("");
 
@@ -185,6 +188,7 @@ export default function LoginSignIn() {
       setLockoutUntil(null);
       setLoggedIn(true);
       setAccount(data.account?.displayName || data.account?.email || username);
+      setAccountId(data.account?.id ?? 0);
       setAccountEmail(data.account?.email || email);
       setUserRole(data.role || data.account?.role || "");
       setAuthError("");
@@ -193,6 +197,7 @@ export default function LoginSignIn() {
       await delayPromise;
       setLoggedIn(false);
       setAccount("");
+      setAccountId(0);
       setAccountEmail("");
       setUserRole("");
       setAuthError("Unable to login right now. Please try again.");
@@ -301,6 +306,7 @@ export default function LoginSignIn() {
               await fetch("/api/auth/logout", { method: "POST" });
               setLoggedIn(false);
               setAccount("");
+              setAccountId(0);
               setAccountEmail("");
               setUserRole("");
               setUsername("");
