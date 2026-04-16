@@ -51,7 +51,10 @@ type SessionResponse = {
   };
 };
 
-const PAGE_SIZE = 20;
+type AccountRoleFilter = "all" | EditableRole;
+
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 const ACCOUNT_ROLE_OPTIONS: EditableRole[] = ["ADMIN", "STAFF", "CUSTOMER"];
 
 function parseAccountList(payload: unknown): StaffAccountListItem[] {
@@ -144,6 +147,8 @@ export default function StaffAccountManagementPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortColumn | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  const [roleFilter, setRoleFilter] = useState<AccountRoleFilter>("all");
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [editAccount, setEditAccount] = useState<StaffAccountListItem | null>(
     null,
@@ -163,6 +168,8 @@ export default function StaffAccountManagementPage() {
   const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -209,9 +216,12 @@ export default function StaffAccountManagementPage() {
 
       try {
         const params = new URLSearchParams({
-          pageSize: String(PAGE_SIZE),
+          pageSize: String(pageSize),
           offset: String(offset),
         });
+        if (roleFilter !== "all") {
+          params.set("role", roleFilter);
+        }
         if (sortBy) {
           params.set("sortBy", sortBy);
           params.set("sortOrder", sortOrder);
@@ -269,20 +279,20 @@ export default function StaffAccountManagementPage() {
     return () => {
       isMounted = false;
     };
-  }, [offset, sortBy, sortOrder, refreshNonce]);
+  }, [offset, pageSize, roleFilter, sortBy, sortOrder, refreshNonce]);
 
   const totalPages = useMemo(() => {
     if (totalAccounts <= 0) return 1;
-    return Math.max(1, Math.ceil(totalAccounts / PAGE_SIZE));
-  }, [totalAccounts]);
+    return Math.max(1, Math.ceil(totalAccounts / pageSize));
+  }, [pageSize, totalAccounts]);
 
-  const currentPage = useMemo(
-    () => Math.floor(offset / PAGE_SIZE) + 1,
-    [offset],
-  );
+  const currentPage = useMemo(() => Math.floor(offset / pageSize) + 1, [
+    offset,
+    pageSize,
+  ]);
   const maxOffset = useMemo(
-    () => Math.max(0, (totalPages - 1) * PAGE_SIZE),
-    [totalPages],
+    () => Math.max(0, (totalPages - 1) * pageSize),
+    [pageSize, totalPages],
   );
 
   const normalizedDisplayNameInput = editDisplayName.trim();
@@ -302,6 +312,12 @@ export default function StaffAccountManagementPage() {
     isDisplayNameDirty || isEmailDirty || isPhoneDirty || isRoleDirty;
   const isModalBusy = isSavingEdit || isDeletingAccount;
   const isViewerStaff = normalizeRole(viewerRole ?? "STAFF") === "STAFF";
+  const selectedAccountIdSet = useMemo(
+    () => new Set(selectedAccountIds),
+    [selectedAccountIds],
+  );
+  const selectedAccountCount = selectedAccountIds.length;
+  const tableColumnCount = 7 + (isSelectMode ? 1 : 0);
   const nextEditableRole = parseEditableRole(normalizedRoleInput);
   const roleChangeWarning =
     editInitial && nextEditableRole && editInitial.role !== nextEditableRole
@@ -317,7 +333,7 @@ export default function StaffAccountManagementPage() {
   }
 
   function handleJumpByPages(pageDelta: number) {
-    handlePageChange(offset + pageDelta * PAGE_SIZE);
+    handlePageChange(offset + pageDelta * pageSize);
   }
 
   function handleSortChange(column: SortColumn) {
@@ -340,6 +356,53 @@ export default function StaffAccountManagementPage() {
     }
 
     return sortOrder === "asc" ? " \u2191" : " \u2193";
+  }
+
+  function handleRoleFilterChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    setRoleFilter(event.target.value as AccountRoleFilter);
+    setOffset(0);
+  }
+
+  function handlePageSizeChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const parsedPageSize = Number.parseInt(event.target.value, 10);
+    const nextPageSize = PAGE_SIZE_OPTIONS.includes(
+      parsedPageSize as (typeof PAGE_SIZE_OPTIONS)[number],
+    )
+      ? parsedPageSize
+      : DEFAULT_PAGE_SIZE;
+    setPageSize(nextPageSize);
+    setOffset(0);
+  }
+
+  function handleClearFilters() {
+    setRoleFilter("all");
+    setPageSize(DEFAULT_PAGE_SIZE);
+    setSortBy(null);
+    setSortOrder("asc");
+    setOffset(0);
+  }
+
+  function toggleSelectMode() {
+    setIsSelectMode((currentValue) => {
+      const nextValue = !currentValue;
+      if (!nextValue) {
+        setSelectedAccountIds([]);
+      }
+      return nextValue;
+    });
+  }
+
+  function toggleAccountSelection(accountId: number) {
+    setSelectedAccountIds((currentIds) => {
+      if (currentIds.includes(accountId)) {
+        return currentIds.filter((id) => id !== accountId);
+      }
+      return [...currentIds, accountId];
+    });
+  }
+
+  function handleEditSelectedClick() {
+    return;
   }
 
   function resetEditModalState() {
@@ -574,7 +637,7 @@ export default function StaffAccountManagementPage() {
       resetEditModalState();
 
       if (shouldMoveToPreviousPage) {
-        setOffset((currentOffset) => Math.max(0, currentOffset - PAGE_SIZE));
+        setOffset((currentOffset) => Math.max(0, currentOffset - pageSize));
       } else {
         setRefreshNonce((current) => current + 1);
       }
@@ -591,13 +654,75 @@ export default function StaffAccountManagementPage() {
     <div>
       <div className="staffTitle">Account Management</div>
       <div className="staffSubtitle">
-        View staff and customer accounts. Filtering controls are intentionally
-        omitted for this first pass.
+        View staff and customer accounts and filter by role or page size.
       </div>
 
       <div className="staffGrid">
         <div className="staffCard col12">
           <div className="staffCardLabel">Account Directory</div>
+
+          <div className="item-search-page__controls">
+            <div className="item-search-page__search">
+              <div className="item-search-page__filter-row">
+                <select
+                  className="item-search-page__select"
+                  onChange={handleRoleFilterChange}
+                  value={roleFilter}
+                >
+                  <option value="all">Role: All</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="STAFF">Staff</option>
+                  <option value="CUSTOMER">Customer</option>
+                </select>
+
+                <select
+                  className="item-search-page__select"
+                  onChange={handlePageSizeChange}
+                  value={String(pageSize)}
+                >
+                  <option value="20">20 per page</option>
+                  <option value="50">50 per page</option>
+                  <option value="100">100 per page</option>
+                </select>
+
+                <button
+                  type="button"
+                  className="item-search-page__filter-button"
+                  onClick={handleClearFilters}
+                  disabled={
+                    roleFilter === "all" &&
+                    pageSize === DEFAULT_PAGE_SIZE &&
+                    !sortBy
+                  }
+                >
+                  Clear Filters
+                </button>
+
+                <div className="account-management__filter-actions">
+                  {selectedAccountCount > 0 ? (
+                    <button
+                      type="button"
+                      className="item-search-page__filter-button account-management__edit-selected-button"
+                      onClick={handleEditSelectedClick}
+                    >
+                      Edit ({selectedAccountCount})
+                    </button>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    className={`item-search-page__filter-button account-management__select-button ${
+                      isSelectMode ? "account-management__select-button--active" : ""
+                    }`}
+                    onClick={toggleSelectMode}
+                    disabled={isLoading || (accounts.length === 0 && !isSelectMode)}
+                  >
+                    {isSelectMode ? `Select (${selectedAccountCount})` : "Select"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="item-search-page__table-wrap">
             <div className="item-search-page__table-scroll">
@@ -605,6 +730,11 @@ export default function StaffAccountManagementPage() {
                 <table className="item-search-page__table">
                   <thead className="item-search-page__thead">
                     <tr>
+                      {isSelectMode ? (
+                        <th className="item-search-page__th account-management__select-col">
+                          Select
+                        </th>
+                      ) : null}
                       <th className="item-search-page__th">
                         <button
                           className={`item-search-page__th-button${
@@ -690,19 +820,28 @@ export default function StaffAccountManagementPage() {
                   <tbody className="item-search-page__tbody">
                     {isLoading && accounts.length === 0 ? (
                       <tr className="item-search-page__tr">
-                        <td className="item-search-page__td" colSpan={7}>
+                        <td
+                          className="item-search-page__td"
+                          colSpan={tableColumnCount}
+                        >
                           Loading accounts...
                         </td>
                       </tr>
                     ) : loadError ? (
                       <tr className="item-search-page__tr">
-                        <td className="item-search-page__td" colSpan={7}>
+                        <td
+                          className="item-search-page__td"
+                          colSpan={tableColumnCount}
+                        >
                           {loadError}
                         </td>
                       </tr>
                     ) : accounts.length === 0 ? (
                       <tr className="item-search-page__tr">
-                        <td className="item-search-page__td" colSpan={7}>
+                        <td
+                          className="item-search-page__td"
+                          colSpan={tableColumnCount}
+                        >
                           No accounts found.
                         </td>
                       </tr>
@@ -710,6 +849,17 @@ export default function StaffAccountManagementPage() {
                       <>
                         {accounts.map((account) => (
                           <tr key={account.id} className="item-search-page__tr">
+                            {isSelectMode ? (
+                              <td className="item-search-page__td account-management__select-col">
+                                <input
+                                  type="checkbox"
+                                  className="account-management__select-checkbox"
+                                  checked={selectedAccountIdSet.has(account.id)}
+                                  onChange={() => toggleAccountSelection(account.id)}
+                                  aria-label={`Select account ${account.email}`}
+                                />
+                              </td>
+                            ) : null}
                             <td className="item-search-page__td">
                               {account.id}
                             </td>
@@ -776,7 +926,7 @@ export default function StaffAccountManagementPage() {
                     </button>
                     <button
                       className="pagination__nav"
-                      onClick={() => handlePageChange(offset - PAGE_SIZE)}
+                      onClick={() => handlePageChange(offset - pageSize)}
                       disabled={isLoading || offset === 0}
                     >
                       &lt;
@@ -786,7 +936,7 @@ export default function StaffAccountManagementPage() {
                     </span>
                     <button
                       className="pagination__nav"
-                      onClick={() => handlePageChange(offset + PAGE_SIZE)}
+                      onClick={() => handlePageChange(offset + pageSize)}
                       disabled={isLoading || currentPage === totalPages}
                     >
                       &gt;

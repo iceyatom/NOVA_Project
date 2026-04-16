@@ -123,6 +123,14 @@ function parseAccountRole(value: string): AccountRole | null {
   return null;
 }
 
+function parseRoleFilter(value: string | null): AccountRole | null {
+  if (!value) {
+    return null;
+  }
+
+  return parseAccountRole(normalizeRole(value));
+}
+
 function parsePositiveInt(value: unknown): number | null {
   const parsed =
     typeof value === "number"
@@ -307,10 +315,14 @@ export async function GET(request: NextRequest) {
     const sortOrder = parseSortOrder(
       request.nextUrl.searchParams.get("sortOrder"),
     );
+    const roleFilter = parseRoleFilter(
+      request.nextUrl.searchParams.get("role"),
+    );
 
     const allAccounts = await prisma.account.findMany({
       where: {
         deletedAt: null,
+        ...(roleFilter ? { role: roleFilter } : {}),
       },
       select: {
         id: true,
@@ -335,6 +347,7 @@ export async function GET(request: NextRequest) {
       offset,
       sortBy,
       sortOrder,
+      roleFilter,
     });
   } catch (error) {
     console.error("[accounts/staff] GET failed", error);
