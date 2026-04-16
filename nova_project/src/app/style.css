@@ -2731,6 +2731,25 @@ body:has(.loginPage) main {
   text-decoration: none;
 }
 
+.account-management__action-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.account-management__action-link:disabled {
+  color: #94a3b8;
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
+.account-management__action-disabled {
+  color: #94a3b8;
+}
+
 .item-search-page__th-button {
   display: inline-block;
   margin: 0;
