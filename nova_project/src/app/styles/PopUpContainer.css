@@ -16,8 +16,14 @@
   padding: 20px;
   border-radius: 8px;
   position: relative;
-  min-width: 300px;
-  max-width: 90%;
+  width: min(960px, 92vw);
+  min-width: 320px;
+  max-width: 960px;
+}
+
+.popup-content .staffTaskCard,
+.popup-content .staffTaskCard:active {
+  cursor: default !important;
 }
 
 .close-button {

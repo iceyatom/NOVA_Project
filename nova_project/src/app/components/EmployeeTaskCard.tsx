@@ -10,15 +10,17 @@ export default function EmployeeTaskCard({
   task,
   isSummary,
   onTaskUpdate,
+  onTaskSave,
 }: {
   task: EmployeeTask;
   isSummary: boolean;
   onTaskUpdate?: (task: EmployeeTask) => void;
+  onTaskSave?: () => void;
 }) {
   const [status, setStatus] = useState(task.currentStatus);
   const [completedAt, setCompletedAt] = useState(task.completedAt);
-  const [oldTask, setOldTask] = useState(task);
-  const [currentTask, setCurrentTask] = useState(task);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   function getDate() {
     return new Date()
@@ -36,58 +38,64 @@ export default function EmployeeTaskCard({
   useEffect(() => {
     setStatus(task.currentStatus);
     setCompletedAt(task.completedAt || undefined);
+    setSaveError(null);
   }, [task]);
-
-  useEffect(() => {
-    function updateEmployeeTask(task: EmployeeTask) {
-      const employeeTask: EmployeeTask = {
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        assignedToAccountId: task.assignedToAccountId,
-        employeeName: task.employeeName,
-        employeePosition: task.employeePosition,
-        createdAt: task.createdAt,
-        completedAt: completedAt,
-        expiresAt: task.expiresAt,
-        currentStatus: status,
-      };
-      return employeeTask;
-    }
-
-    if (status === "completed") {
-      setCompletedAt(getDate());
-    } else {
-      setCompletedAt(undefined);
-    }
-    setCurrentTask(updateEmployeeTask(task));
-  }, [status, task, completedAt]);
 
   function setTaskStatus(status: string) {
     setStatus(stringToTaskStatus(status));
+    setSaveError(null);
   }
 
-  function updateTask() {
-    const completedAtNow = status === "completed" ? getDate() : undefined;
-    setCompletedAt(completedAtNow);
-
-    if (JSON.stringify(currentTask) === JSON.stringify(oldTask)) {
+  async function updateTask() {
+    if (status === task.currentStatus || isSaving) {
       return;
     }
 
-    // Send payload to the database here
-    console.log("Payload sent to database! Payload: ", currentTask); // Remove these console logs if not needed
-    // Database logic here
+    setIsSaving(true);
+    setSaveError(null);
 
-    // Once the database confirms success, update the task
-    const databaseConfirm = Math.random() < 0.5; // Replace with actual database confirmation
+    try {
+      const response = await fetch("/api/tasks/staff", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          taskId: task.id,
+          status,
+        }),
+      });
 
-    if (databaseConfirm) {
-      console.log("Database task update confirmation successful!"); // Remove these console logs if not needed
-      setOldTask(currentTask);
-      onTaskUpdate?.(currentTask);
-    } else {
-      console.log("Database task update confirmation failed!"); // Remove these console logs if not needed
+      const payload = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+      };
+
+      if (!response.ok || payload.success === false) {
+        const message =
+          typeof payload.error === "string"
+            ? payload.error
+            : `Task update failed (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      const completedAtNow =
+        status === "completed" ? (task.completedAt ?? getDate()) : undefined;
+      setCompletedAt(completedAtNow);
+      const updatedTask: EmployeeTask = {
+        ...task,
+        currentStatus: status,
+        completedAt: completedAtNow,
+      };
+
+      onTaskUpdate?.(updatedTask);
+      onTaskSave?.();
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to update task.",
+      );
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -156,8 +164,9 @@ export default function EmployeeTaskCard({
               <span className="staffTaskLabel">Current Status:</span>
               <select
                 className="item-search-page__select"
-                defaultValue={status}
+                value={status}
                 onChange={(e) => setTaskStatus(e.target.value)}
+                disabled={isSaving}
               >
                 <option value="not-started">Not Started</option>
                 <option value="in-progress">In Progress</option>
@@ -165,12 +174,18 @@ export default function EmployeeTaskCard({
               </select>
             </div>
 
+            {saveError && (
+              <div className="item-category-form__status item-category-form__status--error">
+                {saveError}
+              </div>
+            )}
+
             <button
               className="staff-dev-pill"
-              disabled={JSON.stringify(currentTask) === JSON.stringify(oldTask)}
-              onClick={updateTask}
+              disabled={status === task.currentStatus || isSaving}
+              onClick={() => void updateTask()}
             >
-              Save
+              {isSaving ? "Saving..." : "Save"}
             </button>
           </div>
         </>

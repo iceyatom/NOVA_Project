@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -24,6 +25,8 @@ type DeleteTaskPayload = {
   taskId?: unknown;
 };
 
+type WidgetTaskStatus = "not-started" | "in-progress" | "completed";
+
 function withNoCache(resp: NextResponse) {
   resp.headers.set(
     "Cache-Control",
@@ -44,6 +47,169 @@ function badRequest(message: string) {
       { status: 400 },
     ),
   );
+}
+
+function unauthorizedRequest(message = "Unauthorized.") {
+  return withNoCache(
+    NextResponse.json(
+      {
+        success: false,
+        error: message,
+      },
+      { status: 401 },
+    ),
+  );
+}
+
+function formatCardDate(date: Date): string {
+  return date
+    .toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(/,([^,]*)$/, " -$1");
+}
+
+function roleToPosition(role: string): string {
+  const normalized = role.trim().toUpperCase();
+
+  if (normalized === "ADMIN") return "Administrator";
+  if (normalized === "STAFF") return "Staff";
+  return role;
+}
+
+function mapDbTaskStatus(status: string): WidgetTaskStatus {
+  if (status === "NOT_STARTED") return "not-started";
+  if (status === "IN_PROGRESS") return "in-progress";
+  if (status === "COMPLETE") return "completed";
+  return "not-started";
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("session")?.value;
+
+    if (!token) {
+      return unauthorizedRequest();
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { token },
+      include: {
+        account: {
+          select: {
+            id: true,
+            status: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !session ||
+      session.expiresAt < new Date() ||
+      !session.account ||
+      session.account.deletedAt ||
+      session.account.status.toLowerCase() !== "active"
+    ) {
+      return unauthorizedRequest();
+    }
+
+    const accountIdParam = request.nextUrl.searchParams.get("accountId") ?? "";
+    const accountId = Number.parseInt(accountIdParam, 10);
+
+    if (!Number.isInteger(accountId) || accountId <= 0) {
+      return badRequest("A valid accountId query parameter is required.");
+    }
+
+    if (session.account.id !== accountId) {
+      return withNoCache(
+        NextResponse.json(
+          {
+            success: false,
+            error: "Forbidden.",
+          },
+          { status: 403 },
+        ),
+      );
+    }
+
+    const limitParam = request.nextUrl.searchParams.get("limit");
+    const requestedLimit = limitParam ? Number.parseInt(limitParam, 10) : 5;
+    const taskLimit =
+      Number.isInteger(requestedLimit) && requestedLimit > 0
+        ? Math.min(requestedLimit, 20)
+        : 5;
+
+    const tasks = await prisma.task.findMany({
+      where: {
+        assignedToAccountId: accountId,
+      },
+      orderBy: [{ createdAt: "asc" }],
+      take: taskLimit,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        status: true,
+        assignedToAccountId: true,
+        createdAt: true,
+        completedAt: true,
+        expiresAt: true,
+        assignedTo: {
+          select: {
+            email: true,
+            displayName: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    const mappedTasks = tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      description: task.description ?? "",
+      assignedToAccountId: task.assignedToAccountId,
+      employeeName:
+        task.assignedTo.displayName?.trim() || task.assignedTo.email,
+      employeePosition: roleToPosition(task.assignedTo.role),
+      createdAt: formatCardDate(task.createdAt),
+      completedAt: task.completedAt
+        ? formatCardDate(task.completedAt)
+        : undefined,
+      expiresAt: formatCardDate(task.expiresAt),
+      expiresAtIso: task.expiresAt.toISOString(),
+      currentStatus: mapDbTaskStatus(task.status),
+    }));
+
+    return withNoCache(
+      NextResponse.json(
+        {
+          success: true,
+          tasks: mappedTasks,
+        },
+        { status: 200 },
+      ),
+    );
+  } catch (error) {
+    console.error("GET /api/tasks/staff failed", error);
+    return withNoCache(
+      NextResponse.json(
+        {
+          success: false,
+          error: "Failed to fetch tasks.",
+        },
+        { status: 500 },
+      ),
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {

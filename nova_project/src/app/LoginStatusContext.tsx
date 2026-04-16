@@ -1,15 +1,30 @@
 "use client";
 import { createContext, useContext, useState, useEffect } from "react";
 
-const LoginStatusContext = createContext({
+type LoginStatusContextValue = {
+  loggedIn: boolean;
+  setLoggedIn: (value: boolean) => void;
+  account: string;
+  setAccount: (value: string) => void;
+  accountId: number;
+  setAccountId: (value: number) => void;
+  accountEmail: string;
+  setAccountEmail: (value: string) => void;
+  userRole: string;
+  setUserRole: (value: string) => void;
+};
+
+const LoginStatusContext = createContext<LoginStatusContextValue>({
   loggedIn: false,
-  setLoggedIn: (v: boolean) => {},
+  setLoggedIn: () => {},
   account: "",
-  setAccount: (v: string) => {},
+  setAccount: () => {},
+  accountId: 0,
+  setAccountId: () => {},
   accountEmail: "",
-  setAccountEmail: (v: string) => {},
+  setAccountEmail: () => {},
   userRole: "",
-  setUserRole: (v: string) => {},
+  setUserRole: () => {},
 });
 
 export function useLoginStatus() {
@@ -23,6 +38,7 @@ export function LoginStatusProvider({
 }) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [account, setAccount] = useState("");
+  const [accountId, setAccountId] = useState(0);
   const [accountEmail, setAccountEmail] = useState("");
   const [userRole, setUserRole] = useState("");
 
@@ -33,6 +49,9 @@ export function LoginStatusProvider({
         if (data?.ok && data.account) {
           setLoggedIn(true);
           setAccount(data.account.displayName ?? data.account.email);
+          setAccountId(
+            typeof data.account.id === "number" ? data.account.id : 0,
+          );
           setAccountEmail(data.account.email);
           setUserRole(data.account.role);
         }
@@ -47,6 +66,8 @@ export function LoginStatusProvider({
         setLoggedIn,
         account,
         setAccount,
+        accountId,
+        setAccountId,
         accountEmail,
         setAccountEmail,
         userRole,

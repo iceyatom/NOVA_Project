@@ -65,6 +65,7 @@ export default function AccountDashboard() {
     setLoggedIn,
     account,
     setAccount,
+    setAccountId,
     accountEmail,
     setAccountEmail,
     setUserRole,
@@ -220,6 +221,7 @@ export default function AccountDashboard() {
   const handleLogout = () => {
     setLoggedIn(false);
     setAccount("");
+    setAccountId(0);
     setAccountEmail("");
     setUserRole("");
     setCurrentPassword("");

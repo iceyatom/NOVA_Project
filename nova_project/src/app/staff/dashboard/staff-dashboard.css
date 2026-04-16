@@ -206,7 +206,12 @@
   margin-top: 8px;
   font-size: 13px;
   color: #64748b;
-  cursor: pointer;
+  cursor: default;
+}
+
+.employeeCardHint .staffTaskCard,
+.employeeCardHint .staffTaskCard:active {
+  cursor: default;
 }
 
 .col4 {

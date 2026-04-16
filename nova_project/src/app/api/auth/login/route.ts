@@ -277,6 +277,7 @@ export async function POST(request: Request) {
     const response = jsonResponse({
       ok: true,
       account: {
+        id: account.id,
         email: account.email,
         displayName: account.displayName,
         role: account.role,

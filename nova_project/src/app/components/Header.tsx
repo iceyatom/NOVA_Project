@@ -24,6 +24,7 @@ export default function Header() {
     userRole,
     setLoggedIn,
     setAccount,
+    setAccountId,
     setAccountEmail,
     setUserRole,
   } = useLoginStatus();
@@ -33,6 +34,7 @@ export default function Header() {
     await fetch("/api/auth/logout", { method: "POST" });
     setLoggedIn(false);
     setAccount("");
+    setAccountId(0);
     setAccountEmail("");
     setUserRole("");
     setShowProfile(false);
