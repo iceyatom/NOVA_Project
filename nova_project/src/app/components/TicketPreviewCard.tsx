@@ -14,7 +14,7 @@ export type TicketPreviewLine = {
 export type TicketPreview = {
   id: number;
   type: TicketType;
-  note: string;
+  notes: string;
   createdAt: string;
   createdAtIso: string;
   createdByAccountId: number;
@@ -55,7 +55,7 @@ export default function TicketPreviewCard({
       : ticket.type === "SPOILAGE"
         ? "ticketPreviewTypeBadge--spoilage"
         : "ticketPreviewTypeBadge--order";
-  const noteText = ticket.note.trim() || "No notes provided for this ticket.";
+  const noteText = ticket.notes.trim() || "No notes provided for this ticket.";
   const hasMissingPriceRate = ticket.lines.some(
     (line) => line.priceRate === null,
   );

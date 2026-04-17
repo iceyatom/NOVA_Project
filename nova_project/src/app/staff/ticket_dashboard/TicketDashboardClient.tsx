@@ -91,7 +91,7 @@ function parseTickets(payload: unknown): TicketPreview[] {
       return {
         id,
         type: parseTicketType(ticket.type),
-        note: typeof ticket.note === "string" ? ticket.note : "",
+        notes: typeof ticket.notes === "string" ? ticket.notes : "",
         createdAt: formatTicketDate(ticket.createdAt),
         createdAtIso:
           typeof ticket.createdAtIso === "string" ? ticket.createdAtIso : "",

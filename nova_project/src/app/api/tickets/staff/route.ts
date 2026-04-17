@@ -10,7 +10,7 @@ const VALID_TICKET_TYPES = new Set(["ORDER", "SUPPLY", "SPOILAGE"] as const);
 
 type CreateTicketRequestBody = {
   type?: unknown;
-  note?: unknown;
+  notes?: unknown;
   createdByEmail?: unknown;
   lines?: unknown;
 };
@@ -75,7 +75,7 @@ function formatCardDate(date: Date): string {
 
 function parseBody(body: CreateTicketRequestBody): {
   type: TicketType;
-  note: string;
+  notes: string;
   createdByEmail: string;
   lines: ParsedLine[];
 } {
@@ -85,9 +85,12 @@ function parseBody(body: CreateTicketRequestBody): {
     throw new Error("Ticket type is invalid.");
   }
 
-  const note = typeof body.note === "string" ? body.note.trim() : "";
-  if (!note) {
-    throw new Error("Ticket note is required.");
+  const notes = typeof body.notes === "string" ? body.notes.trim() : "";
+  if (!notes) {
+    throw new Error("Ticket notes are required.");
+  }
+  if (notes.length > 500) {
+    throw new Error("Ticket notes must be 500 characters or fewer.");
   }
 
   const createdByEmail =
@@ -131,7 +134,7 @@ function parseBody(body: CreateTicketRequestBody): {
 
   return {
     type: type as TicketType,
-    note,
+    notes,
     createdByEmail,
     lines: parsedLines,
   };
@@ -152,7 +155,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         type: true,
-        note: true,
+        notes: true,
         createdAt: true,
         createdByAccountId: true,
         ticketLines: {
@@ -210,7 +213,7 @@ export async function GET(request: NextRequest) {
       return {
         id: ticket.id,
         type: normalizeTicketType(ticket.type),
-        note: ticket.note ?? "",
+        notes: ticket.notes,
         createdAt: formatCardDate(ticket.createdAt),
         createdAtIso: ticket.createdAt.toISOString(),
         createdByAccountId: ticket.createdByAccountId,
@@ -331,7 +334,7 @@ export async function POST(request: NextRequest) {
         data: {
           createdByAccountId: creator.id,
           type: input.type,
-          note: input.note,
+          notes: input.notes,
         },
         select: { id: true },
       });

@@ -37,7 +37,7 @@ type CreateTicketApiResponse = {
 
 type TicketDraft = {
   type: TicketType;
-  note: string;
+  notes: string;
   lines: TicketLineDraft[];
 };
 
@@ -77,7 +77,7 @@ const TICKET_TYPE_OPTIONS: Array<{ value: TicketType; label: string }> = [
 
 const INITIAL_DRAFT: TicketDraft = {
   type: "ORDER",
-  note: "",
+  notes: "",
   lines: [{ localId: 1, catalogItemId: "", catalogSearch: "", countDelta: "" }],
 };
 
@@ -126,7 +126,7 @@ export default function StaffTicketCreatePage() {
         : null;
   const hasUnsavedChanges = useMemo(() => {
     if (draft.type !== INITIAL_DRAFT.type) return true;
-    if (draft.note.trim().length > 0) return true;
+    if (draft.notes.trim().length > 0) return true;
     if (draft.lines.length !== 1) return true;
 
     const firstLine = draft.lines[0];
@@ -555,7 +555,10 @@ export default function StaffTicketCreatePage() {
     if (firstLine.countDelta.trim() === "0") {
       return "First ticket line quantity cannot be zero.";
     }
-    if (!draft.note.trim()) return "Notes are required.";
+    if (!draft.notes.trim()) return "Notes are required.";
+    if (draft.notes.trim().length > 500) {
+      return "Notes must be 500 characters or fewer.";
+    }
 
     const emptyAdditionalLines = draft.lines
       .slice(1)
@@ -654,7 +657,7 @@ export default function StaffTicketCreatePage() {
 
       const payload = {
         type: draft.type,
-        note: draft.note.trim(),
+        notes: draft.notes.trim(),
         createdByEmail: creatorEmail,
         lines: draft.lines.map((line) => ({
           catalogItemId: Number.parseInt(line.catalogItemId.trim(), 10),
@@ -949,9 +952,10 @@ export default function StaffTicketCreatePage() {
               <textarea
                 className="ticket-create-textarea"
                 rows={5}
-                value={draft.note}
+                maxLength={500}
+                value={draft.notes}
                 onChange={(e) =>
-                  setDraft((prev) => ({ ...prev, note: e.target.value }))
+                  setDraft((prev) => ({ ...prev, notes: e.target.value }))
                 }
                 placeholder="Add context for approvers/reviewers."
               />

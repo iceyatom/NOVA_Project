@@ -127,7 +127,7 @@ model Ticket {
   id                Int      @id @default(autoincrement())
   createdByAccountId Int
   type              String
-  note              String?  @db.Text
+  notes             String   @db.VarChar(500)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   ticketLines      TicketLine[]
