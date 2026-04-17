@@ -164,6 +164,7 @@ export async function GET(request: NextRequest) {
               select: {
                 itemName: true,
                 sku: true,
+                price: true,
               },
             },
           },
@@ -224,6 +225,7 @@ export async function GET(request: NextRequest) {
           itemName: line.catalogItem.itemName,
           sku: line.catalogItem.sku,
           countDelta: line.countDelta,
+          priceRate: line.catalogItem.price,
         })),
       };
     });

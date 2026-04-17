@@ -60,6 +60,12 @@ function parseTickets(payload: unknown): TicketPreview[] {
               const lineId = Number(line.id);
               const catalogItemId = Number(line.catalogItemId);
               const countDelta = Number(line.countDelta);
+              const priceRate =
+                typeof line.priceRate === "number"
+                  ? line.priceRate
+                  : typeof line.priceRate === "string"
+                    ? Number.parseFloat(line.priceRate)
+                    : Number.NaN;
 
               if (!Number.isInteger(lineId) || lineId <= 0) return null;
               if (!Number.isInteger(catalogItemId) || catalogItemId <= 0) {
@@ -76,6 +82,7 @@ function parseTickets(payload: unknown): TicketPreview[] {
                     : `Item #${catalogItemId}`,
                 sku: typeof line.sku === "string" ? line.sku : null,
                 countDelta,
+                priceRate: Number.isFinite(priceRate) ? priceRate : null,
               } satisfies TicketPreviewLine;
             })
             .filter((line): line is TicketPreviewLine => line !== null)
@@ -111,7 +118,6 @@ function parseTickets(payload: unknown): TicketPreview[] {
 
 export default function TicketDashboardClient() {
   const [tickets, setTickets] = useState<TicketPreview[]>([]);
-  const [collapsedTicketIds, setCollapsedTicketIds] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,17 +142,6 @@ export default function TicketDashboardClient() {
 
       const nextTickets = parseTickets(payload.tickets);
       setTickets(nextTickets);
-
-      setCollapsedTicketIds((currentIds) => {
-        const nextIds = nextTickets.map((ticket) => ticket.id);
-
-        if (currentIds.length === 0) {
-          return nextIds;
-        }
-
-        const previousSet = new Set(currentIds);
-        return nextIds.filter((id) => previousSet.has(id));
-      });
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -154,7 +149,6 @@ export default function TicketDashboardClient() {
           : "Failed to load tickets.",
       );
       setTickets([]);
-      setCollapsedTicketIds([]);
     } finally {
       setIsLoading(false);
     }
@@ -163,9 +157,6 @@ export default function TicketDashboardClient() {
   useEffect(() => {
     void loadTickets();
   }, [loadTickets]);
-
-  const areAllCollapsed =
-    tickets.length > 0 && collapsedTicketIds.length === tickets.length;
 
   const totalLineCount = useMemo(
     () => tickets.reduce((sum, ticket) => sum + ticket.lineCount, 0),
@@ -183,27 +174,6 @@ export default function TicketDashboardClient() {
     () => tickets.filter((ticket) => ticket.type === "SPOILAGE").length,
     [tickets],
   );
-
-  function toggleTicketCollapse(ticketId: number) {
-    setCollapsedTicketIds((currentIds) => {
-      if (currentIds.includes(ticketId)) {
-        return currentIds.filter((id) => id !== ticketId);
-      }
-
-      return [...currentIds, ticketId];
-    });
-  }
-
-  function toggleCollapseAll() {
-    setCollapsedTicketIds((currentIds) => {
-      const nextIds = tickets.map((ticket) => ticket.id);
-      if (currentIds.length === nextIds.length) {
-        return [];
-      }
-
-      return nextIds;
-    });
-  }
 
   return (
     <div>
@@ -286,22 +256,6 @@ export default function TicketDashboardClient() {
           >
             {isLoading ? "Loading..." : "Refresh"}
           </button>
-
-          <button
-            type="button"
-            className="staffActionButton"
-            onClick={toggleCollapseAll}
-            disabled={tickets.length === 0}
-          >
-            {areAllCollapsed ? "Expand All" : "Collapse All"}
-            <span
-              className={`staffActionButtonIcon ${
-                areAllCollapsed ? "collapsed" : ""
-              }`}
-            >
-              {"\u25BE"}
-            </span>
-          </button>
         </div>
       </div>
 
@@ -330,12 +284,7 @@ export default function TicketDashboardClient() {
           ) : (
             <div className="staffEmployeeTaskGrid">
               {tickets.map((ticket) => (
-                <TicketPreviewCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  isCollapsed={collapsedTicketIds.includes(ticket.id)}
-                  onToggleCollapse={() => toggleTicketCollapse(ticket.id)}
-                />
+                <TicketPreviewCard key={ticket.id} ticket={ticket} />
               ))}
             </div>
           )}

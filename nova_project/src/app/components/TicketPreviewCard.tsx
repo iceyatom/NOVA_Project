@@ -8,6 +8,7 @@ export type TicketPreviewLine = {
   itemName: string;
   sku: string | null;
   countDelta: number;
+  priceRate: number | null;
 };
 
 export type TicketPreview = {
@@ -30,14 +31,17 @@ function formatSignedQuantity(value: number): string {
   return String(value);
 }
 
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(value);
+}
+
 export default function TicketPreviewCard({
   ticket,
-  isCollapsed,
-  onToggleCollapse,
 }: {
   ticket: TicketPreview;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
 }) {
   const headerColorClass =
     ticket.type === "SUPPLY"
@@ -52,11 +56,16 @@ export default function TicketPreviewCard({
         ? "ticketPreviewTypeBadge--spoilage"
         : "ticketPreviewTypeBadge--order";
   const noteText = ticket.note.trim() || "No notes provided for this ticket.";
+  const hasMissingPriceRate = ticket.lines.some(
+    (line) => line.priceRate === null,
+  );
+  const totalAmount = ticket.lines.reduce((sum, line) => {
+    if (line.priceRate === null) return sum;
+    return sum + Math.abs(line.countDelta) * line.priceRate;
+  }, 0);
 
   return (
-    <article
-      className={`staffTaskCard staffTicketCard ${isCollapsed ? "isCollapsed" : ""}`}
-    >
+    <article className="staffTaskCard staffTicketCard">
       <div className={`ticketPreviewHeader ${headerColorClass}`}>
         <div className="ticketPreviewHeaderRow">
           <div className="ticketPreviewHeaderMeta">
@@ -85,84 +94,79 @@ export default function TicketPreviewCard({
             <div className={`ticketPreviewTypeBadge ${badgeColorClass}`}>
               {ticket.type}
             </div>
-
-            <button
-              type="button"
-              className="staffTaskCollapseButton ticketPreviewCollapseButton ticketPreviewCollapseButton--header"
-              onClick={onToggleCollapse}
-              aria-label={
-                isCollapsed
-                  ? "Expand ticket preview"
-                  : "Collapse ticket preview"
-              }
-            >
-              {isCollapsed ? "Expand" : "Collapse"}
-              <span
-                className={`staffTaskCollapseIcon ${
-                  isCollapsed ? "collapsed" : ""
-                }`}
-              >
-                {"\u25BE"}
-              </span>
-            </button>
           </div>
         </div>
       </div>
 
-      {!isCollapsed ? (
-        <>
-          <div className="staffTaskDivider" />
+      <div className="staffTaskDivider" />
 
-          <div className="staffTaskBody ticketPreviewBody">
-            <div className="ticketPreviewNotesPanel">
-              <div className="ticketPreviewNotesHeader">
-                <div className="ticketPreviewNotesLabel">Notes</div>
-              </div>
-              <div className="ticketPreviewNotesBody">
-                <div className="ticketPreviewNotesText">{noteText}</div>
-              </div>
-            </div>
-
-            <div className="ticketPreviewItemsPanel">
-              <div className="ticketPreviewItemsHeader">
-                <span>Item</span>
-                <span>Count</span>
-              </div>
-
-              {ticket.lines.length === 0 ? (
-                <div className="ticketPreviewItemsEmpty">
-                  No ticket line items were found.
-                </div>
-              ) : null}
-
-              {ticket.lines.map((line) => (
-                <div key={line.id} className="ticketPreviewItemRow">
-                  <div className="ticketPreviewItemDetails">
-                    <span className="ticketPreviewItemName">
-                      {line.itemName}
-                    </span>
-                    {line.sku ? (
-                      <span className="ticketPreviewItemSku">
-                        SKU: {line.sku}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <span
-                    className={`ticketPreviewItemCount ${
-                      line.countDelta >= 0
-                        ? "ticketPreviewItemCount--positive"
-                        : "ticketPreviewItemCount--negative"
-                    }`}
-                  >
-                    {formatSignedQuantity(line.countDelta)}
-                  </span>
-                </div>
-              ))}
-            </div>
+      <div className="staffTaskBody ticketPreviewBody">
+        <div className="ticketPreviewNotesPanel">
+          <div className="ticketPreviewNotesHeader">
+            <div className="ticketPreviewNotesLabel">Notes</div>
           </div>
-        </>
-      ) : null}
+          <div className="ticketPreviewNotesBody">
+            <div className="ticketPreviewNotesText">{noteText}</div>
+          </div>
+        </div>
+
+        <div className="ticketPreviewItemsPanel">
+          <div className="ticketPreviewItemsHeader">
+            <span>Item</span>
+            <span>Price Rate</span>
+            <span>Line Total</span>
+            <span>Count</span>
+          </div>
+
+          {ticket.lines.length === 0 ? (
+            <div className="ticketPreviewItemsEmpty">
+              No ticket line items were found.
+            </div>
+          ) : null}
+
+          {ticket.lines.map((line) => (
+            <div key={line.id} className="ticketPreviewItemRow">
+              <div className="ticketPreviewItemDetails">
+                <span className="ticketPreviewItemName">{line.itemName}</span>
+                {line.sku ? (
+                  <span className="ticketPreviewItemSku">SKU: {line.sku}</span>
+                ) : null}
+              </div>
+
+              <span className="ticketPreviewItemRate">
+                {line.priceRate === null
+                  ? "N/A"
+                  : formatCurrency(line.priceRate)}
+              </span>
+
+              <span className="ticketPreviewItemLineTotal">
+                {line.priceRate === null
+                  ? "N/A"
+                  : formatCurrency(Math.abs(line.countDelta) * line.priceRate)}
+              </span>
+
+              <span
+                className={`ticketPreviewItemCount ${
+                  line.countDelta >= 0
+                    ? "ticketPreviewItemCount--positive"
+                    : "ticketPreviewItemCount--negative"
+                }`}
+              >
+                {formatSignedQuantity(line.countDelta)}
+              </span>
+            </div>
+          ))}
+
+          {ticket.lines.length > 0 ? (
+            <div className="ticketPreviewItemsTotalRow">
+              <span className="ticketPreviewItemsTotalLabel">Total Amount</span>
+              <span className="ticketPreviewItemsTotalValue">
+                {hasMissingPriceRate ? "N/A" : formatCurrency(totalAmount)}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </article>
   );
 }
