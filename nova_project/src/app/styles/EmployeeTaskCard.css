@@ -3,3 +3,45 @@
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
 }
+
+.staffTaskStatusBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staffTaskTitleDashboardExpanded {
+  font-size: 22px;
+}
+
+.staffTaskCardDashboardExpanded {
+  background: #f8fafc;
+}
+
+.staffTaskCardDashboardExpanded .staffTaskCardHeader {
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.staffTaskCardDashboardExpanded.completed .staffTaskCardHeader {
+  background: #dcfce7;
+}
+
+.staffTaskCardDashboardExpanded.expired .staffTaskCardHeader {
+  background: #fee2e2;
+}
+
+.staffTaskCardDashboardExpanded.in-progress .staffTaskCardHeader {
+  background: #fef3c7;
+}
+
+.staffTaskCardDashboardExpanded.not-started .staffTaskCardHeader {
+  background: #f3f4f6;
+}
+
+.staffTaskCardDashboardExpanded .staffTaskBody {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+}

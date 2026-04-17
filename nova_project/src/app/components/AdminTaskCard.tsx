@@ -67,15 +67,21 @@ export default function AdminTaskCard({
 }) {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
-  const expiredStatus =
-    task.currentStatus === "not-started" &&
-    new Date(task.expiresAt.replace("-", "")) < new Date()
-      ? "expired"
-      : task.currentStatus;
+  function isTaskLate() {
+    const parsedDate = new Date(task.expiresAtIso ?? task.expiresAt);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.getTime() < Date.now();
+    }
+
+    return new Date(task.expiresAt.replace("-", "")).getTime() < Date.now();
+  }
+
+  const late = isTaskLate();
+  const displayStatusClass = late ? "expired" : task.currentStatus;
 
   return (
     <div
-      className={`staffTaskCard ${expiredStatus} ${
+      className={`staffTaskCard ${displayStatusClass} ${
         isCollapsed ? "isCollapsed" : ""
       } ${isPointerDragging ? "isPointerDragging" : ""} ${
         isSelectMode ? "isSelectMode" : ""
@@ -119,11 +125,11 @@ export default function AdminTaskCard({
             </button>
           </div>
 
-          <div className={`staffTaskStatusBadge ${expiredStatus}`}>
-            {task.currentStatus === "not-started" &&
-            new Date(task.expiresAt.replace("-", "")) < new Date()
-              ? "Late"
-              : getStatusLabel(task.currentStatus)}
+          <div className="staffTaskStatusBadges">
+            {late && <div className="staffTaskStatusBadge expired">Late</div>}
+            <div className={`staffTaskStatusBadge ${displayStatusClass}`}>
+              {getStatusLabel(task.currentStatus)}
+            </div>
           </div>
         </div>
       </div>

@@ -46,6 +46,15 @@ export default function EmployeeTaskCard({
     setSaveError(null);
   }
 
+  function isTaskLate() {
+    const parsedDate = new Date(task.expiresAtIso ?? task.expiresAt);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.getTime() < Date.now();
+    }
+
+    return new Date(task.expiresAt.replace("-", "")).getTime() < Date.now();
+  }
+
   async function updateTask() {
     if (status === task.currentStatus || isSaving) {
       return;
@@ -99,27 +108,34 @@ export default function EmployeeTaskCard({
     }
   }
 
-  const expiredStatus =
-    status === "not-started" &&
-    new Date(task.expiresAt.replace("-", "")) < new Date()
-      ? "expired"
-      : status;
+  const late = isTaskLate();
+  const displayStatusClass = late ? "expired" : status;
+
+  const cardClassName = `staffTaskCard ${displayStatusClass} ${
+    isSummary ? "" : "staffTaskCardDashboardExpanded"
+  }`;
 
   return (
-    <div className={`staffTaskCard ${expiredStatus}`}>
+    <div className={cardClassName}>
       <div className="staffTaskCardHeader">
         <div className="staffTaskCardHeaderLeft">
-          <div className={isSummary ? "staffTaskTitleShort" : "staffTaskTitle"}>
+          <div
+            className={
+              isSummary
+                ? "staffTaskTitleShort"
+                : "staffTaskTitle staffTaskTitleDashboardExpanded"
+            }
+          >
             {task.title}
           </div>
         </div>
 
         <div className="staffTaskCardHeaderRight">
-          <div className={`staffTaskStatusBadge ${expiredStatus}`}>
-            {status === "not-started" &&
-            new Date(task.expiresAt.replace("-", "")) < new Date()
-              ? "Late"
-              : getStatusLabel(status)}
+          <div className="staffTaskStatusBadges">
+            {late && <div className="staffTaskStatusBadge expired">Late</div>}
+            <div className={`staffTaskStatusBadge ${displayStatusClass}`}>
+              {getStatusLabel(status)}
+            </div>
           </div>
         </div>
       </div>
@@ -147,9 +163,7 @@ export default function EmployeeTaskCard({
             <div className="staffTaskRow">
               <span className="staffTaskLabel">Expiration Status:</span>
               <span className="staffTaskValue">
-                {new Date(task.expiresAt.replace("-", "")) < new Date()
-                  ? "Expired"
-                  : "Active"}
+                {late ? "Expired" : "Active"}
               </span>
             </div>
 

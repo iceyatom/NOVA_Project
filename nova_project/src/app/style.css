@@ -3833,7 +3833,7 @@ body:has(.loginPage) main {
 }
 
 .staffTaskLegendSwatch.not-started {
-  background: #ffffff;
+  background: #f3f4f6;
 }
 
 .staffTaskGroups {
@@ -3906,22 +3906,22 @@ body:has(.loginPage) main {
 }
 
 .staffTaskStatusBadge.completed {
-  background: #bbf7d0;
+  background: #86efac;
   color: #166534;
 }
 
 .staffTaskStatusBadge.expired {
-  background: #fecaca;
+  background: #fca5a5;
   color: #991b1b;
 }
 
 .staffTaskStatusBadge.in-progress {
-  background: #fde68a;
+  background: #fcd34d;
   color: #92400e;
 }
 
 .staffTaskStatusBadge.not-started {
-  background: #e5e7eb;
+  background: #d1d5db;
   color: #374151;
 }
 
@@ -4170,22 +4170,22 @@ body:has(.loginPage) main {
 }
 
 .staffTaskStatusBadge.completed {
-  background: #bbf7d0;
+  background: #86efac;
   color: #166534;
 }
 
 .staffTaskStatusBadge.expired {
-  background: #fecaca;
+  background: #fca5a5;
   color: #991b1b;
 }
 
 .staffTaskStatusBadge.in-progress {
-  background: #fde68a;
+  background: #fcd34d;
   color: #92400e;
 }
 
 .staffTaskStatusBadge.not-started {
-  background: #e5e7eb;
+  background: #d1d5db;
   color: #374151;
 }
 
@@ -4232,6 +4232,12 @@ body:has(.loginPage) main {
 
 .staffTaskExpandButton:hover {
   text-decoration: underline;
+}
+
+.staffTaskStatusBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 1400px) {
@@ -4509,19 +4515,19 @@ body:has(.loginPage) main {
 }
 
 .staffTaskCard.completed {
-  background: #ecfdf3;
+  background: #dcfce7;
 }
 
 .staffTaskCard.expired {
-  background: #fef2f2;
+  background: #fee2e2;
 }
 
 .staffTaskCard.in-progress {
-  background: #fffbea;
+  background: #fef3c7;
 }
 
 .staffTaskCard.not-started {
-  background: #ffffff;
+  background: #f3f4f6;
 }
 
 .staffTaskCard.isSelectMode {
@@ -4653,22 +4659,22 @@ body:has(.loginPage) main {
 }
 
 .staffTaskStatusBadge.completed {
-  background: #bbf7d0;
+  background: #86efac;
   color: #166534;
 }
 
 .staffTaskStatusBadge.expired {
-  background: #fecaca;
+  background: #fca5a5;
   color: #991b1b;
 }
 
 .staffTaskStatusBadge.in-progress {
-  background: #fde68a;
+  background: #fcd34d;
   color: #92400e;
 }
 
 .staffTaskStatusBadge.not-started {
-  background: #e5e7eb;
+  background: #d1d5db;
   color: #374151;
 }
 
