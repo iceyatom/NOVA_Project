@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type TicketType = "ORDER" | "SUPPLY" | "SPOILAGE";
+
 const VALID_TICKET_TYPES = new Set(["ORDER", "SUPPLY", "SPOILAGE"] as const);
 
 type CreateTicketRequestBody = {
@@ -48,15 +50,38 @@ function parsePositiveInt(value: unknown): number | null {
   return parsed;
 }
 
+function normalizeTicketType(type: string): TicketType {
+  const normalizedType = type.trim().toUpperCase();
+
+  if (VALID_TICKET_TYPES.has(normalizedType as TicketType)) {
+    return normalizedType as TicketType;
+  }
+
+  return "ORDER";
+}
+
+function formatCardDate(date: Date): string {
+  return date
+    .toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(/,([^,]*)$/, " -$1");
+}
+
 function parseBody(body: CreateTicketRequestBody): {
-  type: "ORDER" | "SUPPLY" | "SPOILAGE";
+  type: TicketType;
   note: string;
   createdByEmail: string;
   lines: ParsedLine[];
 } {
   const type =
     typeof body.type === "string" ? body.type.trim().toUpperCase() : "";
-  if (!VALID_TICKET_TYPES.has(type as "ORDER" | "SUPPLY" | "SPOILAGE")) {
+  if (!VALID_TICKET_TYPES.has(type as TicketType)) {
     throw new Error("Ticket type is invalid.");
   }
 
@@ -105,11 +130,112 @@ function parseBody(body: CreateTicketRequestBody): {
   }
 
   return {
-    type: type as "ORDER" | "SUPPLY" | "SPOILAGE",
+    type: type as TicketType,
     note,
     createdByEmail,
     lines: parsedLines,
   };
+}
+
+export async function GET(request: NextRequest) {
+  const limitRaw = request.nextUrl.searchParams.get("limit");
+  const parsedLimit = limitRaw ? Number.parseInt(limitRaw, 10) : 80;
+  const limit =
+    Number.isInteger(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, 300)
+      : 80;
+
+  try {
+    const tickets = await prisma.ticket.findMany({
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit,
+      select: {
+        id: true,
+        type: true,
+        note: true,
+        createdAt: true,
+        createdByAccountId: true,
+        ticketLines: {
+          select: {
+            id: true,
+            catalogItemId: true,
+            countDelta: true,
+            catalogItem: {
+              select: {
+                itemName: true,
+                sku: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const creatorIds = [
+      ...new Set(tickets.map((ticket) => ticket.createdByAccountId)),
+    ];
+    const creators =
+      creatorIds.length > 0
+        ? await prisma.account.findMany({
+            where: {
+              id: {
+                in: creatorIds,
+              },
+            },
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+            },
+          })
+        : [];
+
+    const creatorById = new Map(
+      creators.map((creator) => [creator.id, creator]),
+    );
+
+    const mappedTickets = tickets.map((ticket) => {
+      const creator = creatorById.get(ticket.createdByAccountId);
+      const authorName =
+        creator?.displayName?.trim() || creator?.email || "Unknown author";
+      const itemCount = new Set(
+        ticket.ticketLines.map((line) => line.catalogItemId),
+      ).size;
+      const netQuantityDelta = ticket.ticketLines.reduce(
+        (sum, line) => sum + line.countDelta,
+        0,
+      );
+
+      return {
+        id: ticket.id,
+        type: normalizeTicketType(ticket.type),
+        note: ticket.note ?? "",
+        createdAt: formatCardDate(ticket.createdAt),
+        createdAtIso: ticket.createdAt.toISOString(),
+        createdByAccountId: ticket.createdByAccountId,
+        authorName,
+        authorEmail: creator?.email ?? null,
+        lineCount: ticket.ticketLines.length,
+        itemCount,
+        netQuantityDelta,
+        lines: ticket.ticketLines.map((line) => ({
+          id: line.id,
+          catalogItemId: line.catalogItemId,
+          itemName: line.catalogItem.itemName,
+          sku: line.catalogItem.sku,
+          countDelta: line.countDelta,
+        })),
+      };
+    });
+
+    return jsonResponse({
+      success: true,
+      tickets: mappedTickets,
+    });
+  } catch (error) {
+    console.error("[tickets/staff] fetch failed", error);
+    return errorResponse("Failed to fetch tickets.", 500);
+  }
 }
 
 export async function POST(request: NextRequest) {
