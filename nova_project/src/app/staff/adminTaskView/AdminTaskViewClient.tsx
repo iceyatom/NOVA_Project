@@ -7,6 +7,7 @@ import AdminTaskCard, {
   EmployeeTask,
   TaskStatus,
 } from "@/app/components/AdminTaskCard";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 import { statusPriority } from "@/app/lib/taskStatus";
 
 export type EmployeeTaskGroup = {
@@ -882,6 +883,15 @@ export default function AdminTaskViewClient({
     };
   }, [dropAnimation]);
 
+  const bulkEditModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeBulkEditModal);
+  const bulkDeleteConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeBulkDeleteConfirmation);
+  const editTaskModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeEditTaskModal);
+  const createTaskModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeCreateTaskModal);
+
   return (
     <div>
       <div className="staffTitle">Employee Task Monitor</div>
@@ -1153,7 +1163,8 @@ export default function AdminTaskViewClient({
           aria-modal="true"
           aria-label="Bulk Edit Tasks"
           className="item-category-modal"
-          onClick={closeBulkEditModal}
+          onPointerDown={bulkEditModalBackdropHandlers.onPointerDown}
+          onClick={bulkEditModalBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
@@ -1272,7 +1283,8 @@ export default function AdminTaskViewClient({
           aria-modal="true"
           aria-label="Confirm Delete Selected Tasks"
           className="item-category-modal"
-          onClick={closeBulkDeleteConfirmation}
+          onPointerDown={bulkDeleteConfirmationBackdropHandlers.onPointerDown}
+          onClick={bulkDeleteConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content"
@@ -1314,7 +1326,8 @@ export default function AdminTaskViewClient({
           aria-modal="true"
           aria-label="Edit Task"
           className="item-category-modal"
-          onClick={closeEditTaskModal}
+          onPointerDown={editTaskModalBackdropHandlers.onPointerDown}
+          onClick={editTaskModalBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
@@ -1482,7 +1495,8 @@ export default function AdminTaskViewClient({
           aria-modal="true"
           aria-label="Create New Task"
           className="item-category-modal"
-          onClick={closeCreateTaskModal}
+          onPointerDown={createTaskModalBackdropHandlers.onPointerDown}
+          onClick={createTaskModalBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"

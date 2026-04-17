@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLoginStatus } from "../LoginStatusContext";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 
 type AccountResponse = {
   ok?: boolean;
@@ -218,10 +219,6 @@ export default function AccountDashboard() {
     };
   }, [accountEmail, loggedIn, router]);
 
-  if (!loggedIn) {
-    return null;
-  }
-
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setLoggedIn(false);
@@ -384,6 +381,8 @@ export default function AccountDashboard() {
     setIsDeleteConfirmationOpen(false);
     setDeleteConfirmChecked(false);
   };
+  const deleteConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeDeleteConfirmation);
 
   const handleDelete = async () => {
     if (!deleteConfirmChecked) {
@@ -446,6 +445,10 @@ export default function AccountDashboard() {
     setFeedback(null);
     setFeedbackType(null);
   };
+
+  if (!loggedIn) {
+    return null;
+  }
 
   return (
     <>
@@ -880,7 +883,8 @@ export default function AccountDashboard() {
           aria-modal="true"
           aria-label="Confirm Delete Account"
           className="item-category-modal"
-          onClick={closeDeleteConfirmation}
+          onPointerDown={deleteConfirmationBackdropHandlers.onPointerDown}
+          onClick={deleteConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content account-delete-confirm-modal__content"

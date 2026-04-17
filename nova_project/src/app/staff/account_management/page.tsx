@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 
 type StaffAccountListItem = {
   id: number;
@@ -1090,6 +1091,21 @@ export default function StaffAccountManagementPage() {
     }
   }
 
+  const editModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeEditModal);
+  const bulkEditModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeBulkEditModal);
+  const bulkDeleteConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeBulkDeleteConfirmation);
+  const bulkSaveConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeBulkSaveConfirmation);
+  const deleteConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeDeleteConfirmation);
+  const saveConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(() =>
+      setIsSaveConfirmationOpen(false),
+    );
+
   return (
     <div>
       <div className="staffTitle">Account Management</div>
@@ -1417,7 +1433,8 @@ export default function StaffAccountManagementPage() {
           aria-modal="true"
           aria-label="Edit Account"
           className="item-category-modal"
-          onClick={closeEditModal}
+          onPointerDown={editModalBackdropHandlers.onPointerDown}
+          onClick={editModalBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content"
@@ -1593,7 +1610,8 @@ export default function StaffAccountManagementPage() {
           aria-modal="true"
           aria-label="Bulk Edit Accounts"
           className="item-category-modal"
-          onClick={closeBulkEditModal}
+          onPointerDown={bulkEditModalBackdropHandlers.onPointerDown}
+          onClick={bulkEditModalBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
@@ -1687,7 +1705,8 @@ export default function StaffAccountManagementPage() {
           aria-modal="true"
           aria-label="Confirm Delete Selected Accounts"
           className="item-category-modal"
-          onClick={closeBulkDeleteConfirmation}
+          onPointerDown={bulkDeleteConfirmationBackdropHandlers.onPointerDown}
+          onClick={bulkDeleteConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content"
@@ -1730,7 +1749,8 @@ export default function StaffAccountManagementPage() {
           aria-modal="true"
           aria-label="Confirm Save Account Role Changes"
           className="item-category-modal"
-          onClick={closeBulkSaveConfirmation}
+          onPointerDown={bulkSaveConfirmationBackdropHandlers.onPointerDown}
+          onClick={bulkSaveConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content"
@@ -1773,7 +1793,8 @@ export default function StaffAccountManagementPage() {
           aria-modal="true"
           aria-label="Confirm Delete Account"
           className="item-category-modal"
-          onClick={closeDeleteConfirmation}
+          onPointerDown={deleteConfirmationBackdropHandlers.onPointerDown}
+          onClick={deleteConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content"
@@ -1828,7 +1849,8 @@ export default function StaffAccountManagementPage() {
           aria-modal="true"
           aria-label="Confirm Save Account Changes"
           className="item-category-modal"
-          onClick={() => setIsSaveConfirmationOpen(false)}
+          onPointerDown={saveConfirmationBackdropHandlers.onPointerDown}
+          onClick={saveConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content"
