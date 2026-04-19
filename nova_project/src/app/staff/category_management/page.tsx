@@ -5,6 +5,7 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import CategoryCreateModal, {
   type CategoryLevel,
 } from "@/app/components/CategoryCreateModal";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 
 type CategoryApiResponse = {
   categories?: unknown;
@@ -738,6 +739,12 @@ export default function StaffCategoryManagementPage() {
       (editPopupContext.level !== "category3" && isParentCategoryDirty) ||
       (editPopupContext.level === "category1" && isParentSubcategoryDirty)
     : false;
+  const editPopupBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeEditPopup);
+  const saveConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(() =>
+      setShowSaveConfirmation(false),
+    );
 
   return (
     <div>
@@ -1067,7 +1074,8 @@ export default function StaffCategoryManagementPage() {
           aria-modal="true"
           aria-label="Edit Category"
           className="item-category-modal"
-          onClick={closeEditPopup}
+          onPointerDown={editPopupBackdropHandlers.onPointerDown}
+          onClick={editPopupBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content"
@@ -1266,7 +1274,8 @@ export default function StaffCategoryManagementPage() {
           aria-modal="true"
           aria-label="Confirm Save Changes"
           className="item-category-modal"
-          onClick={() => setShowSaveConfirmation(false)}
+          onPointerDown={saveConfirmationBackdropHandlers.onPointerDown}
+          onClick={saveConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content"

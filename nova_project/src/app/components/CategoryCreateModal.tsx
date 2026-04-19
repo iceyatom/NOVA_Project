@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 
 export type CategoryLevel = "category3" | "category2" | "category1";
 
@@ -130,6 +131,12 @@ export default function CategoryCreateModal({
     if (isCreating) return;
     onClose();
   };
+  const createModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeModal);
+  const createConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(() =>
+      setShowCreateConfirmation(false),
+    );
 
   const getCreateValidationError = (): string | null => {
     if (!name.trim()) {
@@ -230,7 +237,14 @@ export default function CategoryCreateModal({
         aria-modal="true"
         aria-label="Create New Category"
         className="item-category-modal"
-        onClick={closeOnBackdrop ? closeModal : undefined}
+        onPointerDown={
+          closeOnBackdrop
+            ? createModalBackdropHandlers.onPointerDown
+            : undefined
+        }
+        onClick={
+          closeOnBackdrop ? createModalBackdropHandlers.onClick : undefined
+        }
       >
         <div
           className="item-category-modal__content category-mgmt-edit-modal__content"
@@ -351,7 +365,8 @@ export default function CategoryCreateModal({
           aria-modal="true"
           aria-label="Confirm Create Category"
           className="item-category-modal"
-          onClick={() => setShowCreateConfirmation(false)}
+          onPointerDown={createConfirmationBackdropHandlers.onPointerDown}
+          onClick={createConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content"

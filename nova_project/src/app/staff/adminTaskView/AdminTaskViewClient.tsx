@@ -7,6 +7,7 @@ import AdminTaskCard, {
   EmployeeTask,
   TaskStatus,
 } from "@/app/components/AdminTaskCard";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 import { statusPriority } from "@/app/lib/taskStatus";
 
 export type EmployeeTaskGroup = {
@@ -55,6 +56,7 @@ type BulkEditInitialState = {
 };
 
 const MIXED_FIELD_VALUE = "__mixed__";
+const TASK_DESCRIPTION_MAX_LENGTH = 500;
 
 function toDateTimeLocalValue(date: Date): string {
   const pad = (value: number) => value.toString().padStart(2, "0");
@@ -882,6 +884,15 @@ export default function AdminTaskViewClient({
     };
   }, [dropAnimation]);
 
+  const bulkEditModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeBulkEditModal);
+  const bulkDeleteConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeBulkDeleteConfirmation);
+  const editTaskModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeEditTaskModal);
+  const createTaskModalBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeCreateTaskModal);
+
   return (
     <div>
       <div className="staffTitle">Employee Task Monitor</div>
@@ -1153,7 +1164,8 @@ export default function AdminTaskViewClient({
           aria-modal="true"
           aria-label="Bulk Edit Tasks"
           className="item-category-modal"
-          onClick={closeBulkEditModal}
+          onPointerDown={bulkEditModalBackdropHandlers.onPointerDown}
+          onClick={bulkEditModalBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
@@ -1272,7 +1284,8 @@ export default function AdminTaskViewClient({
           aria-modal="true"
           aria-label="Confirm Delete Selected Tasks"
           className="item-category-modal"
-          onClick={closeBulkDeleteConfirmation}
+          onPointerDown={bulkDeleteConfirmationBackdropHandlers.onPointerDown}
+          onClick={bulkDeleteConfirmationBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-confirm-modal__content"
@@ -1314,7 +1327,8 @@ export default function AdminTaskViewClient({
           aria-modal="true"
           aria-label="Edit Task"
           className="item-category-modal"
-          onClick={closeEditTaskModal}
+          onPointerDown={editTaskModalBackdropHandlers.onPointerDown}
+          onClick={editTaskModalBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
@@ -1426,15 +1440,26 @@ export default function AdminTaskViewClient({
               </label>
 
               <label className="item-category-form__field">
-                <span
-                  className={`item-category-form__label ${
-                    isEditDescriptionDirty
-                      ? "category-mgmt-edit-modal__label--dirty"
-                      : ""
-                  }`}
-                >
-                  Description
-                </span>
+                <div className="account-management__notes-label-row">
+                  <span
+                    className={`item-category-form__label ${
+                      isEditDescriptionDirty
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    Description
+                  </span>
+                  <span
+                    className={`item-category-form__label account-management__notes-count ${
+                      isEditDescriptionDirty
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    {editTaskDescription.length}/{TASK_DESCRIPTION_MAX_LENGTH}
+                  </span>
+                </div>
                 <textarea
                   className="item-search-page__search-input staffTaskCreateForm__textarea"
                   value={editTaskDescription}
@@ -1442,6 +1467,7 @@ export default function AdminTaskViewClient({
                     setEditTaskDescription(event.target.value)
                   }
                   placeholder="Add task details"
+                  maxLength={TASK_DESCRIPTION_MAX_LENGTH}
                   disabled={isEditingTask}
                 />
               </label>
@@ -1482,7 +1508,8 @@ export default function AdminTaskViewClient({
           aria-modal="true"
           aria-label="Create New Task"
           className="item-category-modal"
-          onClick={closeCreateTaskModal}
+          onPointerDown={createTaskModalBackdropHandlers.onPointerDown}
+          onClick={createTaskModalBackdropHandlers.onClick}
         >
           <div
             className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
@@ -1548,7 +1575,26 @@ export default function AdminTaskViewClient({
               </div>
 
               <label className="item-category-form__field">
-                <span className="item-category-form__label">Description</span>
+                <div className="account-management__notes-label-row">
+                  <span
+                    className={`item-category-form__label ${
+                      createTaskDescription.length > 0
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    Description
+                  </span>
+                  <span
+                    className={`item-category-form__label account-management__notes-count ${
+                      createTaskDescription.length > 0
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    {createTaskDescription.length}/{TASK_DESCRIPTION_MAX_LENGTH}
+                  </span>
+                </div>
                 <textarea
                   className="item-search-page__search-input staffTaskCreateForm__textarea"
                   value={createTaskDescription}
@@ -1556,6 +1602,7 @@ export default function AdminTaskViewClient({
                     setCreateTaskDescription(event.target.value)
                   }
                   placeholder="Add task details"
+                  maxLength={TASK_DESCRIPTION_MAX_LENGTH}
                   disabled={isCreatingTask}
                 />
               </label>

@@ -37,7 +37,7 @@ type CreateTicketApiResponse = {
 
 type TicketDraft = {
   type: TicketType;
-  note: string;
+  notes: string;
   lines: TicketLineDraft[];
 };
 
@@ -74,10 +74,11 @@ const TICKET_TYPE_OPTIONS: Array<{ value: TicketType; label: string }> = [
   { value: "SUPPLY", label: "Supply" },
   { value: "SPOILAGE", label: "Spoilage" },
 ];
+const TICKET_NOTES_MAX_LENGTH = 500;
 
 const INITIAL_DRAFT: TicketDraft = {
   type: "ORDER",
-  note: "",
+  notes: "",
   lines: [{ localId: 1, catalogItemId: "", catalogSearch: "", countDelta: "" }],
 };
 
@@ -126,7 +127,7 @@ export default function StaffTicketCreatePage() {
         : null;
   const hasUnsavedChanges = useMemo(() => {
     if (draft.type !== INITIAL_DRAFT.type) return true;
-    if (draft.note.trim().length > 0) return true;
+    if (draft.notes.trim().length > 0) return true;
     if (draft.lines.length !== 1) return true;
 
     const firstLine = draft.lines[0];
@@ -555,7 +556,10 @@ export default function StaffTicketCreatePage() {
     if (firstLine.countDelta.trim() === "0") {
       return "First ticket line quantity cannot be zero.";
     }
-    if (!draft.note.trim()) return "Notes are required.";
+    if (!draft.notes.trim()) return "Notes are required.";
+    if (draft.notes.trim().length > TICKET_NOTES_MAX_LENGTH) {
+      return `Notes must be ${TICKET_NOTES_MAX_LENGTH} characters or fewer.`;
+    }
 
     const emptyAdditionalLines = draft.lines
       .slice(1)
@@ -654,7 +658,7 @@ export default function StaffTicketCreatePage() {
 
       const payload = {
         type: draft.type,
-        note: draft.note.trim(),
+        notes: draft.notes.trim(),
         createdByEmail: creatorEmail,
         lines: draft.lines.map((line) => ({
           catalogItemId: Number.parseInt(line.catalogItemId.trim(), 10),
@@ -945,13 +949,33 @@ export default function StaffTicketCreatePage() {
             )}
 
             <label className="ticket-create-field">
-              <span className="ticket-create-label">Notes</span>
+              <div className="account-management__notes-label-row">
+                <span
+                  className={`ticket-create-label ${
+                    draft.notes.length > 0
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  Notes
+                </span>
+                <span
+                  className={`ticket-create-label account-management__notes-count ${
+                    draft.notes.length > 0
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  {draft.notes.length}/{TICKET_NOTES_MAX_LENGTH}
+                </span>
+              </div>
               <textarea
                 className="ticket-create-textarea"
                 rows={5}
-                value={draft.note}
+                maxLength={TICKET_NOTES_MAX_LENGTH}
+                value={draft.notes}
                 onChange={(e) =>
-                  setDraft((prev) => ({ ...prev, note: e.target.value }))
+                  setDraft((prev) => ({ ...prev, notes: e.target.value }))
                 }
                 placeholder="Add context for approvers/reviewers."
               />

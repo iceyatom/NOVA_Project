@@ -4,11 +4,13 @@ import { prisma } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type TicketType = "ORDER" | "SUPPLY" | "SPOILAGE";
+
 const VALID_TICKET_TYPES = new Set(["ORDER", "SUPPLY", "SPOILAGE"] as const);
 
 type CreateTicketRequestBody = {
   type?: unknown;
-  note?: unknown;
+  notes?: unknown;
   createdByEmail?: unknown;
   lines?: unknown;
 };
@@ -16,6 +18,12 @@ type CreateTicketRequestBody = {
 type ParsedLine = {
   catalogItemId: number;
   countDelta: number;
+};
+type TicketSummary = {
+  totalTickets: number;
+  supplyTickets: number;
+  orderTickets: number;
+  spoilageTickets: number;
 };
 
 function withNoCache(response: NextResponse): NextResponse {
@@ -48,21 +56,47 @@ function parsePositiveInt(value: unknown): number | null {
   return parsed;
 }
 
+function normalizeTicketType(type: string): TicketType {
+  const normalizedType = type.trim().toUpperCase();
+
+  if (VALID_TICKET_TYPES.has(normalizedType as TicketType)) {
+    return normalizedType as TicketType;
+  }
+
+  return "ORDER";
+}
+
+function formatCardDate(date: Date): string {
+  return date
+    .toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(/,([^,]*)$/, " -$1");
+}
+
 function parseBody(body: CreateTicketRequestBody): {
-  type: "ORDER" | "SUPPLY" | "SPOILAGE";
-  note: string;
+  type: TicketType;
+  notes: string;
   createdByEmail: string;
   lines: ParsedLine[];
 } {
   const type =
     typeof body.type === "string" ? body.type.trim().toUpperCase() : "";
-  if (!VALID_TICKET_TYPES.has(type as "ORDER" | "SUPPLY" | "SPOILAGE")) {
+  if (!VALID_TICKET_TYPES.has(type as TicketType)) {
     throw new Error("Ticket type is invalid.");
   }
 
-  const note = typeof body.note === "string" ? body.note.trim() : "";
-  if (!note) {
-    throw new Error("Ticket note is required.");
+  const notes = typeof body.notes === "string" ? body.notes.trim() : "";
+  if (!notes) {
+    throw new Error("Ticket notes are required.");
+  }
+  if (notes.length > 500) {
+    throw new Error("Ticket notes must be 500 characters or fewer.");
   }
 
   const createdByEmail =
@@ -105,11 +139,146 @@ function parseBody(body: CreateTicketRequestBody): {
   }
 
   return {
-    type: type as "ORDER" | "SUPPLY" | "SPOILAGE",
-    note,
+    type: type as TicketType,
+    notes,
     createdByEmail,
     lines: parsedLines,
   };
+}
+
+export async function GET(request: NextRequest) {
+  const limitRaw = request.nextUrl.searchParams.get("limit");
+  const parsedLimit = limitRaw ? Number.parseInt(limitRaw, 10) : 80;
+  const limit =
+    Number.isInteger(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, 300)
+      : 80;
+  const typeRaw = request.nextUrl.searchParams.get("type");
+  const normalizedType = typeRaw?.trim().toUpperCase() ?? "";
+  const typeFilter =
+    normalizedType.length > 0 &&
+    VALID_TICKET_TYPES.has(normalizedType as TicketType)
+      ? (normalizedType as TicketType)
+      : null;
+
+  if (typeRaw && !typeFilter) {
+    return errorResponse("Ticket type filter is invalid.", 400);
+  }
+
+  try {
+    const [
+      tickets,
+      totalTickets,
+      supplyTickets,
+      orderTickets,
+      spoilageTickets,
+    ] = await prisma.$transaction([
+      prisma.ticket.findMany({
+        where: typeFilter ? { type: typeFilter } : undefined,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: limit,
+        select: {
+          id: true,
+          type: true,
+          notes: true,
+          createdAt: true,
+          createdByAccountId: true,
+          ticketLines: {
+            select: {
+              id: true,
+              catalogItemId: true,
+              countDelta: true,
+              catalogItem: {
+                select: {
+                  itemName: true,
+                  sku: true,
+                  price: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.ticket.count(),
+      prisma.ticket.count({ where: { type: "SUPPLY" } }),
+      prisma.ticket.count({ where: { type: "ORDER" } }),
+      prisma.ticket.count({ where: { type: "SPOILAGE" } }),
+    ]);
+
+    const creatorIds = [
+      ...new Set(tickets.map((ticket) => ticket.createdByAccountId)),
+    ];
+    const creators =
+      creatorIds.length > 0
+        ? await prisma.account.findMany({
+            where: {
+              id: {
+                in: creatorIds,
+              },
+            },
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+            },
+          })
+        : [];
+
+    const creatorById = new Map(
+      creators.map((creator) => [creator.id, creator]),
+    );
+
+    const mappedTickets = tickets.map((ticket) => {
+      const creator = creatorById.get(ticket.createdByAccountId);
+      const authorName =
+        creator?.displayName?.trim() || creator?.email || "Unknown author";
+      const itemCount = new Set(
+        ticket.ticketLines.map((line) => line.catalogItemId),
+      ).size;
+      const netQuantityDelta = ticket.ticketLines.reduce(
+        (sum, line) => sum + line.countDelta,
+        0,
+      );
+
+      return {
+        id: ticket.id,
+        type: normalizeTicketType(ticket.type),
+        notes: ticket.notes,
+        createdAt: formatCardDate(ticket.createdAt),
+        createdAtIso: ticket.createdAt.toISOString(),
+        createdByAccountId: ticket.createdByAccountId,
+        authorName,
+        authorEmail: creator?.email ?? null,
+        lineCount: ticket.ticketLines.length,
+        itemCount,
+        netQuantityDelta,
+        lines: ticket.ticketLines.map((line) => ({
+          id: line.id,
+          catalogItemId: line.catalogItemId,
+          itemName: line.catalogItem.itemName,
+          sku: line.catalogItem.sku,
+          countDelta: line.countDelta,
+          priceRate: line.catalogItem.price,
+        })),
+      };
+    });
+
+    const summary: TicketSummary = {
+      totalTickets,
+      supplyTickets,
+      orderTickets,
+      spoilageTickets,
+    };
+
+    return jsonResponse({
+      success: true,
+      tickets: mappedTickets,
+      summary,
+    });
+  } catch (error) {
+    console.error("[tickets/staff] fetch failed", error);
+    return errorResponse("Failed to fetch tickets.", 500);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -203,7 +372,7 @@ export async function POST(request: NextRequest) {
         data: {
           createdByAccountId: creator.id,
           type: input.type,
-          note: input.note,
+          notes: input.notes,
         },
         select: { id: true },
       });
