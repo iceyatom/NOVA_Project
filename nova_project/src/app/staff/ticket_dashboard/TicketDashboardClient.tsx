@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import TicketPreviewCard, {
   TicketPreviewLine,
   TicketPreview,
@@ -10,7 +10,14 @@ import TicketPreviewCard, {
 type TicketFeedResponse = {
   success?: unknown;
   tickets?: unknown;
+  summary?: unknown;
   error?: unknown;
+};
+type TicketSummary = {
+  totalTickets: number;
+  supplyTickets: number;
+  orderTickets: number;
+  spoilageTickets: number;
 };
 
 function parseTicketType(value: unknown): TicketType {
@@ -116,17 +123,61 @@ function parseTickets(payload: unknown): TicketPreview[] {
     .filter((ticket): ticket is TicketPreview => ticket !== null);
 }
 
+function parseSummary(payload: unknown): TicketSummary | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const summary = payload as Record<string, unknown>;
+  const totalTickets = Number(summary.totalTickets);
+  const supplyTickets = Number(summary.supplyTickets);
+  const orderTickets = Number(summary.orderTickets);
+  const spoilageTickets = Number(summary.spoilageTickets);
+
+  if (
+    !Number.isFinite(totalTickets) ||
+    !Number.isFinite(supplyTickets) ||
+    !Number.isFinite(orderTickets) ||
+    !Number.isFinite(spoilageTickets)
+  ) {
+    return null;
+  }
+
+  return {
+    totalTickets,
+    supplyTickets,
+    orderTickets,
+    spoilageTickets,
+  };
+}
+
 export default function TicketDashboardClient() {
   const [tickets, setTickets] = useState<TicketPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<TicketSummary>({
+    totalTickets: 0,
+    supplyTickets: 0,
+    orderTickets: 0,
+    spoilageTickets: 0,
+  });
+  const [selectedTicketType, setSelectedTicketType] =
+    useState<TicketType | null>(null);
 
-  const loadTickets = useCallback(async () => {
+  const loadTickets = useCallback(async (typeFilter: TicketType | null) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/tickets/staff", {
+      const params = new URLSearchParams();
+      if (typeFilter) {
+        params.set("type", typeFilter);
+      }
+      const path = params.size
+        ? `/api/tickets/staff?${params.toString()}`
+        : "/api/tickets/staff";
+
+      const response = await fetch(path, {
         cache: "no-store",
       });
 
@@ -141,7 +192,23 @@ export default function TicketDashboardClient() {
       }
 
       const nextTickets = parseTickets(payload.tickets);
+      const nextSummary = parseSummary(payload.summary);
       setTickets(nextTickets);
+      if (nextSummary) {
+        setSummary(nextSummary);
+      } else {
+        setSummary({
+          totalTickets: nextTickets.length,
+          supplyTickets: nextTickets.filter(
+            (ticket) => ticket.type === "SUPPLY",
+          ).length,
+          orderTickets: nextTickets.filter((ticket) => ticket.type === "ORDER")
+            .length,
+          spoilageTickets: nextTickets.filter(
+            (ticket) => ticket.type === "SPOILAGE",
+          ).length,
+        });
+      }
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -149,31 +216,30 @@ export default function TicketDashboardClient() {
           : "Failed to load tickets.",
       );
       setTickets([]);
+      setSummary({
+        totalTickets: 0,
+        supplyTickets: 0,
+        orderTickets: 0,
+        spoilageTickets: 0,
+      });
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void loadTickets();
-  }, [loadTickets]);
+  function toggleTicketTypeFilter(type: TicketType) {
+    setSelectedTicketType((currentType) =>
+      currentType === type ? null : type,
+    );
+  }
 
-  const totalLineCount = useMemo(
-    () => tickets.reduce((sum, ticket) => sum + ticket.lineCount, 0),
-    [tickets],
-  );
-  const supplyCount = useMemo(
-    () => tickets.filter((ticket) => ticket.type === "SUPPLY").length,
-    [tickets],
-  );
-  const orderCount = useMemo(
-    () => tickets.filter((ticket) => ticket.type === "ORDER").length,
-    [tickets],
-  );
-  const spoilageCount = useMemo(
-    () => tickets.filter((ticket) => ticket.type === "SPOILAGE").length,
-    [tickets],
-  );
+  useEffect(() => {
+    void loadTickets(selectedTicketType);
+  }, [loadTickets, selectedTicketType]);
+
+  const supplyCount = summary.supplyTickets;
+  const orderCount = summary.orderTickets;
+  const spoilageCount = summary.spoilageTickets;
 
   return (
     <div>
@@ -181,36 +247,67 @@ export default function TicketDashboardClient() {
       <div className="staffSubtitle">
         Dynamically loaded ticket previews for reviewing ticket history and
         inventory movement.
+        {selectedTicketType ? ` Filter: ${selectedTicketType}.` : ""}
       </div>
 
       <div className="staffTaskSummaryRow">
         <div className="staffCard staffTaskSummaryCard">
           <div className="staffCardLabel">Total Tickets</div>
           <div className="staffCardValue staffTaskSummaryValue">
-            {tickets.length}
+            {summary.totalTickets}
           </div>
           <div className="staffCardHint">
             Current tickets in the preview feed.
           </div>
         </div>
 
-        <div className="staffCard staffTaskSummaryCard">
+        <button
+          type="button"
+          className={`staffCard staffTaskSummaryCard staffTicketTypeCountCard ${
+            selectedTicketType === "SUPPLY"
+              ? "staffTicketTypeCountCard--selected"
+              : ""
+          }`}
+          onClick={() => toggleTicketTypeFilter("SUPPLY")}
+          aria-pressed={selectedTicketType === "SUPPLY"}
+          disabled={isLoading}
+        >
           <div className="staffCardLabel">Supply Tickets</div>
           <div className="staffCardValue staffTaskSummaryValue">
             {supplyCount}
           </div>
           <div className="staffCardHint">Supply tickets use green headers.</div>
-        </div>
+        </button>
 
-        <div className="staffCard staffTaskSummaryCard">
+        <button
+          type="button"
+          className={`staffCard staffTaskSummaryCard staffTicketTypeCountCard ${
+            selectedTicketType === "ORDER"
+              ? "staffTicketTypeCountCard--selected"
+              : ""
+          }`}
+          onClick={() => toggleTicketTypeFilter("ORDER")}
+          aria-pressed={selectedTicketType === "ORDER"}
+          disabled={isLoading}
+        >
           <div className="staffCardLabel">Order Tickets</div>
           <div className="staffCardValue staffTaskSummaryValue">
             {orderCount}
           </div>
           <div className="staffCardHint">Order tickets use red headers.</div>
-        </div>
+        </button>
 
-        <div className="staffCard staffTaskSummaryCard">
+        <button
+          type="button"
+          className={`staffCard staffTaskSummaryCard staffTicketTypeCountCard ${
+            selectedTicketType === "SPOILAGE"
+              ? "staffTicketTypeCountCard--selected"
+              : ""
+          }`}
+          onClick={() => toggleTicketTypeFilter("SPOILAGE")}
+          aria-pressed={selectedTicketType === "SPOILAGE"}
+          disabled={isLoading}
+        >
           <div className="staffCardLabel">Spoilage Tickets</div>
           <div className="staffCardValue staffTaskSummaryValue">
             {spoilageCount}
@@ -218,17 +315,7 @@ export default function TicketDashboardClient() {
           <div className="staffCardHint">
             Spoilage tickets use orange headers.
           </div>
-        </div>
-
-        <div className="staffCard staffTaskSummaryCard">
-          <div className="staffCardLabel">Total Ticket Lines</div>
-          <div className="staffCardValue staffTaskSummaryValue">
-            {totalLineCount}
-          </div>
-          <div className="staffCardHint">
-            Combined line items across tickets.
-          </div>
-        </div>
+        </button>
       </div>
 
       <div className="staffTaskLegendRow">
@@ -251,7 +338,7 @@ export default function TicketDashboardClient() {
           <button
             type="button"
             className="staffActionButton"
-            onClick={() => void loadTickets()}
+            onClick={() => void loadTickets(selectedTicketType)}
             disabled={isLoading}
           >
             {isLoading ? "Loading..." : "Refresh"}

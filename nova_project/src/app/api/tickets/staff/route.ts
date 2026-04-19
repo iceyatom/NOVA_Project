@@ -19,6 +19,12 @@ type ParsedLine = {
   catalogItemId: number;
   countDelta: number;
 };
+type TicketSummary = {
+  totalTickets: number;
+  supplyTickets: number;
+  orderTickets: number;
+  spoilageTickets: number;
+};
 
 function withNoCache(response: NextResponse): NextResponse {
   response.headers.set(
@@ -147,33 +153,57 @@ export async function GET(request: NextRequest) {
     Number.isInteger(parsedLimit) && parsedLimit > 0
       ? Math.min(parsedLimit, 300)
       : 80;
+  const typeRaw = request.nextUrl.searchParams.get("type");
+  const normalizedType = typeRaw?.trim().toUpperCase() ?? "";
+  const typeFilter =
+    normalizedType.length > 0 &&
+    VALID_TICKET_TYPES.has(normalizedType as TicketType)
+      ? (normalizedType as TicketType)
+      : null;
+
+  if (typeRaw && !typeFilter) {
+    return errorResponse("Ticket type filter is invalid.", 400);
+  }
 
   try {
-    const tickets = await prisma.ticket.findMany({
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: limit,
-      select: {
-        id: true,
-        type: true,
-        notes: true,
-        createdAt: true,
-        createdByAccountId: true,
-        ticketLines: {
-          select: {
-            id: true,
-            catalogItemId: true,
-            countDelta: true,
-            catalogItem: {
-              select: {
-                itemName: true,
-                sku: true,
-                price: true,
+    const [
+      tickets,
+      totalTickets,
+      supplyTickets,
+      orderTickets,
+      spoilageTickets,
+    ] = await prisma.$transaction([
+      prisma.ticket.findMany({
+        where: typeFilter ? { type: typeFilter } : undefined,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: limit,
+        select: {
+          id: true,
+          type: true,
+          notes: true,
+          createdAt: true,
+          createdByAccountId: true,
+          ticketLines: {
+            select: {
+              id: true,
+              catalogItemId: true,
+              countDelta: true,
+              catalogItem: {
+                select: {
+                  itemName: true,
+                  sku: true,
+                  price: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.ticket.count(),
+      prisma.ticket.count({ where: { type: "SUPPLY" } }),
+      prisma.ticket.count({ where: { type: "ORDER" } }),
+      prisma.ticket.count({ where: { type: "SPOILAGE" } }),
+    ]);
 
     const creatorIds = [
       ...new Set(tickets.map((ticket) => ticket.createdByAccountId)),
@@ -233,9 +263,17 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const summary: TicketSummary = {
+      totalTickets,
+      supplyTickets,
+      orderTickets,
+      spoilageTickets,
+    };
+
     return jsonResponse({
       success: true,
       tickets: mappedTickets,
+      summary,
     });
   } catch (error) {
     console.error("[tickets/staff] fetch failed", error);
