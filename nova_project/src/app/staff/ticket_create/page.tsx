@@ -74,6 +74,7 @@ const TICKET_TYPE_OPTIONS: Array<{ value: TicketType; label: string }> = [
   { value: "SUPPLY", label: "Supply" },
   { value: "SPOILAGE", label: "Spoilage" },
 ];
+const TICKET_NOTES_MAX_LENGTH = 500;
 
 const INITIAL_DRAFT: TicketDraft = {
   type: "ORDER",
@@ -556,8 +557,8 @@ export default function StaffTicketCreatePage() {
       return "First ticket line quantity cannot be zero.";
     }
     if (!draft.notes.trim()) return "Notes are required.";
-    if (draft.notes.trim().length > 500) {
-      return "Notes must be 500 characters or fewer.";
+    if (draft.notes.trim().length > TICKET_NOTES_MAX_LENGTH) {
+      return `Notes must be ${TICKET_NOTES_MAX_LENGTH} characters or fewer.`;
     }
 
     const emptyAdditionalLines = draft.lines
@@ -948,11 +949,30 @@ export default function StaffTicketCreatePage() {
             )}
 
             <label className="ticket-create-field">
-              <span className="ticket-create-label">Notes</span>
+              <div className="account-management__notes-label-row">
+                <span
+                  className={`ticket-create-label ${
+                    draft.notes.length > 0
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  Notes
+                </span>
+                <span
+                  className={`ticket-create-label account-management__notes-count ${
+                    draft.notes.length > 0
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  {draft.notes.length}/{TICKET_NOTES_MAX_LENGTH}
+                </span>
+              </div>
               <textarea
                 className="ticket-create-textarea"
                 rows={5}
-                maxLength={500}
+                maxLength={TICKET_NOTES_MAX_LENGTH}
                 value={draft.notes}
                 onChange={(e) =>
                   setDraft((prev) => ({ ...prev, notes: e.target.value }))
