@@ -20,7 +20,7 @@
 
 .staffTaskCardDashboardExpanded .staffTaskCardHeader {
   border-radius: 12px;
-  padding: 12px;
+  padding: 0px 12px;
 }
 
 .staffTaskCardDashboardExpanded.completed .staffTaskCardHeader {
