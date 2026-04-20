@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           catalogItemId: true,
+          sortOrder: true,
           createdAt: true,
           catalogItem: {
             select: {
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }],
       });
 
       const linkedCatalogItemIds = new Set(
@@ -104,6 +105,7 @@ export async function GET(request: NextRequest) {
               catalogItemId: reference.catalogItemId,
               itemName: reference.catalogItem.itemName,
               sku: reference.catalogItem.sku,
+              sortOrder: reference.sortOrder,
               linkedAt: reference.createdAt,
               itemUpdatedAt: reference.catalogItem.updatedAt,
               linkedToCatalogItem:
@@ -184,6 +186,26 @@ export async function GET(request: NextRequest) {
     });
 
     const keys = groupedImages.map((entry) => entry.s3Key);
+    const globalImageStats =
+      keys.length > 0
+        ? await prisma.catalogItemImage.groupBy({
+            by: ["s3Key"],
+            where: {
+              s3Key: {
+                in: keys,
+              },
+            },
+            _count: {
+              s3Key: true,
+            },
+            _max: {
+              createdAt: true,
+            },
+          })
+        : [];
+    const globalStatsByKey = new Map(
+      globalImageStats.map((entry) => [entry.s3Key, entry] as const),
+    );
 
     let linkedKeySet = new Set<string>();
     if (catalogItemId && keys.length > 0) {
@@ -211,12 +233,13 @@ export async function GET(request: NextRequest) {
       .map((entry) => {
         const key = entry.s3Key.trim();
         if (!key) return null;
+        const globalStats = globalStatsByKey.get(entry.s3Key);
 
         return {
           s3Key: key,
           url: getImageUrlFromKey(key),
-          usageCount: entry._count.s3Key,
-          lastLinkedAt: entry._max.createdAt,
+          usageCount: globalStats?._count.s3Key ?? entry._count.s3Key,
+          lastLinkedAt: globalStats?._max.createdAt ?? entry._max.createdAt,
           linkedToCatalogItem: linkedKeySet.has(key),
         };
       })
@@ -291,10 +314,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const maxSortOrder = await prisma.catalogItemImage.aggregate({
+      where: {
+        catalogItemId,
+      },
+      _max: {
+        sortOrder: true,
+      },
+    });
+
     const image = await prisma.catalogItemImage.create({
       data: {
         catalogItemId,
         s3Key: normalizedFileKey,
+        sortOrder: (maxSortOrder._max.sortOrder ?? -1) + 1,
       },
     });
 
@@ -307,6 +340,121 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { success: false, error: "Failed to link image" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  try {
+    const body = await request.json();
+    const { catalogItemId, imageIds } = body as {
+      catalogItemId?: unknown;
+      imageIds?: unknown;
+    };
+
+    if (typeof catalogItemId !== "number" || !Number.isInteger(catalogItemId)) {
+      return NextResponse.json(
+        { success: false, error: "catalogItemId must be an integer number" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      !Array.isArray(imageIds) ||
+      imageIds.length === 0 ||
+      !imageIds.every(
+        (imageId) => typeof imageId === "number" && Number.isInteger(imageId),
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "imageIds must be a non-empty array of integer numbers",
+        },
+        { status: 400 },
+      );
+    }
+
+    const uniqueImageIds = new Set(imageIds);
+    if (uniqueImageIds.size !== imageIds.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "imageIds must not include duplicates",
+        },
+        { status: 400 },
+      );
+    }
+
+    const existingImages = await prisma.catalogItemImage.findMany({
+      where: {
+        catalogItemId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingImages.length !== imageIds.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "imageIds must include every linked image for this catalog item exactly once",
+        },
+        { status: 400 },
+      );
+    }
+
+    const existingImageIdSet = new Set(existingImages.map((image) => image.id));
+    const allBelongToItem = imageIds.every((imageId) =>
+      existingImageIdSet.has(imageId),
+    );
+    if (!allBelongToItem) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "imageIds must include every linked image for this catalog item exactly once",
+        },
+        { status: 400 },
+      );
+    }
+
+    await prisma.$transaction(
+      imageIds.map((imageId, index) =>
+        prisma.catalogItemImage.update({
+          where: {
+            id: imageId,
+          },
+          data: {
+            sortOrder: index,
+          },
+        }),
+      ),
+    );
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: imageIds.map((imageId, index) => ({
+          id: imageId,
+          sortOrder: index,
+        })),
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error reordering images:", error);
+
+    return NextResponse.json(
+      { success: false, error: "Failed to reorder images" },
       { status: 500 },
     );
   }

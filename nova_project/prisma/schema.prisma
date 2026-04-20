@@ -49,11 +49,13 @@ model CatalogItemImage {
   id            Int      @id @default(autoincrement())
   catalogItemId Int
   s3Key         String
+  sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
 
   catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([catalogItemId])
+  @@index([catalogItemId, sortOrder])
   @@index([s3Key])
 }
 

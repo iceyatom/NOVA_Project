@@ -3513,6 +3513,15 @@ body:has(.loginPage) main {
   border: 3px solid #000;
 }
 
+.item-image-thumb-button--dragging {
+  visibility: hidden;
+}
+
+.item-image-thumb-button--drop-target {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.24);
+}
+
 .item-image-thumb {
   width: 200px;
   height: auto;
@@ -3521,6 +3530,29 @@ body:has(.loginPage) main {
 
 .item-image-thumb--selected {
   opacity: 0.9;
+}
+
+.item-image-drag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1200;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.item-image-drag-card {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.22);
+}
+
+.item-image-drag-preview-img {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .item-browse-images-form {
