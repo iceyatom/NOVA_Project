@@ -17,13 +17,18 @@ type ItemImage = {
   createdAt: string | null;
 };
 
+type CreateItemClassificationDraft = {
+  localId: number;
+  category3: string;
+  category2: string;
+  category1: string;
+};
+
 type CreateItemForm = {
   sku: string;
   itemName: string;
   price: string;
-  category3: string;
-  category2: string;
-  category1: string;
+  classifications: CreateItemClassificationDraft[];
   description: string;
   quantityInStock: string;
   unitOfMeasure: string;
@@ -40,9 +45,14 @@ const INITIAL_FORM: CreateItemForm = {
   sku: "",
   itemName: "",
   price: "0",
-  category3: "",
-  category2: "",
-  category1: "",
+  classifications: [
+    {
+      localId: 1,
+      category3: "",
+      category2: "",
+      category1: "",
+    },
+  ],
   description: "",
   quantityInStock: "0",
   unitOfMeasure: "",
@@ -128,6 +138,17 @@ function withFallbackImage(images: ItemImage[]): ItemImage[] {
       ];
 }
 
+function getNextClassificationDraftId(
+  classifications: CreateItemClassificationDraft[],
+): number {
+  return (
+    classifications.reduce(
+      (maxId, classification) => Math.max(maxId, classification.localId),
+      0,
+    ) + 1
+  );
+}
+
 type CreateApiResponse = {
   success?: boolean;
   data?: {
@@ -158,11 +179,20 @@ function StaffItemCreatePageContent() {
 
   const [form, setForm] = useState<CreateItemForm>(INITIAL_FORM);
   const [categories, setCategories] = useState<string[]>([]);
-  const [subcategories, setSubcategories] = useState<string[]>([]);
-  const [types, setTypes] = useState<string[]>([]);
+  const [
+    subcategoryOptionsByClassificationId,
+    setSubcategoryOptionsByClassificationId,
+  ] = useState<Record<number, string[]>>({});
+  const [typeOptionsByClassificationId, setTypeOptionsByClassificationId] =
+    useState<Record<number, string[]>>({});
+  const [nextClassificationDraftId, setNextClassificationDraftId] = useState(2);
   const [showNewCategoryPopup, setShowNewCategoryPopup] = useState(false);
   const [newCategoryLevel, setNewCategoryLevel] =
     useState<CategoryLevel>("category3");
+  const [
+    categoryModalTargetClassificationId,
+    setCategoryModalTargetClassificationId,
+  ] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -198,10 +228,9 @@ function StaffItemCreatePageContent() {
     }
   };
 
-  const fetchSubcategories = async (category: string) => {
+  const fetchSubcategories = async (category: string): Promise<string[]> => {
     if (!category.trim()) {
-      setSubcategories([]);
-      return;
+      return [];
     }
 
     try {
@@ -211,27 +240,26 @@ function StaffItemCreatePageContent() {
       );
 
       if (!response.ok) {
-        setSubcategories([]);
-        return;
+        return [];
       }
 
       const payload = (await response.json()) as { subcategories?: unknown };
-      const nextSubcategories = Array.isArray(payload?.subcategories)
+      return Array.isArray(payload?.subcategories)
         ? payload.subcategories.filter(
             (entry): entry is string => typeof entry === "string",
           )
         : [];
-
-      setSubcategories(nextSubcategories);
     } catch {
-      setSubcategories([]);
+      return [];
     }
   };
 
-  const fetchTypes = async (category: string, subcategory: string) => {
+  const fetchTypes = async (
+    category: string,
+    subcategory: string,
+  ): Promise<string[]> => {
     if (!category.trim() || !subcategory.trim()) {
-      setTypes([]);
-      return;
+      return [];
     }
 
     try {
@@ -248,37 +276,49 @@ function StaffItemCreatePageContent() {
       );
 
       if (!response.ok) {
-        setTypes([]);
-        return;
+        return [];
       }
 
       const payload = (await response.json()) as { types?: unknown };
-      const nextTypes = Array.isArray(payload?.types)
+      return Array.isArray(payload?.types)
         ? payload.types.filter(
             (entry): entry is string => typeof entry === "string",
           )
         : [];
-
-      setTypes(nextTypes);
     } catch {
-      setTypes([]);
+      return [];
     }
+  };
+
+  const refreshSubcategoryOptionsForClassification = async (
+    classificationId: number,
+    category: string,
+  ) => {
+    const options = await fetchSubcategories(category);
+    setSubcategoryOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: options,
+    }));
+    return options;
+  };
+
+  const refreshTypeOptionsForClassification = async (
+    classificationId: number,
+    category: string,
+    subcategory: string,
+  ) => {
+    const options = await fetchTypes(category, subcategory);
+    setTypeOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: options,
+    }));
+    return options;
   };
 
   // Dynamically loads top-level categories from the category3 table API.
   useEffect(() => {
-    fetchCategories();
+    void fetchCategories();
   }, []);
-
-  // Dynamically loads subcategories based on the selected top-level category.
-  useEffect(() => {
-    fetchSubcategories(form.category3);
-  }, [form.category3]);
-
-  // Dynamically loads types based on the selected category + subcategory.
-  useEffect(() => {
-    fetchTypes(form.category3, form.category2);
-  }, [form.category3, form.category2]);
 
   const canSubmit = useMemo(
     () => !isSaving && !isDeletingImage,
@@ -294,6 +334,152 @@ function StaffItemCreatePageContent() {
           : e.target.value;
       setForm((prev) => ({ ...prev, [key]: value }));
     };
+
+  function handleClassificationCategoryChange(
+    classificationId: number,
+    nextCategory: string,
+  ) {
+    const trimmedCategory = nextCategory.trim();
+    setForm((prev) => ({
+      ...prev,
+      classifications: prev.classifications.map((classification) =>
+        classification.localId === classificationId
+          ? {
+              ...classification,
+              category3: nextCategory,
+              category2: "",
+              category1: "",
+            }
+          : classification,
+      ),
+    }));
+    setSubcategoryOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: [],
+    }));
+    setTypeOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: [],
+    }));
+
+    if (trimmedCategory) {
+      void refreshSubcategoryOptionsForClassification(
+        classificationId,
+        trimmedCategory,
+      );
+    }
+  }
+
+  function handleClassificationSubcategoryChange(
+    classificationId: number,
+    nextSubcategory: string,
+  ) {
+    const targetClassification = form.classifications.find(
+      (classification) => classification.localId === classificationId,
+    );
+    const category = targetClassification?.category3.trim() ?? "";
+    const trimmedSubcategory = nextSubcategory.trim();
+
+    setForm((prev) => ({
+      ...prev,
+      classifications: prev.classifications.map((classification) =>
+        classification.localId === classificationId
+          ? {
+              ...classification,
+              category2: nextSubcategory,
+              category1: "",
+            }
+          : classification,
+      ),
+    }));
+    setTypeOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: [],
+    }));
+
+    if (category && trimmedSubcategory) {
+      void refreshTypeOptionsForClassification(
+        classificationId,
+        category,
+        trimmedSubcategory,
+      );
+    }
+  }
+
+  function handleClassificationTypeChange(
+    classificationId: number,
+    nextType: string,
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      classifications: prev.classifications.map((classification) =>
+        classification.localId === classificationId
+          ? {
+              ...classification,
+              category1: nextType,
+            }
+          : classification,
+      ),
+    }));
+  }
+
+  function addClassificationLine() {
+    const nextId = nextClassificationDraftId;
+    setForm((prev) => ({
+      ...prev,
+      classifications: [
+        ...prev.classifications,
+        {
+          localId: nextId,
+          category3: "",
+          category2: "",
+          category1: "",
+        },
+      ],
+    }));
+    setSubcategoryOptionsByClassificationId((prev) => ({
+      ...prev,
+      [nextId]: [],
+    }));
+    setTypeOptionsByClassificationId((prev) => ({
+      ...prev,
+      [nextId]: [],
+    }));
+    setNextClassificationDraftId((prev) => prev + 1);
+  }
+
+  function removeClassificationLine(classificationId: number) {
+    if (form.classifications.length <= 1) {
+      return;
+    }
+
+    const remainingClassifications = form.classifications.filter(
+      (classification) => classification.localId !== classificationId,
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      classifications: prev.classifications.filter(
+        (classification) => classification.localId !== classificationId,
+      ),
+    }));
+    setSubcategoryOptionsByClassificationId((prev) => {
+      const next = { ...prev };
+      delete next[classificationId];
+      return next;
+    });
+    setTypeOptionsByClassificationId((prev) => {
+      const next = { ...prev };
+      delete next[classificationId];
+      return next;
+    });
+
+    if (categoryModalTargetClassificationId === classificationId) {
+      setCategoryModalTargetClassificationId(
+        remainingClassifications[0]?.localId ?? 1,
+      );
+    }
+  }
 
   function validate(): string | null {
     if (!form.itemName.trim()) return "Item name is required.";
@@ -316,6 +502,48 @@ function StaffItemCreatePageContent() {
       return "Unit cost must be a non-negative number with up to 2 decimals.";
     }
 
+    if (form.classifications.length === 0) {
+      return "At least one classification row is required.";
+    }
+
+    const emptyAdditionalClassifications = form.classifications
+      .slice(1)
+      .filter(
+        (classification) =>
+          !classification.category3.trim() &&
+          !classification.category2.trim() &&
+          !classification.category1.trim(),
+      );
+    if (emptyAdditionalClassifications.length > 0) {
+      return "Remove empty classification rows before creating the item.";
+    }
+
+    const startedClassifications = form.classifications.filter(
+      (classification) =>
+        classification.category3.trim() ||
+        classification.category2.trim() ||
+        classification.category1.trim(),
+    );
+
+    for (const classification of startedClassifications) {
+      if (
+        !classification.category3.trim() ||
+        !classification.category2.trim() ||
+        !classification.category1.trim()
+      ) {
+        return "Each started classification must include Category, Subcategory, and Type.";
+      }
+    }
+
+    const seenClassificationKeys = new Set<string>();
+    for (const classification of startedClassifications) {
+      const key = `${classification.category3.trim()}|||${classification.category2.trim()}|||${classification.category1.trim()}`;
+      if (seenClassificationKeys.has(key)) {
+        return "Duplicate classification sets are not allowed.";
+      }
+      seenClassificationKeys.add(key);
+    }
+
     return null;
   }
 
@@ -331,7 +559,22 @@ function StaffItemCreatePageContent() {
   }
 
   function resetForm() {
-    setForm(INITIAL_FORM);
+    const nextForm: CreateItemForm = {
+      ...INITIAL_FORM,
+      classifications: INITIAL_FORM.classifications.map((classification) => ({
+        ...classification,
+      })),
+      images: INITIAL_FORM.images.map((image) => ({ ...image })),
+    };
+    setForm(nextForm);
+    setSubcategoryOptionsByClassificationId({});
+    setTypeOptionsByClassificationId({});
+    setNextClassificationDraftId(
+      getNextClassificationDraftId(nextForm.classifications),
+    );
+    setCategoryModalTargetClassificationId(
+      nextForm.classifications[0]?.localId ?? 1,
+    );
     setError(null);
     setSuccessMessage(null);
     setSelectedImageIndex(null);
@@ -339,8 +582,12 @@ function StaffItemCreatePageContent() {
     setZeroValueFields([]);
   }
 
-  function openNewCategoryPopup(level: CategoryLevel) {
+  function openNewCategoryPopup(
+    level: CategoryLevel,
+    classificationId: number,
+  ) {
     setNewCategoryLevel(level);
+    setCategoryModalTargetClassificationId(classificationId);
     setShowNewCategoryPopup(true);
   }
 
@@ -355,22 +602,36 @@ function StaffItemCreatePageContent() {
   }) {
     await fetchCategories();
 
-    if (
-      result.level === "category2" &&
-      form.category3.trim() &&
-      form.category3.trim() === (result.parentCategory3 ?? "")
-    ) {
-      await fetchSubcategories(form.category3.trim());
+    if (result.level === "category2" && result.parentCategory3) {
+      const matchingClassifications = form.classifications.filter(
+        (classification) =>
+          classification.category3.trim() === result.parentCategory3,
+      );
+      await Promise.all(
+        matchingClassifications.map((classification) =>
+          refreshSubcategoryOptionsForClassification(
+            classification.localId,
+            classification.category3.trim(),
+          ),
+        ),
+      );
     }
 
-    if (
-      result.level === "category1" &&
-      form.category3.trim() &&
-      form.category2.trim() &&
-      form.category3.trim() === (result.parentCategory3 ?? "") &&
-      form.category2.trim() === (result.parentCategory2 ?? "")
-    ) {
-      await fetchTypes(form.category3.trim(), form.category2.trim());
+    if (result.level === "category1" && result.parentCategory3) {
+      const matchingClassifications = form.classifications.filter(
+        (classification) =>
+          classification.category3.trim() === result.parentCategory3 &&
+          classification.category2.trim() === (result.parentCategory2 ?? ""),
+      );
+      await Promise.all(
+        matchingClassifications.map((classification) =>
+          refreshTypeOptionsForClassification(
+            classification.localId,
+            classification.category3.trim(),
+            classification.category2.trim(),
+          ),
+        ),
+      );
     }
   }
 
@@ -507,13 +768,28 @@ function StaffItemCreatePageContent() {
       )
       .map((image) => image.s3Key!.trim());
 
+    const startedClassifications = form.classifications
+      .map((classification) => ({
+        category3: asNullableString(classification.category3),
+        category2: asNullableString(classification.category2),
+        category1: asNullableString(classification.category1),
+      }))
+      .filter(
+        (classification) =>
+          classification.category3 ||
+          classification.category2 ||
+          classification.category1,
+      );
+    const primaryClassification = startedClassifications[0] ?? null;
+
     const payload = {
-      sku: asNullableString(form.sku),
+      sku: form.sku.trim(),
       itemName: form.itemName.trim(),
       price: Number(form.price),
-      category3: asNullableString(form.category3),
-      category2: asNullableString(form.category2),
-      category1: asNullableString(form.category1),
+      category3: primaryClassification?.category3 ?? null,
+      category2: primaryClassification?.category2 ?? null,
+      category1: primaryClassification?.category1 ?? null,
+      classifications: startedClassifications,
       description: asNullableString(form.description),
       quantityInStock: asPositiveIntegerOrZero(form.quantityInStock),
       unitOfMeasure: asNullableString(form.unitOfMeasure),
@@ -578,7 +854,22 @@ function StaffItemCreatePageContent() {
           ? `Item created successfully. New item ID: ${createdId}.`
           : "Item created successfully.",
       );
-      setForm(INITIAL_FORM);
+      const resetFormState: CreateItemForm = {
+        ...INITIAL_FORM,
+        classifications: INITIAL_FORM.classifications.map((classification) => ({
+          ...classification,
+        })),
+        images: INITIAL_FORM.images.map((image) => ({ ...image })),
+      };
+      setForm(resetFormState);
+      setSubcategoryOptionsByClassificationId({});
+      setTypeOptionsByClassificationId({});
+      setNextClassificationDraftId(
+        getNextClassificationDraftId(resetFormState.classifications),
+      );
+      setCategoryModalTargetClassificationId(
+        resetFormState.classifications[0]?.localId ?? 1,
+      );
       setSelectedImageIndex(null);
       setIsZeroValueConfirmationOpen(false);
       setZeroValueFields([]);
@@ -611,6 +902,13 @@ function StaffItemCreatePageContent() {
     selectedImageIndex !== null
       ? (form.images[selectedImageIndex] ?? null)
       : null;
+  const targetClassificationForModal =
+    form.classifications.find(
+      (classification) =>
+        classification.localId === categoryModalTargetClassificationId,
+    ) ??
+    form.classifications[0] ??
+    null;
 
   return (
     <div>
@@ -703,59 +1001,106 @@ function StaffItemCreatePageContent() {
                 />
               </label>
 
-              <label className="item-create-field">
-                <span className="item-create-label">Category</span>
-                <CategoryCombo
-                  ariaLabel="Category"
-                  value={form.category3}
-                  placeholder="Select category"
-                  options={categories}
-                  onSelect={(nextCategory) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      category3: nextCategory,
-                      category2: "",
-                      category1: "",
-                    }))
-                  }
-                  onNewClick={() => openNewCategoryPopup("category3")}
-                />
-              </label>
+              <div className="item-create-field item-create-classifications item-edit-classifications-panel">
+                <div className="item-edit-classifications-header">
+                  <span className="item-create-label">Classifications</span>
+                  <button
+                    type="button"
+                    className="ticket-add-line-btn"
+                    onClick={addClassificationLine}
+                    aria-label="Add classification set"
+                    title="Add classification set"
+                  >
+                    +
+                  </button>
+                </div>
 
-              <label className="item-create-field">
-                <span className="item-create-label">Subcategory</span>
-                <CategoryCombo
-                  ariaLabel="Subcategory"
-                  value={form.category2}
-                  placeholder="Select subcategory"
-                  options={subcategories}
-                  onSelect={(nextSubcategory) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      category2: nextSubcategory,
-                      category1: "",
-                    }))
-                  }
-                  onNewClick={() => openNewCategoryPopup("category2")}
-                />
-              </label>
+                <div className="item-edit-classifications-grid item-edit-classifications-grid--header">
+                  <div>Category</div>
+                  <div>Subcategory</div>
+                  <div>Type</div>
+                  <div>Action</div>
+                </div>
 
-              <label className="item-create-field">
-                <span className="item-create-label">Type</span>
-                <CategoryCombo
-                  ariaLabel="Type"
-                  value={form.category1}
-                  placeholder="Select type"
-                  options={types}
-                  onSelect={(nextType) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      category1: nextType,
-                    }))
-                  }
-                  onNewClick={() => openNewCategoryPopup("category1")}
-                />
-              </label>
+                {form.classifications.map((classification) => (
+                  <div
+                    key={classification.localId}
+                    className="item-edit-classifications-grid"
+                  >
+                    <CategoryCombo
+                      ariaLabel="Category"
+                      value={classification.category3}
+                      placeholder="Select category"
+                      options={categories}
+                      onSelect={(nextCategory) =>
+                        handleClassificationCategoryChange(
+                          classification.localId,
+                          nextCategory,
+                        )
+                      }
+                      onNewClick={() =>
+                        openNewCategoryPopup(
+                          "category3",
+                          classification.localId,
+                        )
+                      }
+                    />
+                    <CategoryCombo
+                      ariaLabel="Subcategory"
+                      value={classification.category2}
+                      placeholder="Select subcategory"
+                      options={
+                        subcategoryOptionsByClassificationId[
+                          classification.localId
+                        ] ?? []
+                      }
+                      onSelect={(nextSubcategory) =>
+                        handleClassificationSubcategoryChange(
+                          classification.localId,
+                          nextSubcategory,
+                        )
+                      }
+                      onNewClick={() =>
+                        openNewCategoryPopup(
+                          "category2",
+                          classification.localId,
+                        )
+                      }
+                    />
+                    <CategoryCombo
+                      ariaLabel="Type"
+                      value={classification.category1}
+                      placeholder="Select type"
+                      options={
+                        typeOptionsByClassificationId[classification.localId] ??
+                        []
+                      }
+                      onSelect={(nextType) =>
+                        handleClassificationTypeChange(
+                          classification.localId,
+                          nextType,
+                        )
+                      }
+                      onNewClick={() =>
+                        openNewCategoryPopup(
+                          "category1",
+                          classification.localId,
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="ticket-line-remove-btn"
+                      onClick={() =>
+                        removeClassificationLine(classification.localId)
+                      }
+                      disabled={form.classifications.length <= 1}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
 
               <label className="item-create-field">
                 <span className="item-create-label">Unit Of Measure</span>
@@ -965,10 +1310,14 @@ function StaffItemCreatePageContent() {
         level={newCategoryLevel}
         categories={categories}
         defaultParentCategory3={
-          newCategoryLevel === "category3" ? "" : form.category3.trim()
+          newCategoryLevel === "category3"
+            ? ""
+            : (targetClassificationForModal?.category3.trim() ?? "")
         }
         defaultParentCategory2={
-          newCategoryLevel === "category1" ? form.category2.trim() : ""
+          newCategoryLevel === "category1"
+            ? (targetClassificationForModal?.category2.trim() ?? "")
+            : ""
         }
         onClose={closeNewCategoryPopup}
         onCreated={handleCategoryCreated}

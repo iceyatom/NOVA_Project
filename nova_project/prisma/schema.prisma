@@ -30,11 +30,12 @@ model CatalogItem {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  category3Ref Category3? @relation("CatalogItemCategory3", fields: [category3], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  category2Ref Category2? @relation("CatalogItemCategory2", fields: [category2], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  category1Ref Category1? @relation("CatalogItemCategory1", fields: [category1], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  ticketLines  TicketLine[]
-  images       CatalogItemImage[]
+  category3Ref    Category3?                  @relation("CatalogItemCategory3", fields: [category3], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  category2Ref    Category2?                  @relation("CatalogItemCategory2", fields: [category2], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  category1Ref    Category1?                  @relation("CatalogItemCategory1", fields: [category1], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  ticketLines     TicketLine[]
+  images          CatalogItemImage[]
+  classifications CatalogItemClassification[]
 
   @@index([category1])
   @@index([category2])
@@ -45,12 +46,12 @@ model CatalogItem {
 }
 
 model CatalogItemImage {
-  id            Int         @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   catalogItemId Int
   s3Key         String
-  createdAt     DateTime    @default(now())
+  createdAt     DateTime @default(now())
 
-  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([catalogItemId])
   @@index([s3Key])
@@ -82,11 +83,26 @@ model Category1 {
   name        String
   category2Id Int
 
-  category2    Category2     @relation(fields: [category2Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  catalogItems CatalogItem[] @relation("CatalogItemCategory1")
+  category2       Category2                   @relation(fields: [category2Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  catalogItems    CatalogItem[]               @relation("CatalogItemCategory1")
+  classifications CatalogItemClassification[]
 
   @@unique([category2Id, name])
   @@index([category2Id])
+}
+
+model CatalogItemClassification {
+  catalogItemId Int
+  category1Id   Int
+  createdAt     DateTime @default(now())
+
+  // Category1 already determines Category2 and Category3 through the hierarchy.
+  catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  category1   Category1   @relation(fields: [category1Id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([catalogItemId, category1Id])
+  @@index([category1Id])
+  @@index([createdAt])
 }
 
 model Account {
@@ -97,7 +113,7 @@ model Account {
   role         String
   displayName  String?
   phone        String?
-  notes        String?  @db.VarChar(500)
+  notes        String? @db.VarChar(500)
 
   lastLoginAt DateTime?
   deletedAt   DateTime?
@@ -124,13 +140,13 @@ model PendingVerification {
 }
 
 model Ticket {
-  id                Int      @id @default(autoincrement())
+  id                 Int          @id @default(autoincrement())
   createdByAccountId Int
-  type              String
-  notes             String   @db.VarChar(500)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  ticketLines      TicketLine[]
+  type               String
+  notes              String       @db.VarChar(500)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  ticketLines        TicketLine[]
 
   @@index([createdByAccountId])
   @@index([createdAt])
@@ -150,12 +166,12 @@ model TicketLine {
 }
 
 model Task {
-  id                  Int      @id @default(autoincrement())
+  id                  Int        @id @default(autoincrement())
   title               String
-  description         String?  @db.Text
+  description         String?    @db.Text
   status              TaskStatus @default(NOT_STARTED)
   assignedToAccountId Int
-  createdAt           DateTime @default(now())
+  createdAt           DateTime   @default(now())
   completedAt         DateTime?
   expiresAt           DateTime
 

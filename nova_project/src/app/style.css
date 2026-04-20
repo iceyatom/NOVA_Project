@@ -1715,38 +1715,44 @@ body {
   font-size: 0.95rem;
 }
 
-.product-category {
-  margin: 0;
+.product-classifications {
+  display: grid;
+  gap: 8px;
 }
 
-.product-category1-text {
-  padding: 6px 12px;
-  background: #e0fee6;
-  color: #027e0f;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+.product-classifications-title {
   margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f2937;
 }
 
-.product-category2-text {
-  padding: 6px 12px;
-  background: #abedb8;
-  color: #005d09;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+.product-classifications-list {
+  list-style: none;
+  padding: 0;
   margin: 0;
+  display: grid;
+  gap: 8px;
 }
 
-.product-category3-text {
-  padding: 6px 12px;
-  background: #67d07c;
-  color: #003605;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+.product-classifications-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.product-classifications-entry {
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.product-classifications-empty {
   margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
 }
 
 .product-description-text {
@@ -3411,8 +3417,43 @@ body:has(.loginPage) main {
 
 .item-edit-grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1rem;
+}
+
+.item-edit-classifications-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.8rem;
+  padding: 0.9rem;
+  background: #f8fafc;
+}
+
+.item-edit-classifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.55rem;
+}
+
+.item-edit-classifications-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.7rem;
+  align-items: start;
+  margin-bottom: 0.55rem;
+}
+
+.item-edit-classifications-grid:last-child {
+  margin-bottom: 0;
+}
+
+.item-edit-classifications-grid--header {
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 0.4rem;
 }
 
 .item-edit-grid-3 {
@@ -3493,6 +3534,16 @@ body:has(.loginPage) main {
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
   color: #065f46;
+}
+
+@media (max-width: 720px) {
+  .item-edit-classifications-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .item-edit-classifications-grid--header {
+    display: none;
+  }
 }
 
 .accountDashboardPage {
@@ -3838,6 +3889,10 @@ body:has(.loginPage) main {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+}
+
+.item-create-classifications {
+  grid-column: 1 / -1;
 }
 
 .item-create-label {
