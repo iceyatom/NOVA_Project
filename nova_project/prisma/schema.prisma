@@ -127,8 +127,26 @@ model Account {
   updatedAt DateTime @updatedAt
 
   tasks               Task[]               @relation("AccountTasks")
+  alerts              Alert[]
   pendingVerification PendingVerification?
   sessions            Session[]
+}
+
+model Alert {
+  id           Int       @id @default(autoincrement())
+  title        String
+  description  String    @db.VarChar(500)
+  type         AlertType
+  creationTime DateTime  @default(now())
+  accounts     Account[]
+
+  @@index([type])
+  @@index([creationTime])
+}
+
+enum AlertType {
+  ANNOUNCEMENT @map("Announcement")
+  LOW_STOCK    @map("Low Stock")
 }
 
 model PendingVerification {
