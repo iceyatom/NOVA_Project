@@ -13,6 +13,10 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import CategoryCombo from "@/app/components/CategoryCombo";
 import ImageUpload from "@/app/components/ImageUpload";
 import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
+import useImageLibraryBrowser, {
+  type BrowseImageLibraryEntry,
+  type BrowseImageReference,
+} from "@/app/hooks/useImageLibraryBrowser";
 import CategoryCreateModal, {
   type CategoryLevel,
 } from "@/app/components/CategoryCreateModal";
@@ -73,37 +77,6 @@ type LinkImageApiResponse = {
   details?: unknown;
 };
 
-type BrowseImageLibraryEntry = {
-  s3Key: string;
-  url: string;
-  usageCount: number;
-  lastLinkedAt: string | null;
-  linkedToCatalogItem: boolean;
-};
-
-type BrowseImageLibraryApiResponse = {
-  success?: boolean;
-  data?: unknown;
-  error?: unknown;
-  details?: unknown;
-};
-
-type BrowseImageReference = {
-  imageId: number;
-  catalogItemId: number;
-  itemName: string;
-  sku: string | null;
-  sortOrder: number | null;
-  linkedAt: string | null;
-  itemUpdatedAt: string | null;
-};
-
-type BrowseImageReferencesPayload = {
-  s3Key: string;
-  url: string;
-  references: BrowseImageReference[];
-};
-
 type PendingReferenceDelete = {
   reference: BrowseImageReference;
   key: string;
@@ -111,13 +84,6 @@ type PendingReferenceDelete = {
 
 type PendingBrowseImageDelete = {
   entry: BrowseImageLibraryEntry;
-};
-
-type BrowseImageReferencesApiResponse = {
-  success?: boolean;
-  data?: unknown;
-  error?: unknown;
-  details?: unknown;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -137,86 +103,6 @@ function getNullableNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
-}
-
-function parseBrowseImageLibrary(data: unknown): BrowseImageLibraryEntry[] {
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  return data
-    .map((entry): BrowseImageLibraryEntry | null => {
-      const record = asRecord(entry);
-      if (!record) return null;
-
-      const s3Key = getNullableString(record.s3Key)?.trim() ?? "";
-      const url = getNullableString(record.url)?.trim() ?? "";
-
-      if (!s3Key || !url) {
-        return null;
-      }
-
-      const usageCount = getNullableNumber(record.usageCount);
-
-      return {
-        s3Key,
-        url,
-        usageCount:
-          usageCount == null ? 0 : Math.max(0, Math.trunc(usageCount)),
-        lastLinkedAt: getNullableString(record.lastLinkedAt),
-        linkedToCatalogItem: record.linkedToCatalogItem === true,
-      };
-    })
-    .filter((entry): entry is BrowseImageLibraryEntry => entry !== null);
-}
-
-function parseBrowseImageReferencesPayload(
-  data: unknown,
-): BrowseImageReferencesPayload | null {
-  const record = asRecord(data);
-  if (!record) {
-    return null;
-  }
-
-  const s3Key = getNullableString(record.s3Key)?.trim() ?? "";
-  const url = getNullableString(record.url)?.trim() ?? "";
-  const referencesValue = record.references;
-
-  if (!s3Key || !url || !Array.isArray(referencesValue)) {
-    return null;
-  }
-
-  const references = referencesValue
-    .map((entry): BrowseImageReference | null => {
-      const reference = asRecord(entry);
-      if (!reference) return null;
-
-      const imageId = getNullableNumber(reference.imageId);
-      const catalogItemId = getNullableNumber(reference.catalogItemId);
-      const itemName = getNullableString(reference.itemName)?.trim() ?? "";
-      const sku = getNullableString(reference.sku);
-
-      if (imageId == null || catalogItemId == null || !itemName) {
-        return null;
-      }
-
-      return {
-        imageId,
-        catalogItemId,
-        itemName,
-        sku,
-        sortOrder: getNullableNumber(reference.sortOrder),
-        linkedAt: getNullableString(reference.linkedAt),
-        itemUpdatedAt: getNullableString(reference.itemUpdatedAt),
-      };
-    })
-    .filter((entry): entry is BrowseImageReference => entry !== null);
-
-  return {
-    s3Key,
-    url,
-    references,
-  };
 }
 
 function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
@@ -629,7 +515,8 @@ function normalizeForCompare(f: ItemForm) {
 
 function normalizeForCompareWithoutImages(f: ItemForm) {
   const normalized = normalizeForCompare(f);
-  const { images: _images, ...rest } = normalized;
+  const { images, ...rest } = normalized;
+  void images;
   return rest;
 }
 
@@ -763,20 +650,6 @@ function StaffItemEditPageContent() {
   const [isDeletingItem, setIsDeletingItem] = useState<boolean>(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState<boolean>(false);
-  const [isBrowseImagesPopupOpen, setIsBrowseImagesPopupOpen] =
-    useState<boolean>(false);
-  const [browseImages, setBrowseImages] = useState<BrowseImageLibraryEntry[]>(
-    [],
-  );
-  const [browseItemSearchInput, setBrowseItemSearchInput] =
-    useState<string>("");
-  const [browseItemSearchQuery, setBrowseItemSearchQuery] =
-    useState<string>("");
-  const [isLoadingBrowseImages, setIsLoadingBrowseImages] =
-    useState<boolean>(false);
-  const [browseImagesError, setBrowseImagesError] = useState<string | null>(
-    null,
-  );
   const [isLinkingBrowseImageKey, setIsLinkingBrowseImageKey] = useState<
     string | null
   >(null);
@@ -785,19 +658,40 @@ function StaffItemEditPageContent() {
   >(null);
   const [pendingBrowseImageDelete, setPendingBrowseImageDelete] =
     useState<PendingBrowseImageDelete | null>(null);
-  const [isBrowseImageDetailsOpen, setIsBrowseImageDetailsOpen] =
-    useState<boolean>(false);
-  const [browseImageDetails, setBrowseImageDetails] =
-    useState<BrowseImageReferencesPayload | null>(null);
-  const [isLoadingBrowseImageDetails, setIsLoadingBrowseImageDetails] =
-    useState<boolean>(false);
-  const [browseImageDetailsError, setBrowseImageDetailsError] = useState<
-    string | null
-  >(null);
   const [isUnlinkingReferenceImageId, setIsUnlinkingReferenceImageId] =
     useState<number | null>(null);
   const [pendingReferenceDelete, setPendingReferenceDelete] =
     useState<PendingReferenceDelete | null>(null);
+  const {
+    isBrowseImagesPopupOpen,
+    browseImages,
+    setBrowseImages,
+    browseItemSearchInput,
+    setBrowseItemSearchInput,
+    browseItemSearchQuery,
+    isLoadingBrowseImages,
+    browseImagesError,
+    isBrowseImageDetailsOpen,
+    browseImageDetails,
+    setBrowseImageDetails,
+    isLoadingBrowseImageDetails,
+    browseImageDetailsError,
+    setBrowseImageDetailsError,
+    openBrowseImagesPopup: openBrowseImagesPopupBase,
+    closeBrowseImagesPopup: closeBrowseImagesPopupBase,
+    loadBrowseImages: loadBrowseImagesBase,
+    openBrowseImageDetails: openBrowseImageDetailsBase,
+    closeBrowseImageDetailsPopup: closeBrowseImageDetailsPopupBase,
+    handleBrowseItemSearchSubmit: handleBrowseItemSearchSubmitBase,
+    handleClearBrowseItemSearch: handleClearBrowseItemSearchBase,
+  } = useImageLibraryBrowser({
+    catalogItemId: id,
+    isBrowseOpenBlocked:
+      isDeletingImage || isSaving || isDeletingItem || isLoading,
+    isBrowseCloseBlocked:
+      !!isLinkingBrowseImageKey || !!isUnlinkingBrowseImageKey,
+    isDetailsCloseBlocked: isUnlinkingReferenceImageId != null,
+  });
   const [imagePointerDrag, setImagePointerDrag] =
     useState<ImagePointerDragState | null>(null);
   const [imageDragOverIndex, setImageDragOverIndex] = useState<number | null>(
@@ -1624,159 +1518,40 @@ function StaffItemEditPageContent() {
   }
 
   function openBrowseImagesPopup() {
-    if (isDeletingImage || isSaving || isDeletingItem || isLoading) {
-      return;
-    }
-
-    setBrowseItemSearchInput("");
-    setBrowseItemSearchQuery("");
-    setBrowseImagesError(null);
     setPendingBrowseImageDelete(null);
-    setIsBrowseImagesPopupOpen(true);
-    void loadBrowseImages("");
+    void openBrowseImagesPopupBase();
   }
 
   function closeBrowseImagesPopup() {
-    if (isLinkingBrowseImageKey || isUnlinkingBrowseImageKey) {
-      return;
-    }
-
     setPendingBrowseImageDelete(null);
-    setIsBrowseImagesPopupOpen(false);
-    setIsBrowseImageDetailsOpen(false);
-    setBrowseImageDetails(null);
-    setBrowseImageDetailsError(null);
-    setIsLoadingBrowseImageDetails(false);
+    closeBrowseImagesPopupBase();
   }
 
   async function loadBrowseImages(nextQuery?: string) {
-    if (!id) {
-      setBrowseImages([]);
-      setBrowseImagesError("Invalid item ID.");
-      return;
-    }
-
-    const normalizedQuery = (nextQuery ?? browseItemSearchQuery)
-      .trim()
-      .replace(/\s+/g, " ");
-
-    setIsLoadingBrowseImages(true);
-    setBrowseImagesError(null);
     setPendingBrowseImageDelete(null);
-
-    try {
-      const params = new URLSearchParams({
-        catalogItemId: String(id),
-        limit: "180",
-      });
-      if (normalizedQuery) {
-        params.set("query", normalizedQuery);
-      }
-      const response = await fetch(`/api/catalog/staff/images?${params}`, {
-        cache: "no-store",
-      });
-
-      const result = (await response.json()) as BrowseImageLibraryApiResponse;
-
-      if (!response.ok || result?.success === false) {
-        const message =
-          typeof result?.error === "string"
-            ? result.error
-            : `Failed to load image library (HTTP ${response.status}).`;
-        const details =
-          typeof result?.details === "string" ? ` ${result.details}` : "";
-        throw new Error(`${message}${details}`.trim());
-      }
-
-      setBrowseImages(parseBrowseImageLibrary(result.data));
-    } catch (error) {
-      setBrowseImages([]);
-      setBrowseImagesError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load image library.",
-      );
-    } finally {
-      setIsLoadingBrowseImages(false);
-    }
+    await loadBrowseImagesBase(nextQuery);
   }
 
   function closeBrowseImageDetailsPopup() {
-    if (isUnlinkingReferenceImageId != null) {
-      return;
-    }
-
-    setIsBrowseImageDetailsOpen(false);
-    setBrowseImageDetailsError(null);
+    closeBrowseImageDetailsPopupBase();
     setPendingReferenceDelete(null);
   }
 
   async function openBrowseImageDetails(entry: BrowseImageLibraryEntry) {
-    const key = entry.s3Key.trim();
-    if (!key) {
-      return;
-    }
-
-    setIsBrowseImageDetailsOpen(true);
-    setBrowseImageDetailsError(null);
-    setIsLoadingBrowseImageDetails(true);
-    setBrowseImageDetails({
-      s3Key: key,
-      url: entry.url,
-      references: [],
-    });
-
-    try {
-      const params = new URLSearchParams({
-        s3Key: key,
-        catalogItemId: String(id),
-      });
-      const response = await fetch(`/api/catalog/staff/images?${params}`, {
-        cache: "no-store",
-      });
-      const result =
-        (await response.json()) as BrowseImageReferencesApiResponse;
-
-      if (!response.ok || result?.success === false) {
-        const message =
-          typeof result?.error === "string"
-            ? result.error
-            : `Failed to load image references (HTTP ${response.status}).`;
-        const details =
-          typeof result?.details === "string" ? ` ${result.details}` : "";
-        throw new Error(`${message}${details}`.trim());
-      }
-
-      const payload = parseBrowseImageReferencesPayload(result.data);
-      if (!payload) {
-        throw new Error("Image reference response was missing required data.");
-      }
-
-      setBrowseImageDetails(payload);
-    } catch (error) {
-      setBrowseImageDetailsError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load image references.",
-      );
-    } finally {
-      setIsLoadingBrowseImageDetails(false);
-    }
+    setPendingReferenceDelete(null);
+    await openBrowseImageDetailsBase(entry);
   }
 
   function handleBrowseItemSearchSubmit(
     event: React.FormEvent<HTMLFormElement>,
   ) {
-    event.preventDefault();
-    const normalizedQuery = browseItemSearchInput.trim().replace(/\s+/g, " ");
-    setBrowseItemSearchQuery(normalizedQuery);
-    void loadBrowseImages(normalizedQuery);
+    setPendingBrowseImageDelete(null);
+    handleBrowseItemSearchSubmitBase(event);
   }
 
   function handleClearBrowseItemSearch() {
-    setBrowseItemSearchInput("");
-    setBrowseItemSearchQuery("");
-    void loadBrowseImages("");
+    setPendingBrowseImageDelete(null);
+    handleClearBrowseItemSearchBase();
   }
 
   function closeDeleteConfirmation() {
@@ -3175,7 +2950,7 @@ function StaffItemEditPageContent() {
                             <span>
                               SKU:{" "}
                               {reference.sku?.trim() ? reference.sku : "N/A"}
-                              {isCurrentItem ? " • Current item" : ""}
+                              {isCurrentItem ? " - Current item" : ""}
                             </span>
                           </div>
                           <button
