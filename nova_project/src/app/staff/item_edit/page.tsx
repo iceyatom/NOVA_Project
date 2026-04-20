@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import CategoryCombo from "@/app/components/CategoryCombo";
 import ImageUpload from "@/app/components/ImageUpload";
@@ -18,6 +24,12 @@ type ItemImage = {
   createdAt: string | null;
 };
 
+type ItemClassification = {
+  category3: string | null;
+  category2: string | null;
+  category1: string | null;
+};
+
 type Item = {
   id: number | null;
   sku: string | null;
@@ -26,6 +38,7 @@ type Item = {
   category3: string | null;
   category2: string | null;
   category1: string | null;
+  classifications: ItemClassification[];
   description: string | null;
   images: ItemImage[];
   quantityInStock: number | null;
@@ -150,6 +163,50 @@ function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
   ];
 }
 
+function parseItemClassifications(
+  raw: Record<string, unknown>,
+): ItemClassification[] {
+  const fallback: ItemClassification[] =
+    getNullableString(raw.category3) ||
+    getNullableString(raw.category2) ||
+    getNullableString(raw.category1)
+      ? [
+          {
+            category3: getNullableString(raw.category3),
+            category2: getNullableString(raw.category2),
+            category1: getNullableString(raw.category1),
+          },
+        ]
+      : [];
+
+  const rawClassifications = raw.classifications;
+  if (!Array.isArray(rawClassifications)) {
+    return fallback;
+  }
+
+  const parsed = rawClassifications
+    .map((entry): ItemClassification | null => {
+      const record = asRecord(entry);
+      if (!record) return null;
+
+      const category3 = getNullableString(record.category3);
+      const category2 = getNullableString(record.category2);
+      const category1 = getNullableString(record.category1);
+      if (!category3 && !category2 && !category1) {
+        return null;
+      }
+
+      return {
+        category3,
+        category2,
+        category1,
+      };
+    })
+    .filter((entry): entry is ItemClassification => entry !== null);
+
+  return parsed.length > 0 ? parsed : fallback;
+}
+
 function parseCatalogItem(data: unknown): Item | null {
   if (Array.isArray(data)) {
     return parseCatalogItem(data[0]);
@@ -161,14 +218,19 @@ function parseCatalogItem(data: unknown): Item | null {
   const parsedId = getNullableNumber(raw.id);
   if (parsedId === null) return null;
 
+  const category3 = getNullableString(raw.category3);
+  const category2 = getNullableString(raw.category2);
+  const category1 = getNullableString(raw.category1);
+
   return {
     id: parsedId,
     sku: getNullableString(raw.sku),
     itemName: getNullableString(raw.itemName),
     price: getNullableNumber(raw.price),
-    category3: getNullableString(raw.category3),
-    category2: getNullableString(raw.category2),
-    category1: getNullableString(raw.category1),
+    category3,
+    category2,
+    category1,
+    classifications: parseItemClassifications(raw),
     description: getNullableString(raw.description),
     images: parseCatalogImages(raw),
     quantityInStock: getNullableNumber(raw.quantityInStock),
@@ -184,13 +246,18 @@ function parseCatalogItem(data: unknown): Item | null {
   };
 }
 
+type ItemClassificationDraft = {
+  localId: number;
+  category3: string;
+  category2: string;
+  category1: string;
+};
+
 type ItemForm = {
   sku: string;
   itemName: string;
   price: string;
-  category3: string;
-  category2: string;
-  category1: string;
+  classifications: ItemClassificationDraft[];
   description: string;
   images: ItemImage[];
   quantityInStock: string;
@@ -213,6 +280,48 @@ function normalizeOptional(value: string): string {
 function initOptional(value: string | null | undefined): string {
   if (value == null) return "";
   return normalizeOptional(value);
+}
+
+function toClassificationDrafts(
+  classifications: ItemClassification[],
+): ItemClassificationDraft[] {
+  const normalized = classifications
+    .map((classification, index) => ({
+      localId: index + 1,
+      category3: initOptional(classification.category3),
+      category2: initOptional(classification.category2),
+      category1: initOptional(classification.category1),
+    }))
+    .filter(
+      (classification) =>
+        classification.category3 ||
+        classification.category2 ||
+        classification.category1,
+    );
+
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  return [
+    {
+      localId: 1,
+      category3: "",
+      category2: "",
+      category1: "",
+    },
+  ];
+}
+
+function getNextClassificationDraftId(
+  classifications: ItemClassificationDraft[],
+): number {
+  return (
+    classifications.reduce(
+      (maxId, classification) => Math.max(maxId, classification.localId),
+      0,
+    ) + 1
+  );
 }
 
 function withFallbackImage(images: ItemImage[]): ItemImage[] {
@@ -245,9 +354,12 @@ function applyNA(f: ItemForm): ItemForm {
     ...f,
     sku: f.sku.trim(),
     itemName: f.itemName.trim(),
-    category3: f.category3.trim(),
-    category2: f.category2.trim(),
-    category1: f.category1.trim(),
+    classifications: f.classifications.map((classification) => ({
+      ...classification,
+      category3: classification.category3.trim(),
+      category2: classification.category2.trim(),
+      category1: classification.category1.trim(),
+    })),
 
     description: normalizeOptional(f.description),
     unitOfMeasure: normalizeOptional(f.unitOfMeasure),
@@ -270,9 +382,7 @@ function toForm(item: Item): ItemForm {
     sku: item.sku ?? "",
     itemName: item.itemName ?? "",
     price: item.price != null ? String(item.price) : "",
-    category3: item.category3 ?? "",
-    category2: item.category2 ?? "",
-    category1: item.category1 ?? "",
+    classifications: toClassificationDrafts(item.classifications ?? []),
     description: initOptional(item.description),
     images: withFallbackImage(item.images ?? []),
     quantityInStock: String(item.quantityInStock ?? 0),
@@ -302,9 +412,11 @@ function normalizeForCompare(f: ItemForm) {
     sku: n(f.sku),
     itemName: n(f.itemName),
     price: num(f.price),
-    category3: n(f.category3),
-    category2: n(f.category2),
-    category1: n(f.category1),
+    classifications: f.classifications.map((classification) => ({
+      category3: n(classification.category3),
+      category2: n(classification.category2),
+      category1: n(classification.category1),
+    })),
     description: normalizeOptional(f.description),
     images: normalizeImagesForCompare(f.images),
     quantityInStock: Math.max(0, Math.trunc(num(f.quantityInStock))),
@@ -359,6 +471,48 @@ function validateForm(f: ItemForm): string | null {
     return "Unit cost must be a non-negative number with up to 2 decimals.";
   }
 
+  if (f.classifications.length === 0) {
+    return "At least one classification row is required.";
+  }
+
+  const emptyAdditionalClassifications = f.classifications
+    .slice(1)
+    .filter(
+      (classification) =>
+        !classification.category3.trim() &&
+        !classification.category2.trim() &&
+        !classification.category1.trim(),
+    );
+  if (emptyAdditionalClassifications.length > 0) {
+    return "Remove empty classification rows before saving.";
+  }
+
+  const startedClassifications = f.classifications.filter(
+    (classification) =>
+      classification.category3.trim() ||
+      classification.category2.trim() ||
+      classification.category1.trim(),
+  );
+
+  for (const classification of startedClassifications) {
+    if (
+      !classification.category3.trim() ||
+      !classification.category2.trim() ||
+      !classification.category1.trim()
+    ) {
+      return "Each started classification must include Category, Subcategory, and Type.";
+    }
+  }
+
+  const seenClassificationKeys = new Set<string>();
+  for (const classification of startedClassifications) {
+    const key = `${classification.category3.trim()}|||${classification.category2.trim()}|||${classification.category1.trim()}`;
+    if (seenClassificationKeys.has(key)) {
+      return "Duplicate classification sets are not allowed.";
+    }
+    seenClassificationKeys.add(key);
+  }
+
   return null;
 }
 function StaffItemEditPageContent() {
@@ -382,6 +536,7 @@ function StaffItemEditPageContent() {
       category3: "",
       category2: "",
       category1: "",
+      classifications: [],
       description: "",
       images: [
         {
@@ -415,11 +570,20 @@ function StaffItemEditPageContent() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
-  const [subcategories, setSubcategories] = useState<string[]>([]);
-  const [types, setTypes] = useState<string[]>([]);
+  const [
+    subcategoryOptionsByClassificationId,
+    setSubcategoryOptionsByClassificationId,
+  ] = useState<Record<number, string[]>>({});
+  const [typeOptionsByClassificationId, setTypeOptionsByClassificationId] =
+    useState<Record<number, string[]>>({});
+  const [nextClassificationDraftId, setNextClassificationDraftId] = useState(2);
   const [showNewCategoryPopup, setShowNewCategoryPopup] = useState(false);
   const [newCategoryLevel, setNewCategoryLevel] =
     useState<CategoryLevel>("category3");
+  const [
+    categoryModalTargetClassificationId,
+    setCategoryModalTargetClassificationId,
+  ] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null,
   );
@@ -447,6 +611,7 @@ function StaffItemEditPageContent() {
       setDeleteConfirmChecked(false);
     });
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     let mounted = true;
 
@@ -486,6 +651,13 @@ function StaffItemEditPageContent() {
 
         if (!mounted) return;
         setForm(nextForm);
+        setNextClassificationDraftId(
+          getNextClassificationDraftId(nextForm.classifications),
+        );
+        setCategoryModalTargetClassificationId(
+          nextForm.classifications[0]?.localId ?? 1,
+        );
+        void hydrateClassificationOptions(nextForm.classifications);
         originalRef.current = structuredClone(nextForm);
         setSelectedImageIndex(null);
       } catch (error) {
@@ -506,6 +678,7 @@ function StaffItemEditPageContent() {
       mounted = false;
     };
   }, [itemId]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const fetchCategories = async () => {
     try {
@@ -531,79 +704,125 @@ function StaffItemEditPageContent() {
     }
   };
 
-  const fetchSubcategories = async (category: string) => {
-    if (!category.trim()) {
-      setSubcategories([]);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `/api/catalog/staff/subcategories?category=${encodeURIComponent(category)}`,
-        { cache: "no-store" },
-      );
-      if (!response.ok) {
-        setSubcategories([]);
-        return;
+  const fetchSubcategories = useCallback(
+    async (category: string): Promise<string[]> => {
+      if (!category.trim()) {
+        return [];
       }
 
-      const payload = (await response.json()) as { subcategories?: unknown };
-      const nextSubcategories = Array.isArray(payload?.subcategories)
-        ? payload.subcategories.filter(
-            (entry): entry is string => typeof entry === "string",
-          )
-        : [];
-      setSubcategories(nextSubcategories);
-    } catch {
-      setSubcategories([]);
-    }
-  };
+      try {
+        const response = await fetch(
+          `/api/catalog/staff/subcategories?category=${encodeURIComponent(category)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          return [];
+        }
 
-  const fetchTypes = async (category: string, subcategory: string) => {
-    if (!category.trim() || !subcategory.trim()) {
-      setTypes([]);
-      return;
-    }
+        const payload = (await response.json()) as { subcategories?: unknown };
+        return Array.isArray(payload?.subcategories)
+          ? payload.subcategories.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+      } catch {
+        return [];
+      }
+    },
+    [],
+  );
 
-    try {
-      const params = new URLSearchParams({
-        category,
-        subcategory,
-      });
-      const response = await fetch(
-        `/api/catalog/staff/types?${params.toString()}`,
-        {
-          cache: "no-store",
-        },
-      );
-      if (!response.ok) {
-        setTypes([]);
-        return;
+  const fetchTypes = useCallback(
+    async (category: string, subcategory: string): Promise<string[]> => {
+      if (!category.trim() || !subcategory.trim()) {
+        return [];
       }
 
-      const payload = (await response.json()) as { types?: unknown };
-      const nextTypes = Array.isArray(payload?.types)
-        ? payload.types.filter(
-            (entry): entry is string => typeof entry === "string",
-          )
-        : [];
-      setTypes(nextTypes);
-    } catch {
-      setTypes([]);
-    }
+      try {
+        const params = new URLSearchParams({
+          category,
+          subcategory,
+        });
+        const response = await fetch(
+          `/api/catalog/staff/types?${params.toString()}`,
+          {
+            cache: "no-store",
+          },
+        );
+        if (!response.ok) {
+          return [];
+        }
+
+        const payload = (await response.json()) as { types?: unknown };
+        return Array.isArray(payload?.types)
+          ? payload.types.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : [];
+      } catch {
+        return [];
+      }
+    },
+    [],
+  );
+
+  const refreshSubcategoryOptionsForClassification = async (
+    classificationId: number,
+    category: string,
+  ) => {
+    const options = await fetchSubcategories(category);
+    setSubcategoryOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: options,
+    }));
+    return options;
   };
+
+  const refreshTypeOptionsForClassification = async (
+    classificationId: number,
+    category: string,
+    subcategory: string,
+  ) => {
+    const options = await fetchTypes(category, subcategory);
+    setTypeOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: options,
+    }));
+    return options;
+  };
+
+  const hydrateClassificationOptions = useCallback(
+    async (classifications: ItemClassificationDraft[]) => {
+      const subcategoryOptionsEntries = await Promise.all(
+        classifications.map(async (classification) => {
+          const category = classification.category3.trim();
+          const options = category ? await fetchSubcategories(category) : [];
+          return [classification.localId, options] as const;
+        }),
+      );
+      setSubcategoryOptionsByClassificationId(
+        Object.fromEntries(subcategoryOptionsEntries),
+      );
+
+      const typeOptionsEntries = await Promise.all(
+        classifications.map(async (classification) => {
+          const category = classification.category3.trim();
+          const subcategory = classification.category2.trim();
+          const options =
+            category && subcategory
+              ? await fetchTypes(category, subcategory)
+              : [];
+          return [classification.localId, options] as const;
+        }),
+      );
+      setTypeOptionsByClassificationId(Object.fromEntries(typeOptionsEntries));
+    },
+    [fetchSubcategories, fetchTypes],
+  );
 
   useEffect(() => {
     void fetchCategories();
   }, []);
-
-  useEffect(() => {
-    void fetchSubcategories(form.category3);
-  }, [form.category3]);
-
-  useEffect(() => {
-    void fetchTypes(form.category3, form.category2);
-  }, [form.category3, form.category2]);
 
   const update =
     <K extends keyof ItemForm>(key: K) =>
@@ -624,6 +843,150 @@ function StaffItemEditPageContent() {
       }));
     };
 
+  function handleClassificationCategoryChange(
+    classificationId: number,
+    nextCategory: string,
+  ) {
+    const trimmedCategory = nextCategory.trim();
+    setForm((prev) => ({
+      ...prev,
+      classifications: prev.classifications.map((classification) =>
+        classification.localId === classificationId
+          ? {
+              ...classification,
+              category3: nextCategory,
+              category2: "",
+              category1: "",
+            }
+          : classification,
+      ),
+    }));
+    setSubcategoryOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: [],
+    }));
+    setTypeOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: [],
+    }));
+    if (trimmedCategory) {
+      void refreshSubcategoryOptionsForClassification(
+        classificationId,
+        trimmedCategory,
+      );
+    }
+  }
+
+  function handleClassificationSubcategoryChange(
+    classificationId: number,
+    nextSubcategory: string,
+  ) {
+    const targetClassification = form.classifications.find(
+      (classification) => classification.localId === classificationId,
+    );
+    const category = targetClassification?.category3.trim() ?? "";
+    const trimmedSubcategory = nextSubcategory.trim();
+
+    setForm((prev) => ({
+      ...prev,
+      classifications: prev.classifications.map((classification) =>
+        classification.localId === classificationId
+          ? {
+              ...classification,
+              category2: nextSubcategory,
+              category1: "",
+            }
+          : classification,
+      ),
+    }));
+    setTypeOptionsByClassificationId((prev) => ({
+      ...prev,
+      [classificationId]: [],
+    }));
+    if (category && trimmedSubcategory) {
+      void refreshTypeOptionsForClassification(
+        classificationId,
+        category,
+        trimmedSubcategory,
+      );
+    }
+  }
+
+  function handleClassificationTypeChange(
+    classificationId: number,
+    nextType: string,
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      classifications: prev.classifications.map((classification) =>
+        classification.localId === classificationId
+          ? {
+              ...classification,
+              category1: nextType,
+            }
+          : classification,
+      ),
+    }));
+  }
+
+  function addClassificationLine() {
+    const nextId = nextClassificationDraftId;
+    setForm((prev) => ({
+      ...prev,
+      classifications: [
+        ...prev.classifications,
+        {
+          localId: nextId,
+          category3: "",
+          category2: "",
+          category1: "",
+        },
+      ],
+    }));
+    setSubcategoryOptionsByClassificationId((prev) => ({
+      ...prev,
+      [nextId]: [],
+    }));
+    setTypeOptionsByClassificationId((prev) => ({
+      ...prev,
+      [nextId]: [],
+    }));
+    setNextClassificationDraftId((prev) => prev + 1);
+  }
+
+  function removeClassificationLine(classificationId: number) {
+    if (form.classifications.length <= 1) {
+      return;
+    }
+
+    const remainingClassifications = form.classifications.filter(
+      (classification) => classification.localId !== classificationId,
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      classifications: prev.classifications.filter(
+        (classification) => classification.localId !== classificationId,
+      ),
+    }));
+    setSubcategoryOptionsByClassificationId((prev) => {
+      const next = { ...prev };
+      delete next[classificationId];
+      return next;
+    });
+    setTypeOptionsByClassificationId((prev) => {
+      const next = { ...prev };
+      delete next[classificationId];
+      return next;
+    });
+
+    if (categoryModalTargetClassificationId === classificationId) {
+      setCategoryModalTargetClassificationId(
+        remainingClassifications[0]?.localId ?? 1,
+      );
+    }
+  }
+
   async function saveChanges() {
     if (!isDirty || isSaving || isDeletingItem || isLoading || !!loadError) {
       return;
@@ -637,13 +1000,28 @@ function StaffItemEditPageContent() {
       return;
     }
 
+    const startedClassifications = prepared.classifications
+      .map((classification) => ({
+        category3: classification.category3.trim(),
+        category2: classification.category2.trim(),
+        category1: classification.category1.trim(),
+      }))
+      .filter(
+        (classification) =>
+          classification.category3 ||
+          classification.category2 ||
+          classification.category1,
+      );
+    const primaryClassification = startedClassifications[0] ?? null;
+
     const payload = {
       sku: prepared.sku,
       itemName: prepared.itemName,
       price: Number(prepared.price),
-      category3: prepared.category3,
-      category2: prepared.category2,
-      category1: prepared.category1,
+      category3: primaryClassification?.category3 ?? null,
+      category2: primaryClassification?.category2 ?? null,
+      category1: primaryClassification?.category1 ?? null,
+      classifications: startedClassifications,
       description: prepared.description,
       quantityInStock: Math.max(
         0,
@@ -716,6 +1094,13 @@ function StaffItemEditPageContent() {
 
       const nextForm = toForm(refreshedItem);
       setForm(nextForm);
+      setNextClassificationDraftId(
+        getNextClassificationDraftId(nextForm.classifications),
+      );
+      setCategoryModalTargetClassificationId(
+        nextForm.classifications[0]?.localId ?? 1,
+      );
+      void hydrateClassificationOptions(nextForm.classifications);
       originalRef.current = structuredClone(nextForm);
       setSelectedImageIndex(null);
       setSuccessMessage("Item edit changes saved.");
@@ -736,6 +1121,13 @@ function StaffItemEditPageContent() {
 
     const snapshot = structuredClone(originalRef.current);
     setForm(snapshot);
+    setNextClassificationDraftId(
+      getNextClassificationDraftId(snapshot.classifications),
+    );
+    setCategoryModalTargetClassificationId(
+      snapshot.classifications[0]?.localId ?? 1,
+    );
+    void hydrateClassificationOptions(snapshot.classifications);
     setSelectedImageIndex(null);
     setSaveError(null);
     setSuccessMessage(null);
@@ -906,8 +1298,12 @@ function StaffItemEditPageContent() {
     }
   }
 
-  function openNewCategoryPopup(level: CategoryLevel) {
+  function openNewCategoryPopup(
+    level: CategoryLevel,
+    classificationId: number,
+  ) {
     setNewCategoryLevel(level);
+    setCategoryModalTargetClassificationId(classificationId);
     setShowNewCategoryPopup(true);
   }
 
@@ -922,22 +1318,36 @@ function StaffItemEditPageContent() {
   }) {
     await fetchCategories();
 
-    if (
-      result.level === "category2" &&
-      form.category3.trim() &&
-      form.category3.trim() === (result.parentCategory3 ?? "")
-    ) {
-      await fetchSubcategories(form.category3.trim());
+    if (result.level === "category2" && result.parentCategory3) {
+      const matchingClassifications = form.classifications.filter(
+        (classification) =>
+          classification.category3.trim() === result.parentCategory3,
+      );
+      await Promise.all(
+        matchingClassifications.map((classification) =>
+          refreshSubcategoryOptionsForClassification(
+            classification.localId,
+            classification.category3.trim(),
+          ),
+        ),
+      );
     }
 
-    if (
-      result.level === "category1" &&
-      form.category3.trim() &&
-      form.category2.trim() &&
-      form.category3.trim() === (result.parentCategory3 ?? "") &&
-      form.category2.trim() === (result.parentCategory2 ?? "")
-    ) {
-      await fetchTypes(form.category3.trim(), form.category2.trim());
+    if (result.level === "category1" && result.parentCategory3) {
+      const matchingClassifications = form.classifications.filter(
+        (classification) =>
+          classification.category3.trim() === result.parentCategory3 &&
+          classification.category2.trim() === (result.parentCategory2 ?? ""),
+      );
+      await Promise.all(
+        matchingClassifications.map((classification) =>
+          refreshTypeOptionsForClassification(
+            classification.localId,
+            classification.category3.trim(),
+            classification.category2.trim(),
+          ),
+        ),
+      );
     }
   }
 
@@ -981,6 +1391,13 @@ function StaffItemEditPageContent() {
     selectedImageIndex !== null
       ? (form.images[selectedImageIndex] ?? null)
       : null;
+  const targetClassificationForModal =
+    form.classifications.find(
+      (classification) =>
+        classification.localId === categoryModalTargetClassificationId,
+    ) ??
+    form.classifications[0] ??
+    null;
 
   return (
     <div>
@@ -1098,65 +1515,113 @@ function StaffItemEditPageContent() {
               </div>
 
               <div className="item-edit-grid-2">
-                <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("category3"))}>
-                    Category *
-                  </span>
-                  <CategoryCombo
-                    ariaLabel="Category"
-                    value={form.category3}
-                    placeholder="Select category"
-                    options={categories}
-                    onSelect={(nextCategory) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        category3: nextCategory,
-                        category2: "",
-                        category1: "",
-                      }))
-                    }
-                    onNewClick={() => openNewCategoryPopup("category3")}
-                  />
-                </label>
+                <div className="item-edit-classifications-panel">
+                  <div className="item-edit-classifications-header">
+                    <span
+                      className={fieldNameClass(
+                        isFieldDirty("classifications"),
+                      )}
+                    >
+                      Classifications
+                    </span>
+                    <button
+                      type="button"
+                      className="ticket-add-line-btn"
+                      onClick={addClassificationLine}
+                      aria-label="Add classification set"
+                      title="Add classification set"
+                    >
+                      +
+                    </button>
+                  </div>
 
-                <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("category2"))}>
-                    Subcategory *
-                  </span>
-                  <CategoryCombo
-                    ariaLabel="Subcategory"
-                    value={form.category2}
-                    placeholder="Select subcategory"
-                    options={subcategories}
-                    onSelect={(nextSubcategory) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        category2: nextSubcategory,
-                        category1: "",
-                      }))
-                    }
-                    onNewClick={() => openNewCategoryPopup("category2")}
-                  />
-                </label>
+                  <div className="item-edit-classifications-grid item-edit-classifications-grid--header">
+                    <div>Category</div>
+                    <div>Subcategory</div>
+                    <div>Type</div>
+                    <div>Action</div>
+                  </div>
 
-                <label className="item-edit-field">
-                  <span className={fieldNameClass(isFieldDirty("category1"))}>
-                    Type *
-                  </span>
-                  <CategoryCombo
-                    ariaLabel="Type"
-                    value={form.category1}
-                    placeholder="Select type"
-                    options={types}
-                    onSelect={(nextType) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        category1: nextType,
-                      }))
-                    }
-                    onNewClick={() => openNewCategoryPopup("category1")}
-                  />
-                </label>
+                  {form.classifications.map((classification) => (
+                    <div
+                      key={classification.localId}
+                      className="item-edit-classifications-grid"
+                    >
+                      <CategoryCombo
+                        ariaLabel="Category"
+                        value={classification.category3}
+                        placeholder="Select category"
+                        options={categories}
+                        onSelect={(nextCategory) =>
+                          handleClassificationCategoryChange(
+                            classification.localId,
+                            nextCategory,
+                          )
+                        }
+                        onNewClick={() =>
+                          openNewCategoryPopup(
+                            "category3",
+                            classification.localId,
+                          )
+                        }
+                      />
+                      <CategoryCombo
+                        ariaLabel="Subcategory"
+                        value={classification.category2}
+                        placeholder="Select subcategory"
+                        options={
+                          subcategoryOptionsByClassificationId[
+                            classification.localId
+                          ] ?? []
+                        }
+                        onSelect={(nextSubcategory) =>
+                          handleClassificationSubcategoryChange(
+                            classification.localId,
+                            nextSubcategory,
+                          )
+                        }
+                        onNewClick={() =>
+                          openNewCategoryPopup(
+                            "category2",
+                            classification.localId,
+                          )
+                        }
+                      />
+                      <CategoryCombo
+                        ariaLabel="Type"
+                        value={classification.category1}
+                        placeholder="Select type"
+                        options={
+                          typeOptionsByClassificationId[
+                            classification.localId
+                          ] ?? []
+                        }
+                        onSelect={(nextType) =>
+                          handleClassificationTypeChange(
+                            classification.localId,
+                            nextType,
+                          )
+                        }
+                        onNewClick={() =>
+                          openNewCategoryPopup(
+                            "category1",
+                            classification.localId,
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="ticket-line-remove-btn"
+                        onClick={() =>
+                          removeClassificationLine(classification.localId)
+                        }
+                        disabled={form.classifications.length <= 1}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="item-edit-grid-3">
@@ -1433,10 +1898,14 @@ function StaffItemEditPageContent() {
         level={newCategoryLevel}
         categories={categories}
         defaultParentCategory3={
-          newCategoryLevel === "category3" ? "" : form.category3.trim()
+          newCategoryLevel === "category3"
+            ? ""
+            : (targetClassificationForModal?.category3.trim() ?? "")
         }
         defaultParentCategory2={
-          newCategoryLevel === "category1" ? form.category2.trim() : ""
+          newCategoryLevel === "category1"
+            ? (targetClassificationForModal?.category2.trim() ?? "")
+            : ""
         }
         onClose={closeNewCategoryPopup}
         onCreated={handleCategoryCreated}

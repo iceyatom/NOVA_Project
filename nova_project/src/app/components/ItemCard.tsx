@@ -30,19 +30,7 @@ export default function ItemCard({ item }: { item: Item }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Destructure data
-  const {
-    id,
-    sku,
-    itemName,
-    imageUrl,
-    category3,
-    category2,
-    category1,
-    description,
-    price,
-    unitOfMeasure,
-    quantity,
-  } = item;
+  const { id, itemName, imageUrl, description, price } = item;
 
   const safeSrc =
     imageUrl && (imageUrl.startsWith("/") || imageUrl.startsWith("http"))
@@ -104,36 +92,12 @@ export default function ItemCard({ item }: { item: Item }) {
     marginTop: "8px",
   };
 
-  const category3Style = {
-    fontSize: "12px",
-    color: "#555555",
-    marginTop: "4px",
-  };
-
-  const category2Style = {
-    fontSize: "12px",
-    color: "#555555",
-    marginTop: "4px",
-  };
-
-  const category1Style = {
-    fontSize: "12px",
-    color: "#555555",
-    marginTop: "4px",
-  };
-
   const costStyle = {
     fontSize: "20px",
     fontWeight: 700,
     color: "#222222",
     marginTop: "auto",
     alignSelf: "flex-end",
-  };
-
-  const unitStyle = {
-    fontSize: "12px",
-    color: "#aaaaaa",
-    marginTop: "4px",
   };
 
   // HTML
@@ -158,15 +122,6 @@ export default function ItemCard({ item }: { item: Item }) {
       />
       <p className="item-card-description" style={descriptionStyle}>
         {formatDescriptionPreview(description)}
-      </p>
-      <p className="item-card-category3" style={category3Style}>
-        Category: {category3 === null ? "N/A" : category3}
-      </p>
-      <p className="item-card-category2" style={category2Style}>
-        Subcategory: {category2 === null ? "N/A" : category2}
-      </p>
-      <p className="item-card-category1" style={category1Style}>
-        Type: {category1 === null ? "N/A" : category1}
       </p>
       <p className="item-card-cost" style={costStyle}>
         {price === null ? "N/A" : `$${price.toFixed(2)}`}

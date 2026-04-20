@@ -391,6 +391,45 @@ function buildPrismaWhere(q: CatalogQuery) {
         { category1Ref: { is: { name: { in: q.categories } } } },
         { category2Ref: { is: { name: { in: q.categories } } } },
         { category3Ref: { is: { name: { in: q.categories } } } },
+        {
+          classifications: {
+            some: {
+              category1: {
+                name: {
+                  in: q.categories,
+                },
+              },
+            },
+          },
+        },
+        {
+          classifications: {
+            some: {
+              category1: {
+                category2: {
+                  name: {
+                    in: q.categories,
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          classifications: {
+            some: {
+              category1: {
+                category2: {
+                  category3: {
+                    name: {
+                      in: q.categories,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       ],
     });
   }
@@ -461,6 +500,28 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
     category3Ref: {
       select: { name: true },
     },
+    classifications: {
+      select: {
+        category1: {
+          select: {
+            name: true,
+            category2: {
+              select: {
+                name: true,
+                category3: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc" as const,
+      },
+    },
     description: true,
     quantityInStock: true,
     unitOfMeasure: true,
@@ -511,6 +572,17 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
       category1Ref?: { name: string } | null;
       category2Ref?: { name: string } | null;
       category3Ref?: { name: string } | null;
+      classifications?: Array<{
+        category1: {
+          name: string;
+          category2: {
+            name: string;
+            category3: {
+              name: string;
+            };
+          };
+        };
+      }> | null;
       images?: Array<{
         id: number;
         s3Key: string;
@@ -518,13 +590,47 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
       }> | null;
     },
   >(item: T) {
-    const { category1Ref, category2Ref, category3Ref, images, ...rest } = item;
+    const {
+      category1Ref,
+      category2Ref,
+      category3Ref,
+      classifications,
+      images,
+      ...rest
+    } = item;
+
+    const resolvedClassifications = Array.isArray(classifications)
+      ? classifications.map((entry) => ({
+          category3: entry.category1.category2.category3.name,
+          category2: entry.category1.category2.name,
+          category1: entry.category1.name,
+        }))
+      : null;
+
+    const fallbackClassification =
+      category3Ref?.name || category2Ref?.name || category1Ref?.name
+        ? [
+            {
+              category3: category3Ref?.name ?? null,
+              category2: category2Ref?.name ?? null,
+              category1: category1Ref?.name ?? null,
+            },
+          ]
+        : [];
 
     return {
       ...rest,
       category1: category1Ref?.name ?? null,
       category2: category2Ref?.name ?? null,
       category3: category3Ref?.name ?? null,
+      ...(resolvedClassifications
+        ? {
+            classifications:
+              resolvedClassifications.length > 0
+                ? resolvedClassifications
+                : fallbackClassification,
+          }
+        : {}),
       ...(images
         ? {
             images: images.map((img) => ({
@@ -902,6 +1008,7 @@ type CatalogUpdateInput = {
   category1: string | null;
   category2: string | null;
   category3: string | null;
+  classifications: CatalogClassificationInput[];
   description: string | null;
   quantityInStock: number;
   unitOfMeasure: string | null;
@@ -918,6 +1025,12 @@ type CatalogDeleteInput = {
 };
 
 class CatalogPayloadValidationError extends Error {}
+
+type CatalogClassificationInput = {
+  category1: string | null;
+  category2: string | null;
+  category3: string | null;
+};
 
 function normalizeOptionalString(
   value: unknown,
@@ -981,18 +1094,73 @@ function normalizeNullableDate(value: unknown, fieldName: string): Date | null {
   return parsed;
 }
 
+function normalizeClassificationInput(
+  value: unknown,
+  fieldName: string,
+): CatalogClassificationInput {
+  if (!isRecord(value)) {
+    throw new Error(`${fieldName} must be an object.`);
+  }
+
+  return {
+    category1: normalizeOptionalString(
+      value.category1,
+      `${fieldName}.category1`,
+    ),
+    category2: normalizeOptionalString(
+      value.category2,
+      `${fieldName}.category2`,
+    ),
+    category3: normalizeOptionalString(
+      value.category3,
+      `${fieldName}.category3`,
+    ),
+  };
+}
+
+function normalizeClassifications(
+  value: unknown,
+  fallback: CatalogClassificationInput,
+): CatalogClassificationInput[] {
+  if (value === undefined) {
+    const hasFallback =
+      fallback.category3 !== null ||
+      fallback.category2 !== null ||
+      fallback.category1 !== null;
+    return hasFallback ? [fallback] : [];
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error("classifications must be an array.");
+  }
+
+  return value.map((entry, index) =>
+    normalizeClassificationInput(entry, `classifications[${index}]`),
+  );
+}
+
 function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
   if (!isRecord(raw)) {
     throw new Error("Request body must be a JSON object.");
   }
 
+  const legacyClassification: CatalogClassificationInput = {
+    category1: normalizeOptionalString(raw.category1, "category1"),
+    category2: normalizeOptionalString(raw.category2, "category2"),
+    category3: normalizeOptionalString(raw.category3, "category3"),
+  };
+
   return {
     sku: normalizeRequiredString(raw.sku, "sku"),
     itemName: normalizeRequiredString(raw.itemName, "itemName"),
     price: normalizeNonNegativeNumber(raw.price, "price"),
-    category1: normalizeOptionalString(raw.category1, "category1"),
-    category2: normalizeOptionalString(raw.category2, "category2"),
-    category3: normalizeOptionalString(raw.category3, "category3"),
+    category1: legacyClassification.category1,
+    category2: legacyClassification.category2,
+    category3: legacyClassification.category3,
+    classifications: normalizeClassifications(
+      raw.classifications,
+      legacyClassification,
+    ),
     description: normalizeOptionalString(raw.description, "description"),
     quantityInStock: normalizeNonNegativeInteger(
       raw.quantityInStock,
@@ -1057,6 +1225,12 @@ type ResolvedCategoryIds = {
   category1: number | null;
   category2: number | null;
   category3: number | null;
+};
+
+type ResolvedClassificationIds = {
+  category1: number;
+  category2: number;
+  category3: number;
 };
 
 async function resolveCategoryIds(
@@ -1136,16 +1310,73 @@ async function resolveCategoryIds(
   };
 }
 
-async function buildCatalogMutationData(payload: CatalogUpdateInput) {
-  const categoryIds = await resolveCategoryIds(payload);
+function isBlankClassificationPath(path: CatalogClassificationInput): boolean {
+  return !path.category3 && !path.category2 && !path.category1;
+}
+
+async function resolveClassificationPathIds(
+  path: CatalogClassificationInput,
+): Promise<ResolvedClassificationIds | null> {
+  if (isBlankClassificationPath(path)) {
+    return null;
+  }
+
+  if (!path.category3 || !path.category2 || !path.category1) {
+    throw new CatalogPayloadValidationError(
+      "Each started classification must include category3, category2, and category1.",
+    );
+  }
+
+  const resolved = await resolveCategoryIds(path);
+  if (!resolved.category1 || !resolved.category2 || !resolved.category3) {
+    throw new CatalogPayloadValidationError(
+      "Each classification must resolve to a complete category path.",
+    );
+  }
 
   return {
+    category1: resolved.category1,
+    category2: resolved.category2,
+    category3: resolved.category3,
+  };
+}
+
+async function resolveClassificationIds(
+  paths: CatalogClassificationInput[],
+): Promise<ResolvedClassificationIds[]> {
+  const resolvedPaths: ResolvedClassificationIds[] = [];
+  const seen = new Set<string>();
+
+  for (const path of paths) {
+    const resolved = await resolveClassificationPathIds(path);
+    if (!resolved) continue;
+
+    const key = `${resolved.category3}|${resolved.category2}|${resolved.category1}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    resolvedPaths.push(resolved);
+  }
+
+  return resolvedPaths;
+}
+
+async function buildCatalogMutationData(payload: CatalogUpdateInput) {
+  const resolvedClassifications = await resolveClassificationIds(
+    payload.classifications,
+  );
+  const primaryCategory = resolvedClassifications[0] ?? null;
+  const classificationCategory1Ids = resolvedClassifications.map(
+    (classification) => classification.category1,
+  );
+
+  return {
+    classificationCategory1Ids,
     sku: payload.sku,
     itemName: payload.itemName,
     price: payload.price,
-    category1: categoryIds.category1,
-    category2: categoryIds.category2,
-    category3: categoryIds.category3,
+    category1: primaryCategory?.category1 ?? null,
+    category2: primaryCategory?.category2 ?? null,
+    category3: primaryCategory?.category3 ?? null,
     description: payload.description,
     quantityInStock: payload.quantityInStock,
     unitOfMeasure: payload.unitOfMeasure,
@@ -1342,7 +1573,38 @@ export async function POST(request: NextRequest) {
   try {
     const createData = await buildCatalogMutationData(payload);
     const createdItem = await prisma.catalogItem.create({
-      data: createData,
+      data: {
+        sku: createData.sku,
+        itemName: createData.itemName,
+        price: createData.price,
+        category1: createData.category1,
+        category2: createData.category2,
+        category3: createData.category3,
+        description: createData.description,
+        quantityInStock: createData.quantityInStock,
+        unitOfMeasure: createData.unitOfMeasure,
+        storageLocation: createData.storageLocation,
+        storageConditions: createData.storageConditions,
+        expirationDate: createData.expirationDate,
+        dateAcquired: createData.dateAcquired,
+        reorderLevel: createData.reorderLevel,
+        unitCost: createData.unitCost,
+        ...(createData.classificationCategory1Ids.length > 0
+          ? {
+              classifications: {
+                create: createData.classificationCategory1Ids.map(
+                  (category1Id) => ({
+                    category1: {
+                      connect: {
+                        id: category1Id,
+                      },
+                    },
+                  }),
+                ),
+              },
+            }
+          : {}),
+      },
     });
 
     return withNoCache(
@@ -1408,7 +1670,39 @@ export async function PATCH(request: NextRequest) {
     const updateData = await buildCatalogMutationData(payload);
     const updatedItem = await prisma.catalogItem.update({
       where: { id: q.id },
-      data: updateData,
+      data: {
+        sku: updateData.sku,
+        itemName: updateData.itemName,
+        price: updateData.price,
+        category1: updateData.category1,
+        category2: updateData.category2,
+        category3: updateData.category3,
+        description: updateData.description,
+        quantityInStock: updateData.quantityInStock,
+        unitOfMeasure: updateData.unitOfMeasure,
+        storageLocation: updateData.storageLocation,
+        storageConditions: updateData.storageConditions,
+        expirationDate: updateData.expirationDate,
+        dateAcquired: updateData.dateAcquired,
+        reorderLevel: updateData.reorderLevel,
+        unitCost: updateData.unitCost,
+        classifications: {
+          deleteMany: {},
+          ...(updateData.classificationCategory1Ids.length > 0
+            ? {
+                create: updateData.classificationCategory1Ids.map(
+                  (category1Id) => ({
+                    category1: {
+                      connect: {
+                        id: category1Id,
+                      },
+                    },
+                  }),
+                ),
+              }
+            : {}),
+        },
+      },
     });
 
     return withNoCache(

@@ -103,6 +103,23 @@ type StaffListItem = {
   category1Ref: { name: string } | null;
   category2Ref: { name: string } | null;
   category3Ref: { name: string } | null;
+  classifications: Array<{
+    category1: {
+      name: string;
+      category2: {
+        name: string;
+        category3: {
+          name: string;
+        };
+      };
+    };
+  }>;
+};
+
+type CategoryPath = {
+  category1: string | null;
+  category2: string | null;
+  category3: string | null;
 };
 
 function parseStaffQuery(request: NextRequest): StaffQuery {
@@ -157,16 +174,65 @@ function buildPrismaWhere(q: StaffQuery) {
     }
   }
 
-  if (q.category !== "all") {
-    and.push({ category3Ref: { is: { name: q.category } } });
-  }
+  const hasCategoryFilter =
+    q.category !== "all" || q.subcategory !== "all" || q.type !== "all";
 
-  if (q.subcategory !== "all") {
-    and.push({ category2Ref: { is: { name: q.subcategory } } });
-  }
+  if (hasCategoryFilter) {
+    const primaryCategoryPathFilters: Record<string, unknown>[] = [];
+    if (q.category !== "all") {
+      primaryCategoryPathFilters.push({
+        category3Ref: { is: { name: q.category } },
+      });
+    }
+    if (q.subcategory !== "all") {
+      primaryCategoryPathFilters.push({
+        category2Ref: { is: { name: q.subcategory } },
+      });
+    }
+    if (q.type !== "all") {
+      primaryCategoryPathFilters.push({
+        category1Ref: { is: { name: q.type } },
+      });
+    }
 
-  if (q.type !== "all") {
-    and.push({ category1Ref: { is: { name: q.type } } });
+    const classificationCategory1Where: Record<string, unknown> = {};
+    if (q.type !== "all") {
+      classificationCategory1Where.name = q.type;
+    }
+
+    const classificationCategory2Where: Record<string, unknown> = {};
+    if (q.subcategory !== "all") {
+      classificationCategory2Where.name = q.subcategory;
+    }
+    if (q.category !== "all") {
+      classificationCategory2Where.category3 = {
+        is: {
+          name: q.category,
+        },
+      };
+    }
+    if (Object.keys(classificationCategory2Where).length > 0) {
+      classificationCategory1Where.category2 = {
+        is: classificationCategory2Where,
+      };
+    }
+
+    and.push({
+      OR: [
+        {
+          AND: primaryCategoryPathFilters,
+        },
+        {
+          classifications: {
+            some: {
+              category1: {
+                is: classificationCategory1Where,
+              },
+            },
+          },
+        },
+      ],
+    });
   }
 
   return and.length > 0 ? { AND: and } : undefined;
@@ -194,6 +260,59 @@ function buildPrismaOrderBy(q: StaffQuery) {
     default:
       return { id: "asc" as const };
   }
+}
+
+function hasCategoryFilter(q: StaffQuery) {
+  return q.category !== "all" || q.subcategory !== "all" || q.type !== "all";
+}
+
+function pathMatchesFilters(path: CategoryPath, q: StaffQuery) {
+  if (q.category !== "all" && path.category3 !== q.category) {
+    return false;
+  }
+  if (q.subcategory !== "all" && path.category2 !== q.subcategory) {
+    return false;
+  }
+  if (q.type !== "all" && path.category1 !== q.type) {
+    return false;
+  }
+  return true;
+}
+
+function resolveDisplayCategoryPath(
+  item: StaffListItem,
+  q: StaffQuery,
+): CategoryPath {
+  const primaryPath: CategoryPath = {
+    category1: item.category1Ref?.name ?? null,
+    category2: item.category2Ref?.name ?? null,
+    category3: item.category3Ref?.name ?? null,
+  };
+
+  if (!hasCategoryFilter(q)) {
+    return primaryPath;
+  }
+
+  const classificationPaths: CategoryPath[] = item.classifications.map(
+    (classification) => ({
+      category1: classification.category1.name,
+      category2: classification.category1.category2.name,
+      category3: classification.category1.category2.category3.name,
+    }),
+  );
+
+  const matchingClassificationPath = classificationPaths.find((path) =>
+    pathMatchesFilters(path, q),
+  );
+  if (matchingClassificationPath) {
+    return matchingClassificationPath;
+  }
+
+  if (pathMatchesFilters(primaryPath, q)) {
+    return primaryPath;
+  }
+
+  return primaryPath;
 }
 
 async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
@@ -224,6 +343,28 @@ async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
         name: true,
       },
     },
+    classifications: {
+      select: {
+        category1: {
+          select: {
+            name: true,
+            category2: {
+              select: {
+                name: true,
+                category3: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc" as const,
+      },
+    },
   };
 
   const [totalCount, items] = await prisma.$transaction([
@@ -237,17 +378,20 @@ async function tryPrisma(q: StaffQuery): Promise<NextResponse> {
     }),
   ]);
 
-  const normalizedItems = (items as StaffListItem[]).map((item) => ({
-    id: item.id,
-    sku: item.sku,
-    itemName: item.itemName,
-    category1: item.category1Ref?.name ?? null,
-    category2: item.category2Ref?.name ?? null,
-    category3: item.category3Ref?.name ?? null,
-    quantityInStock: item.quantityInStock,
-    price: item.price,
-    updatedAt: item.updatedAt,
-  }));
+  const normalizedItems = (items as StaffListItem[]).map((item) => {
+    const displayPath = resolveDisplayCategoryPath(item, q);
+    return {
+      id: item.id,
+      sku: item.sku,
+      itemName: item.itemName,
+      category1: displayPath.category1,
+      category2: displayPath.category2,
+      category3: displayPath.category3,
+      quantityInStock: item.quantityInStock,
+      price: item.price,
+      updatedAt: item.updatedAt,
+    };
+  });
 
   const durationMs = Date.now() - startTime;
   const responseData = {

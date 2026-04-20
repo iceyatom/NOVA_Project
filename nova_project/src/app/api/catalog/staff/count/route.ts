@@ -62,9 +62,66 @@ function buildWhere(q: ReturnType<typeof parseQuery>) {
     }
   }
 
-  if (q.category !== "all") and.push({ category3: q.category });
-  if (q.subcategory !== "all") and.push({ category2: q.subcategory });
-  if (q.type !== "all") and.push({ category1: q.type });
+  const hasCategoryFilter =
+    q.category !== "all" || q.subcategory !== "all" || q.type !== "all";
+
+  if (hasCategoryFilter) {
+    const primaryCategoryPathFilters: Record<string, unknown>[] = [];
+    if (q.category !== "all") {
+      primaryCategoryPathFilters.push({
+        category3Ref: { is: { name: q.category } },
+      });
+    }
+    if (q.subcategory !== "all") {
+      primaryCategoryPathFilters.push({
+        category2Ref: { is: { name: q.subcategory } },
+      });
+    }
+    if (q.type !== "all") {
+      primaryCategoryPathFilters.push({
+        category1Ref: { is: { name: q.type } },
+      });
+    }
+
+    const classificationCategory1Where: Record<string, unknown> = {};
+    if (q.type !== "all") {
+      classificationCategory1Where.name = q.type;
+    }
+
+    const classificationCategory2Where: Record<string, unknown> = {};
+    if (q.subcategory !== "all") {
+      classificationCategory2Where.name = q.subcategory;
+    }
+    if (q.category !== "all") {
+      classificationCategory2Where.category3 = {
+        is: {
+          name: q.category,
+        },
+      };
+    }
+    if (Object.keys(classificationCategory2Where).length > 0) {
+      classificationCategory1Where.category2 = {
+        is: classificationCategory2Where,
+      };
+    }
+
+    and.push({
+      OR: [
+        {
+          AND: primaryCategoryPathFilters,
+        },
+        {
+          classifications: {
+            some: {
+              category1: {
+                is: classificationCategory1Where,
+              },
+            },
+          },
+        },
+      ],
+    });
+  }
 
   return and.length > 0 ? { AND: and } : undefined;
 }

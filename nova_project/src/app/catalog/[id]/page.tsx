@@ -18,6 +18,12 @@ type CatalogItemImage = {
   createdAt: string | null;
 };
 
+type CatalogClassificationPath = {
+  category1: string | null;
+  category2: string | null;
+  category3: string | null;
+};
+
 type CatalogItemRecord = {
   id: number;
   sku: string | null;
@@ -36,6 +42,7 @@ type CatalogItemRecord = {
   reorderLevel: number;
   unitCost: number | string | Decimal | null;
   images?: CatalogItemImage[] | null;
+  classifications?: CatalogClassificationPath[] | null;
 };
 
 function formatPrice(price: number | string | Decimal | null): string {
@@ -50,12 +57,6 @@ function formatPrice(price: number | string | Decimal | null): string {
   return `$${numPrice.toFixed(2)}`;
 }
 
-function getStockStatus(quantity: number, reorderLevel: number): string {
-  if (quantity === 0) return "OUT OF STOCK";
-  if (quantity <= reorderLevel) return "LOW STOCK";
-  return "IN STOCK";
-}
-
 function getDisplayImages(images?: CatalogItemImage[] | null): string[] {
   if (!images || images.length === 0) {
     return ["/FillerImage.webp"];
@@ -68,6 +69,45 @@ function getDisplayImages(images?: CatalogItemImage[] | null): string[] {
     );
 
   return urls.length > 0 ? urls : ["/FillerImage.webp"];
+}
+
+function getDisplayClassifications(
+  item: CatalogItemRecord,
+): CatalogClassificationPath[] {
+  const loadedClassifications = Array.isArray(item.classifications)
+    ? item.classifications.filter(
+        (classification) =>
+          classification.category1 ||
+          classification.category2 ||
+          classification.category3,
+      )
+    : [];
+
+  if (loadedClassifications.length > 0) {
+    const seen = new Set<string>();
+    return loadedClassifications.filter((classification) => {
+      const key = [
+        classification.category3 ?? "",
+        classification.category2 ?? "",
+        classification.category1 ?? "",
+      ].join("::");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  if (item.category1 || item.category2 || item.category3) {
+    return [
+      {
+        category1: item.category1,
+        category2: item.category2,
+        category3: item.category3,
+      },
+    ];
+  }
+
+  return [];
 }
 
 async function getCatalogItem(
@@ -159,9 +199,9 @@ export default async function CatalogItemPage({
   const title = item.itemName;
   const subtitle = item.sku ? `SKU: ${item.sku}` : `Item ID: ${item.id}`;
   const price = formatPrice(item.price);
-  const stockStatus = getStockStatus(item.quantityInStock, item.reorderLevel);
 
   const images = getDisplayImages(item.images);
+  const classifications = getDisplayClassifications(item);
 
   return (
     <main style={{ padding: "2rem" }}>
@@ -178,18 +218,36 @@ export default async function CatalogItemPage({
 
           <div className="product-price" aria-label="Price">
             <span className="product-price-amount">{price}</span>
-            <span className="product-price-note">{stockStatus}</span>
           </div>
 
-          <section className="product-category">
-            {item.category1 && (
-              <p className="product-category1-text">{item.category1}</p>
-            )}
-            {item.category2 && (
-              <p className="product-category2-text">{item.category2}</p>
-            )}
-            {item.category3 && (
-              <p className="product-category3-text">{item.category3}</p>
+          <section className="product-classifications">
+            <h2 className="product-classifications-title">Classifications</h2>
+            {classifications.length > 0 ? (
+              <ul className="product-classifications-list">
+                {classifications.map((classification, index) => (
+                  <li
+                    key={`${classification.category3 ?? "uncat"}-${classification.category2 ?? "uncat"}-${classification.category1 ?? "uncat"}-${index}`}
+                    className="product-classifications-item"
+                  >
+                    <span className="product-classifications-entry">
+                      <strong>Category:</strong>{" "}
+                      {classification.category3 ?? "Unassigned"}
+                    </span>
+                    <span className="product-classifications-entry">
+                      <strong>Subcategory:</strong>{" "}
+                      {classification.category2 ?? "Unassigned"}
+                    </span>
+                    <span className="product-classifications-entry">
+                      <strong>Type:</strong>{" "}
+                      {classification.category1 ?? "Unassigned"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="product-classifications-empty">
+                No classifications assigned.
+              </p>
             )}
           </section>
 
