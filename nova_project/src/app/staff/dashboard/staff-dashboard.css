@@ -269,6 +269,234 @@
   margin-bottom: 8px;
 }
 
+.staffCardHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.staffReadonlyFieldValue {
+  border: 1px solid #d1d5db;
+  border-radius: 0.62rem;
+  padding: 0.64rem 0.72rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.staffAudienceMultiSelect {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.staffAudienceOption {
+  appearance: none;
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 0.72rem;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 0.7rem 0.75rem;
+  text-align: left;
+  display: grid;
+  gap: 0.18rem;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.staffAudienceOption:hover {
+  border-color: #93c5fd;
+  box-shadow:
+    0 8px 18px rgba(37, 99, 235, 0.12),
+    inset 0 0 0 999px rgba(59, 130, 246, 0.06);
+}
+
+.staffAudienceOption.isSelected {
+  border-color: #2563eb;
+  box-shadow:
+    0 10px 22px rgba(37, 99, 235, 0.18),
+    inset 0 0 0 999px rgba(59, 130, 246, 0.12);
+}
+
+.staffAudienceOptionTitle {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.staffAudienceOptionCount {
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.staffAudienceError {
+  font-size: 0.82rem;
+  color: #b91c1c;
+}
+
+.staffNotificationPreviewList {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+  max-height: 23.5rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.staffNotificationPreviewItem {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.62rem;
+  background: #f8fafc;
+  padding: 0.52rem 0.65rem;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.staffNotificationPreviewItemButton {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.14s ease;
+}
+
+.staffNotificationPreviewItemButton:hover {
+  border-color: #93c5fd;
+  box-shadow:
+    0 8px 18px rgba(37, 99, 235, 0.12),
+    inset 0 0 0 999px rgba(59, 130, 246, 0.06);
+}
+
+.staffNotificationPreviewItemButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.staffNotificationPreviewTopRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.staffNotificationPreviewTitle {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #0f172a;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.staffNotificationPreviewDescription {
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: #334155;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.staffNotificationPreviewTime {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #0f172a;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.staffAlertTypeBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.52rem;
+  font-size: 0.68rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.staffAlertTypeBadge--announcement {
+  color: #995b00;
+  border-color: #f5c27a;
+  background: #fff1dc;
+}
+
+.staffAlertTypeBadge--lowStock {
+  color: #991b1b;
+  border-color: #fca5a5;
+  background: #fee2e2;
+}
+
+.staffAlertTypeBadge--permissionChange {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #dbeafe;
+}
+
+.staffAlertTypeBadge--taskComplete {
+  color: #166534;
+  border-color: #86efac;
+  background: #dcfce7;
+}
+
+.staffAlertTypeBadge--ticketCreated {
+  color: #0f766e;
+  border-color: #5eead4;
+  background: #ccfbf1;
+}
+
+.staffAlertDetailModal {
+  max-width: 700px;
+}
+
+.staffAlertDetailHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.staffAlertDetailTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.staffAlertDetailDescription {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .staffCardValue {
   font-size: 28px;
   font-weight: 900;
@@ -1336,5 +1564,31 @@
   .ticketPreviewItemsTotalLabel,
   .ticketPreviewItemsTotalValue {
     grid-column: auto;
+  }
+
+  .staffNotificationPreviewTopRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+  }
+
+  .staffNotificationPreviewTime {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    row-gap: 0.3rem;
+    white-space: normal;
+    font-size: 0.86rem;
+    text-align: left;
+  }
+
+  .staffNotificationPreviewTitle {
+    font-size: 0.95rem;
+    line-height: 1.28;
+  }
+
+  .staffNotificationPreviewDescription {
+    font-size: 0.85rem;
+    line-height: 1.35;
   }
 }

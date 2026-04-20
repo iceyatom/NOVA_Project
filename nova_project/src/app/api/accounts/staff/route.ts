@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/passwordHash";
+import { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 const DEFAULT_LIMIT = 20;
 const MAX_PAGE_SIZE = 100;
 const ACCOUNT_NOTES_MAX_LENGTH = 500;
+const ALERT_TITLE_MAX_LENGTH = 120;
+const ALERT_DESCRIPTION_MAX_LENGTH = 500;
 
 type SortColumn =
   | "id"
@@ -41,6 +44,7 @@ type SessionAccount = {
 
 type StaffAccountUpdateBody = {
   accountId?: unknown;
+  accountIds?: unknown;
   displayName?: unknown;
   email?: unknown;
   password?: unknown;
@@ -161,6 +165,91 @@ function parsePositiveInt(value: unknown): number | null {
   }
 
   return parsed;
+}
+
+function clampText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function accountDisplayLabel(
+  displayName: string | null,
+  email: string,
+): string {
+  const trimmedDisplayName = displayName?.trim() ?? "";
+  if (trimmedDisplayName.length > 0) {
+    return `${trimmedDisplayName} (${email})`;
+  }
+
+  return email;
+}
+
+function permissionAlertTitle(changedCount: number): string {
+  if (changedCount <= 1) {
+    return "Account permission change";
+  }
+
+  return `Bulk account permission change (${changedCount})`;
+}
+
+async function createPermissionChangeAlertBestEffort(
+  tx: Prisma.TransactionClient,
+  title: string,
+  description: string,
+  adminAccountIds: number[],
+): Promise<void> {
+  if (adminAccountIds.length === 0) {
+    return;
+  }
+
+  const accountConnections = adminAccountIds.map((id) => ({ id }));
+
+  try {
+    await tx.alert.create({
+      data: {
+        title,
+        description,
+        type: "PERMISSION_CHANGE",
+        accounts: {
+          connect: accountConnections,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+    return;
+  } catch (permissionAlertError) {
+    // If DB enum migration is behind, fall back so role updates still succeed.
+    console.error(
+      "[accounts/staff] permission change alert create failed; falling back to ANNOUNCEMENT",
+      permissionAlertError,
+    );
+  }
+
+  try {
+    await tx.alert.create({
+      data: {
+        title,
+        description,
+        type: "ANNOUNCEMENT",
+        accounts: {
+          connect: accountConnections,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+  } catch (fallbackAlertError) {
+    console.error(
+      "[accounts/staff] fallback announcement alert create failed",
+      fallbackAlertError,
+    );
+  }
 }
 
 function roleRank(value: string): number {
@@ -397,6 +486,10 @@ export async function PATCH(request: NextRequest) {
     const hasPhone = typeof body.phone === "string";
     const hasNotes = typeof body.notes === "string";
     const hasRole = typeof body.role === "string";
+    const bulkAccountIdsRaw = Array.isArray(body.accountIds)
+      ? body.accountIds
+      : null;
+    const isBulkRoleUpdate = bulkAccountIdsRaw !== null;
     const incomingEmail = hasEmail ? normalizeEmail(body.email as string) : "";
     const incomingPassword =
       hasPassword && typeof body.password === "string" ? body.password : "";
@@ -408,6 +501,131 @@ export async function PATCH(request: NextRequest) {
     const incomingNotes = hasNotes
       ? normalizeNotes(body.notes as string)
       : null;
+
+    if (isBulkRoleUpdate) {
+      if (hasDisplayName || hasEmail || hasPassword || hasPhone || hasNotes) {
+        return jsonResponse(
+          {
+            success: false,
+            error: "Bulk update currently supports role changes only.",
+          },
+          400,
+        );
+      }
+
+      const nextBulkRole = hasRole ? parseAccountRole(incomingRole) : null;
+      if (!nextBulkRole) {
+        return jsonResponse(
+          { success: false, error: "Role must be ADMIN, STAFF, or CUSTOMER." },
+          400,
+        );
+      }
+
+      const bulkAccountIds = Array.from(
+        new Set(
+          (bulkAccountIdsRaw ?? [])
+            .map((value) => parsePositiveInt(value))
+            .filter((value): value is number => value !== null),
+        ),
+      );
+
+      if (bulkAccountIds.length === 0) {
+        return jsonResponse(
+          { success: false, error: "Provide at least one account id." },
+          400,
+        );
+      }
+
+      const existingAccounts = await prisma.account.findMany({
+        where: {
+          id: {
+            in: bulkAccountIds,
+          },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          role: true,
+        },
+      });
+
+      if (existingAccounts.length !== bulkAccountIds.length) {
+        return jsonResponse(
+          {
+            success: false,
+            error: "One or more accounts were not found.",
+          },
+          404,
+        );
+      }
+
+      const changedAccounts = existingAccounts.filter(
+        (account) => normalizeRole(account.role) !== nextBulkRole,
+      );
+
+      if (changedAccounts.length === 0) {
+        return jsonResponse({
+          success: true,
+          message: "No role changes were applied.",
+          updatedCount: 0,
+        });
+      }
+
+      const changedAccountIds = changedAccounts.map((account) => account.id);
+      const changeParts = changedAccounts.map((account) => {
+        const currentRole = normalizeRole(account.role);
+        return `${accountDisplayLabel(account.displayName, account.email)}: ${currentRole} -> ${nextBulkRole}`;
+      });
+
+      const alertTitle = clampText(
+        permissionAlertTitle(changedAccounts.length),
+        ALERT_TITLE_MAX_LENGTH,
+      );
+      const alertDescription = clampText(
+        `Account role updates applied: ${changeParts.join("; ")}`,
+        ALERT_DESCRIPTION_MAX_LENGTH,
+      );
+
+      await prisma.$transaction(async (tx) => {
+        await tx.account.updateMany({
+          where: {
+            id: {
+              in: changedAccountIds,
+            },
+          },
+          data: {
+            role: nextBulkRole,
+          },
+        });
+
+        const adminAccounts = await tx.account.findMany({
+          where: {
+            deletedAt: null,
+            role: "ADMIN",
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (adminAccounts.length > 0) {
+          await createPermissionChangeAlertBestEffort(
+            tx,
+            alertTitle,
+            alertDescription,
+            adminAccounts.map((account) => account.id),
+          );
+        }
+      });
+
+      return jsonResponse({
+        success: true,
+        message: "Selected accounts updated successfully.",
+        updatedCount: changedAccounts.length,
+      });
+    }
 
     if (!accountId) {
       return jsonResponse(
@@ -547,20 +765,51 @@ export async function PATCH(request: NextRequest) {
     if (hasRole && nextRole) {
       updateData.role = nextRole;
     }
+    const previousRole = normalizeRole(existingAccount.role);
+    const shouldCreatePermissionAlert =
+      hasRole && nextRole !== null && previousRole !== nextRole;
 
-    const updatedAccount = await prisma.account.update({
-      where: { id: accountId },
-      data: updateData,
-      select: {
-        id: true,
-        displayName: true,
-        email: true,
-        phone: true,
-        notes: true,
-        role: true,
-        createdAt: true,
-        lastLoginAt: true,
-      },
+    const updatedAccount = await prisma.$transaction(async (tx) => {
+      const updated = await tx.account.update({
+        where: { id: accountId },
+        data: updateData,
+        select: {
+          id: true,
+          displayName: true,
+          email: true,
+          phone: true,
+          notes: true,
+          role: true,
+          createdAt: true,
+          lastLoginAt: true,
+        },
+      });
+
+      if (shouldCreatePermissionAlert && nextRole) {
+        const adminAccounts = await tx.account.findMany({
+          where: {
+            deletedAt: null,
+            role: "ADMIN",
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (adminAccounts.length > 0) {
+          await createPermissionChangeAlertBestEffort(
+            tx,
+            clampText(permissionAlertTitle(1), ALERT_TITLE_MAX_LENGTH),
+            clampText(
+              `Account role changed for ${accountDisplayLabel(updated.displayName, updated.email)}: ${previousRole} -> ${nextRole}.`,
+              ALERT_DESCRIPTION_MAX_LENGTH,
+            ),
+            adminAccounts.map((account) => account.id),
+          );
+        }
+      }
+
+      return updated;
     });
 
     return jsonResponse({

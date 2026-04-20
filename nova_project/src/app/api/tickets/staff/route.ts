@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireStaffSession } from "@/lib/auth/staffAccess";
+import { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 type TicketType = "ORDER" | "SUPPLY" | "SPOILAGE";
 
 const VALID_TICKET_TYPES = new Set(["ORDER", "SUPPLY", "SPOILAGE"] as const);
+const ALERT_TITLE_MAX_LENGTH = 120;
+const ALERT_DESCRIPTION_MAX_LENGTH = 500;
 
 type CreateTicketRequestBody = {
   type?: unknown;
@@ -78,6 +81,128 @@ function formatCardDate(date: Date): string {
       hour12: true,
     })
     .replace(/,([^,]*)$/, " -$1");
+}
+
+function clampText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function formatAlertDate(date: Date): string {
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function ticketTypeLabel(value: TicketType): string {
+  if (value === "ORDER") return "Order";
+  if (value === "SUPPLY") return "Supply";
+  return "Spoilage";
+}
+
+function signedDelta(value: number): string {
+  if (value > 0) return `+${value}`;
+  return String(value);
+}
+
+async function createAlertWithFallback(
+  tx: Prisma.TransactionClient,
+  input: {
+    title: string;
+    description: string;
+    type: "LOW_STOCK" | "TICKET_CREATED";
+    accountIds: number[];
+  },
+): Promise<void> {
+  if (input.accountIds.length === 0) {
+    return;
+  }
+
+  const accountConnections = input.accountIds.map((id) => ({ id }));
+
+  try {
+    await tx.alert.create({
+      data: {
+        title: input.title,
+        description: input.description,
+        type: input.type,
+        accounts: {
+          connect: accountConnections,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+    return;
+  } catch (primaryAlertError) {
+    console.error(
+      `[tickets/staff] ${input.type} alert create failed; falling back to ANNOUNCEMENT`,
+      primaryAlertError,
+    );
+  }
+
+  try {
+    await tx.alert.create({
+      data: {
+        title: input.title,
+        description: input.description,
+        type: "ANNOUNCEMENT",
+        accounts: {
+          connect: accountConnections,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+  } catch (fallbackAlertError) {
+    console.error(
+      "[tickets/staff] fallback alert create failed",
+      fallbackAlertError,
+    );
+  }
+}
+
+function buildTicketCreatedAlertDescription(input: {
+  creatorName: string;
+  ticketType: TicketType;
+  ticketId: number;
+  createdAt: Date;
+  itemLines: Array<{ itemName: string; countDelta: number }>;
+}): string {
+  const summaryLine = `${input.creatorName} created ${ticketTypeLabel(input.ticketType)} ticket #${input.ticketId} at ${formatAlertDate(input.createdAt)}.`;
+  const itemLines = input.itemLines.map(
+    (line) => `${line.itemName}: ${signedDelta(line.countDelta)}`,
+  );
+  return clampText(
+    `${summaryLine}\n${itemLines.join("\n")}`,
+    ALERT_DESCRIPTION_MAX_LENGTH,
+  );
+}
+
+function buildLowStockAlertTitle(itemName: string): string {
+  return clampText(`Low stock alert: ${itemName}`, ALERT_TITLE_MAX_LENGTH);
+}
+
+function buildLowStockAlertDescription(input: {
+  itemName: string;
+  ticketId: number;
+  currentStock: number;
+  reorderLevel: number;
+}): string {
+  return clampText(
+    `Item "${input.itemName}" dropped below reorder level after Ticket #${input.ticketId}. Current stock is ${input.currentStock}. Reorder level is ${input.reorderLevel}.`,
+    ALERT_DESCRIPTION_MAX_LENGTH,
+  );
 }
 
 function parseBody(body: CreateTicketRequestBody): {
@@ -312,7 +437,12 @@ export async function POST(request: NextRequest) {
 
   let catalogItemById = new Map<
     number,
-    { id: number; itemName: string; quantityInStock: number }
+    {
+      id: number;
+      itemName: string;
+      quantityInStock: number;
+      reorderLevel: number;
+    }
   >();
 
   try {
@@ -320,6 +450,8 @@ export async function POST(request: NextRequest) {
       where: { email: input.createdByEmail },
       select: {
         id: true,
+        email: true,
+        displayName: true,
         role: true,
         status: true,
         deletedAt: true,
@@ -347,7 +479,12 @@ export async function POST(request: NextRequest) {
     ];
     const foundCatalogItems = await prisma.catalogItem.findMany({
       where: { id: { in: catalogIds } },
-      select: { id: true, itemName: true, quantityInStock: true },
+      select: {
+        id: true,
+        itemName: true,
+        quantityInStock: true,
+        reorderLevel: true,
+      },
     });
     const foundCatalogIdSet = new Set(foundCatalogItems.map((item) => item.id));
     catalogItemById = new Map(foundCatalogItems.map((item) => [item.id, item]));
@@ -385,7 +522,7 @@ export async function POST(request: NextRequest) {
           type: input.type,
           notes: input.notes,
         },
-        select: { id: true },
+        select: { id: true, createdAt: true, type: true },
       });
 
       const lineWrites = input.lines.map((line) => ({
@@ -424,6 +561,79 @@ export async function POST(request: NextRequest) {
         if (result.count !== 1) {
           throw new Error(`CATALOG_ITEM_NOT_FOUND:${line.catalogItemId}`);
         }
+      }
+
+      const updatedCatalogItems = await tx.catalogItem.findMany({
+        where: {
+          id: {
+            in: lineWrites.map((line) => line.catalogItemId),
+          },
+        },
+        select: {
+          id: true,
+          itemName: true,
+          quantityInStock: true,
+          reorderLevel: true,
+        },
+      });
+
+      const lowStockItems = updatedCatalogItems.filter(
+        (item) => item.quantityInStock < item.reorderLevel,
+      );
+
+      const adminAccounts = await tx.account.findMany({
+        where: {
+          deletedAt: null,
+          role: "ADMIN",
+        },
+        select: {
+          id: true,
+        },
+      });
+      const adminAccountIds = adminAccounts.map((account) => account.id);
+
+      if (lowStockItems.length > 0 && adminAccountIds.length > 0) {
+        for (const lowStockItem of lowStockItems) {
+          await createAlertWithFallback(tx, {
+            title: buildLowStockAlertTitle(lowStockItem.itemName),
+            description: buildLowStockAlertDescription({
+              itemName: lowStockItem.itemName,
+              ticketId: ticket.id,
+              currentStock: lowStockItem.quantityInStock,
+              reorderLevel: lowStockItem.reorderLevel,
+            }),
+            type: "LOW_STOCK",
+            accountIds: adminAccountIds,
+          });
+        }
+      }
+
+      if (adminAccountIds.length > 0) {
+        const creatorName = creator.displayName?.trim() || creator.email;
+        const itemCount = lineWrites.length;
+        const ticketCreatedTitle = clampText(
+          `${ticketTypeLabel(input.type)} ticket created: ${itemCount} item${itemCount === 1 ? "" : "s"} changed`,
+          ALERT_TITLE_MAX_LENGTH,
+        );
+        const ticketCreatedDescription = buildTicketCreatedAlertDescription({
+          creatorName,
+          ticketType: input.type,
+          ticketId: ticket.id,
+          createdAt: ticket.createdAt,
+          itemLines: lineWrites.map((line) => ({
+            itemName:
+              catalogItemById.get(line.catalogItemId)?.itemName ??
+              `Item #${line.catalogItemId}`,
+            countDelta: line.countDelta,
+          })),
+        });
+
+        await createAlertWithFallback(tx, {
+          title: ticketCreatedTitle,
+          description: ticketCreatedDescription,
+          type: "TICKET_CREATED",
+          accountIds: adminAccountIds,
+        });
       }
 
       return ticket;
