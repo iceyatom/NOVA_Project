@@ -456,9 +456,9 @@
 }
 
 .staffAlertTypeBadge--ticketCreated {
-  color: #92400e;
-  border-color: #fcd34d;
-  background: #fef3c7;
+  color: #0f766e;
+  border-color: #5eead4;
+  background: #ccfbf1;
 }
 
 .staffAlertDetailModal {
