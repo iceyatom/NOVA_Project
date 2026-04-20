@@ -66,6 +66,53 @@ type LinkImageApiResponse = {
     s3Key?: unknown;
     createdAt?: unknown;
   };
+  alreadyLinked?: unknown;
+  error?: unknown;
+  details?: unknown;
+};
+
+type BrowseImageLibraryEntry = {
+  s3Key: string;
+  url: string;
+  usageCount: number;
+  lastLinkedAt: string | null;
+  linkedToCatalogItem: boolean;
+};
+
+type BrowseImageLibraryApiResponse = {
+  success?: boolean;
+  data?: unknown;
+  error?: unknown;
+  details?: unknown;
+};
+
+type BrowseImageReference = {
+  imageId: number;
+  catalogItemId: number;
+  itemName: string;
+  sku: string | null;
+  linkedAt: string | null;
+  itemUpdatedAt: string | null;
+};
+
+type BrowseImageReferencesPayload = {
+  s3Key: string;
+  url: string;
+  references: BrowseImageReference[];
+};
+
+type PendingReferenceDelete = {
+  reference: BrowseImageReference;
+  key: string;
+};
+
+type PendingBrowseImageDelete = {
+  entry: BrowseImageLibraryEntry;
+};
+
+type BrowseImageReferencesApiResponse = {
+  success?: boolean;
+  data?: unknown;
   error?: unknown;
   details?: unknown;
 };
@@ -87,6 +134,85 @@ function getNullableNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function parseBrowseImageLibrary(data: unknown): BrowseImageLibraryEntry[] {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data
+    .map((entry): BrowseImageLibraryEntry | null => {
+      const record = asRecord(entry);
+      if (!record) return null;
+
+      const s3Key = getNullableString(record.s3Key)?.trim() ?? "";
+      const url = getNullableString(record.url)?.trim() ?? "";
+
+      if (!s3Key || !url) {
+        return null;
+      }
+
+      const usageCount = getNullableNumber(record.usageCount);
+
+      return {
+        s3Key,
+        url,
+        usageCount:
+          usageCount == null ? 0 : Math.max(0, Math.trunc(usageCount)),
+        lastLinkedAt: getNullableString(record.lastLinkedAt),
+        linkedToCatalogItem: record.linkedToCatalogItem === true,
+      };
+    })
+    .filter((entry): entry is BrowseImageLibraryEntry => entry !== null);
+}
+
+function parseBrowseImageReferencesPayload(
+  data: unknown,
+): BrowseImageReferencesPayload | null {
+  const record = asRecord(data);
+  if (!record) {
+    return null;
+  }
+
+  const s3Key = getNullableString(record.s3Key)?.trim() ?? "";
+  const url = getNullableString(record.url)?.trim() ?? "";
+  const referencesValue = record.references;
+
+  if (!s3Key || !url || !Array.isArray(referencesValue)) {
+    return null;
+  }
+
+  const references = referencesValue
+    .map((entry): BrowseImageReference | null => {
+      const reference = asRecord(entry);
+      if (!reference) return null;
+
+      const imageId = getNullableNumber(reference.imageId);
+      const catalogItemId = getNullableNumber(reference.catalogItemId);
+      const itemName = getNullableString(reference.itemName)?.trim() ?? "";
+      const sku = getNullableString(reference.sku);
+
+      if (imageId == null || catalogItemId == null || !itemName) {
+        return null;
+      }
+
+      return {
+        imageId,
+        catalogItemId,
+        itemName,
+        sku,
+        linkedAt: getNullableString(reference.linkedAt),
+        itemUpdatedAt: getNullableString(reference.itemUpdatedAt),
+      };
+    })
+    .filter((entry): entry is BrowseImageReference => entry !== null);
+
+  return {
+    s3Key,
+    url,
+    references,
+  };
 }
 
 function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
@@ -270,6 +396,13 @@ type ItemForm = {
   unitCost: string;
 };
 
+type LinkedImageResult = {
+  id: number | null;
+  s3Key: string | null;
+  createdAt: string | null;
+  alreadyLinked: boolean;
+};
+
 const STORAGE_CONDITIONS_MAX_LENGTH = 500;
 
 function normalizeOptional(value: string): string {
@@ -335,6 +468,47 @@ function withFallbackImage(images: ItemImage[]): ItemImage[] {
           createdAt: null,
         },
       ];
+}
+
+function mergeLinkedImageIntoForm(
+  currentForm: ItemForm,
+  linkedImage: LinkedImageResult,
+  url: string,
+): ItemForm {
+  const targetKey = linkedImage.s3Key?.trim() ?? "";
+  const targetUrl = url.trim();
+
+  const alreadyPresent = currentForm.images.some((image) => {
+    const existingKey = image.s3Key?.trim() ?? "";
+    if (targetKey && existingKey === targetKey) {
+      return true;
+    }
+
+    return targetUrl.length > 0 && image.url.trim() === targetUrl;
+  });
+
+  if (alreadyPresent) {
+    return currentForm;
+  }
+
+  const nextImages =
+    currentForm.images.length === 1 &&
+    currentForm.images[0]?.url === "/FillerImage.webp"
+      ? []
+      : currentForm.images;
+
+  return {
+    ...currentForm,
+    images: [
+      ...nextImages,
+      {
+        id: linkedImage.id,
+        s3Key: linkedImage.s3Key,
+        url,
+        createdAt: linkedImage.createdAt,
+      },
+    ],
+  };
 }
 
 function sanitizeMoneyInput(value: string): string {
@@ -565,6 +739,41 @@ function StaffItemEditPageContent() {
   const [isDeletingItem, setIsDeletingItem] = useState<boolean>(false);
   const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
     useState<boolean>(false);
+  const [isBrowseImagesPopupOpen, setIsBrowseImagesPopupOpen] =
+    useState<boolean>(false);
+  const [browseImages, setBrowseImages] = useState<BrowseImageLibraryEntry[]>(
+    [],
+  );
+  const [browseItemSearchInput, setBrowseItemSearchInput] =
+    useState<string>("");
+  const [browseItemSearchQuery, setBrowseItemSearchQuery] =
+    useState<string>("");
+  const [isLoadingBrowseImages, setIsLoadingBrowseImages] =
+    useState<boolean>(false);
+  const [browseImagesError, setBrowseImagesError] = useState<string | null>(
+    null,
+  );
+  const [isLinkingBrowseImageKey, setIsLinkingBrowseImageKey] = useState<
+    string | null
+  >(null);
+  const [isUnlinkingBrowseImageKey, setIsUnlinkingBrowseImageKey] = useState<
+    string | null
+  >(null);
+  const [pendingBrowseImageDelete, setPendingBrowseImageDelete] =
+    useState<PendingBrowseImageDelete | null>(null);
+  const [isBrowseImageDetailsOpen, setIsBrowseImageDetailsOpen] =
+    useState<boolean>(false);
+  const [browseImageDetails, setBrowseImageDetails] =
+    useState<BrowseImageReferencesPayload | null>(null);
+  const [isLoadingBrowseImageDetails, setIsLoadingBrowseImageDetails] =
+    useState<boolean>(false);
+  const [browseImageDetailsError, setBrowseImageDetailsError] = useState<
+    string | null
+  >(null);
+  const [isUnlinkingReferenceImageId, setIsUnlinkingReferenceImageId] =
+    useState<number | null>(null);
+  const [pendingReferenceDelete, setPendingReferenceDelete] =
+    useState<PendingReferenceDelete | null>(null);
   const [deleteConfirmChecked, setDeleteConfirmChecked] =
     useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -609,6 +818,23 @@ function StaffItemEditPageContent() {
 
       setIsDeleteConfirmationOpen(false);
       setDeleteConfirmChecked(false);
+    });
+  const browseImagesBackdropHandlers = useBackdropPointerClose<HTMLDivElement>(
+    () => {
+      if (isLinkingBrowseImageKey || isUnlinkingBrowseImageKey) {
+        return;
+      }
+
+      closeBrowseImagesPopup();
+    },
+  );
+  const browseImageDetailsBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(() => {
+      if (isUnlinkingReferenceImageId != null) {
+        return;
+      }
+
+      closeBrowseImageDetailsPopup();
     });
 
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -1224,6 +1450,162 @@ function StaffItemEditPageContent() {
     setSuccessMessage(null);
   }
 
+  function openBrowseImagesPopup() {
+    if (isDeletingImage || isSaving || isDeletingItem || isLoading) {
+      return;
+    }
+
+    setBrowseItemSearchInput("");
+    setBrowseItemSearchQuery("");
+    setBrowseImagesError(null);
+    setPendingBrowseImageDelete(null);
+    setIsBrowseImagesPopupOpen(true);
+    void loadBrowseImages("");
+  }
+
+  function closeBrowseImagesPopup() {
+    if (isLinkingBrowseImageKey || isUnlinkingBrowseImageKey) {
+      return;
+    }
+
+    setPendingBrowseImageDelete(null);
+    setIsBrowseImagesPopupOpen(false);
+    setIsBrowseImageDetailsOpen(false);
+    setBrowseImageDetails(null);
+    setBrowseImageDetailsError(null);
+    setIsLoadingBrowseImageDetails(false);
+  }
+
+  async function loadBrowseImages(nextQuery?: string) {
+    if (!id) {
+      setBrowseImages([]);
+      setBrowseImagesError("Invalid item ID.");
+      return;
+    }
+
+    const normalizedQuery = (nextQuery ?? browseItemSearchQuery)
+      .trim()
+      .replace(/\s+/g, " ");
+
+    setIsLoadingBrowseImages(true);
+    setBrowseImagesError(null);
+    setPendingBrowseImageDelete(null);
+
+    try {
+      const params = new URLSearchParams({
+        catalogItemId: String(id),
+        limit: "180",
+      });
+      if (normalizedQuery) {
+        params.set("query", normalizedQuery);
+      }
+      const response = await fetch(`/api/catalog/staff/images?${params}`, {
+        cache: "no-store",
+      });
+
+      const result = (await response.json()) as BrowseImageLibraryApiResponse;
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Failed to load image library (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      setBrowseImages(parseBrowseImageLibrary(result.data));
+    } catch (error) {
+      setBrowseImages([]);
+      setBrowseImagesError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load image library.",
+      );
+    } finally {
+      setIsLoadingBrowseImages(false);
+    }
+  }
+
+  function closeBrowseImageDetailsPopup() {
+    if (isUnlinkingReferenceImageId != null) {
+      return;
+    }
+
+    setIsBrowseImageDetailsOpen(false);
+    setBrowseImageDetailsError(null);
+    setPendingReferenceDelete(null);
+  }
+
+  async function openBrowseImageDetails(entry: BrowseImageLibraryEntry) {
+    const key = entry.s3Key.trim();
+    if (!key) {
+      return;
+    }
+
+    setIsBrowseImageDetailsOpen(true);
+    setBrowseImageDetailsError(null);
+    setIsLoadingBrowseImageDetails(true);
+    setBrowseImageDetails({
+      s3Key: key,
+      url: entry.url,
+      references: [],
+    });
+
+    try {
+      const params = new URLSearchParams({
+        s3Key: key,
+        catalogItemId: String(id),
+      });
+      const response = await fetch(`/api/catalog/staff/images?${params}`, {
+        cache: "no-store",
+      });
+      const result =
+        (await response.json()) as BrowseImageReferencesApiResponse;
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Failed to load image references (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      const payload = parseBrowseImageReferencesPayload(result.data);
+      if (!payload) {
+        throw new Error("Image reference response was missing required data.");
+      }
+
+      setBrowseImageDetails(payload);
+    } catch (error) {
+      setBrowseImageDetailsError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load image references.",
+      );
+    } finally {
+      setIsLoadingBrowseImageDetails(false);
+    }
+  }
+
+  function handleBrowseItemSearchSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    const normalizedQuery = browseItemSearchInput.trim().replace(/\s+/g, " ");
+    setBrowseItemSearchQuery(normalizedQuery);
+    void loadBrowseImages(normalizedQuery);
+  }
+
+  function handleClearBrowseItemSearch() {
+    setBrowseItemSearchInput("");
+    setBrowseItemSearchQuery("");
+    void loadBrowseImages("");
+  }
+
   function closeDeleteConfirmation() {
     if (isDeletingItem) {
       return;
@@ -1384,7 +1766,311 @@ function StaffItemEditPageContent() {
       id: getNullableNumber(imageData.id),
       s3Key: getNullableString(imageData.s3Key),
       createdAt: getNullableString(imageData.createdAt),
+      alreadyLinked: result?.alreadyLinked === true,
     };
+  }
+
+  async function linkBrowseImage(entry: BrowseImageLibraryEntry) {
+    if (
+      isLinkingBrowseImageKey ||
+      isUnlinkingBrowseImageKey ||
+      isDeletingImage ||
+      isSaving ||
+      isDeletingItem ||
+      isLoading
+    ) {
+      return;
+    }
+
+    const key = entry.s3Key.trim();
+    if (!key) {
+      return;
+    }
+
+    const alreadyOnForm = form.images.some((image) => {
+      const imageKey = image.s3Key?.trim() ?? "";
+      return imageKey === key || image.url.trim() === entry.url;
+    });
+
+    if (alreadyOnForm || entry.linkedToCatalogItem) {
+      setSaveError(null);
+      setSuccessMessage("This image is already linked to this item.");
+      return;
+    }
+
+    setIsLinkingBrowseImageKey(key);
+    setSaveError(null);
+
+    try {
+      const linkedImage = await linkUploadedImage(key);
+
+      setForm((prev) => mergeLinkedImageIntoForm(prev, linkedImage, entry.url));
+      setBrowseImages((prev) =>
+        prev.map((image) =>
+          image.s3Key === key
+            ? {
+                ...image,
+                linkedToCatalogItem: true,
+                usageCount:
+                  image.usageCount + (linkedImage.alreadyLinked ? 0 : 1),
+                lastLinkedAt: linkedImage.createdAt ?? image.lastLinkedAt,
+              }
+            : image,
+        ),
+      );
+      setSuccessMessage(
+        linkedImage.alreadyLinked
+          ? "This image was already linked to this item."
+          : "Image linked successfully.",
+      );
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to link image.",
+      );
+    } finally {
+      setIsLinkingBrowseImageKey(null);
+    }
+  }
+
+  async function unlinkBrowseImage(
+    entry: BrowseImageLibraryEntry,
+    deleteFromStorage: boolean,
+  ) {
+    if (
+      isUnlinkingBrowseImageKey ||
+      isLinkingBrowseImageKey ||
+      isDeletingImage ||
+      isSaving ||
+      isDeletingItem ||
+      isLoading
+    ) {
+      return;
+    }
+
+    const key = entry.s3Key.trim();
+    if (!key) {
+      return;
+    }
+
+    const linkedImageRecord = form.images.find(
+      (image) => (image.s3Key?.trim() ?? "") === key && image.id != null,
+    );
+
+    if (!linkedImageRecord?.id) {
+      setSaveError(
+        "Cannot unlink this image because no image link record was found.",
+      );
+      return;
+    }
+
+    const linkedCountForKey = form.images.filter(
+      (image) => (image.s3Key?.trim() ?? "") === key,
+    ).length;
+
+    setIsUnlinkingBrowseImageKey(key);
+    setSaveError(null);
+    setPendingBrowseImageDelete(null);
+
+    try {
+      const response = await fetch("/api/catalog/staff/images", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageId: linkedImageRecord.id,
+          deleteFromStorage,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+        details?: unknown;
+      };
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Failed to unlink image (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      setForm((prev) => {
+        const nextImages = prev.images.filter(
+          (image) => image.id !== linkedImageRecord.id,
+        );
+        return {
+          ...prev,
+          images: withFallbackImage(nextImages),
+        };
+      });
+      setSelectedImageIndex(null);
+      setBrowseImages((prev) =>
+        prev
+          .map((image) =>
+            image.s3Key === key
+              ? {
+                  ...image,
+                  linkedToCatalogItem: linkedCountForKey > 1,
+                  usageCount: Math.max(0, image.usageCount - 1),
+                }
+              : image,
+          )
+          .filter((image) =>
+            image.s3Key === key
+              ? deleteFromStorage
+                ? false
+                : image.usageCount > 0
+              : true,
+          ),
+      );
+      setSuccessMessage("Image unlinked from this item.");
+      if (deleteFromStorage) {
+        setSuccessMessage("Image unlinked and deleted from storage.");
+      }
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to unlink image.",
+      );
+    } finally {
+      setIsUnlinkingBrowseImageKey(null);
+    }
+  }
+
+  function requestUnlinkBrowseImage(entry: BrowseImageLibraryEntry) {
+    const referenceCount = Math.max(0, entry.usageCount);
+    if (referenceCount <= 1) {
+      setPendingBrowseImageDelete({ entry });
+      return;
+    }
+
+    void unlinkBrowseImage(entry, false);
+  }
+
+  async function unlinkImageReference(
+    reference: BrowseImageReference,
+    key: string,
+    deleteFromStorage: boolean,
+  ) {
+    if (
+      isUnlinkingReferenceImageId != null ||
+      isUnlinkingBrowseImageKey ||
+      isLinkingBrowseImageKey ||
+      isDeletingImage ||
+      isSaving ||
+      isDeletingItem ||
+      isLoading
+    ) {
+      return;
+    }
+
+    setIsUnlinkingReferenceImageId(reference.imageId);
+    setBrowseImageDetailsError(null);
+    setSaveError(null);
+    setPendingReferenceDelete(null);
+
+    try {
+      const response = await fetch("/api/catalog/staff/images", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageId: reference.imageId,
+          deleteFromStorage,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+        details?: unknown;
+      };
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Failed to unlink image (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      const remainingReferences = (browseImageDetails?.references ?? []).filter(
+        (entry) => entry.imageId !== reference.imageId,
+      );
+      const usageCount = remainingReferences.length;
+      const linkedToCurrentItem = remainingReferences.some(
+        (entry) => entry.catalogItemId === id,
+      );
+
+      setBrowseImageDetails((prev) =>
+        prev && prev.s3Key === key
+          ? {
+              ...prev,
+              references: remainingReferences,
+            }
+          : prev,
+      );
+      setBrowseImages((current) =>
+        current
+          .map((image) =>
+            image.s3Key === key
+              ? {
+                  ...image,
+                  usageCount,
+                  linkedToCatalogItem: linkedToCurrentItem,
+                }
+              : image,
+          )
+          .filter((image) => image.usageCount > 0),
+      );
+
+      if (reference.catalogItemId === id) {
+        setForm((prev) => {
+          const nextImages = prev.images.filter(
+            (image) => image.id !== reference.imageId,
+          );
+          return {
+            ...prev,
+            images: withFallbackImage(nextImages),
+          };
+        });
+        setSelectedImageIndex(null);
+      }
+
+      setSuccessMessage(
+        deleteFromStorage
+          ? `Image unlinked from ${reference.itemName} (Item #${reference.catalogItemId}) and deleted from storage.`
+          : `Image unlinked from ${reference.itemName} (Item #${reference.catalogItemId}).`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to unlink image.";
+      setBrowseImageDetailsError(message);
+      setSaveError(message);
+    } finally {
+      setIsUnlinkingReferenceImageId(null);
+    }
+  }
+
+  function requestUnlinkImageReference(
+    reference: BrowseImageReference,
+    key: string,
+  ) {
+    const referenceCount = browseImageDetails?.references.length ?? 0;
+
+    if (referenceCount <= 1) {
+      setPendingReferenceDelete({ reference, key });
+      return;
+    }
+
+    void unlinkImageReference(reference, key, false);
   }
 
   const selectedImage =
@@ -1398,7 +2084,6 @@ function StaffItemEditPageContent() {
     ) ??
     form.classifications[0] ??
     null;
-
   return (
     <div>
       <div className="item-edit-page-header">
@@ -1743,29 +2428,17 @@ function StaffItemEditPageContent() {
                         try {
                           const linkedImage = await linkUploadedImage(fileKey);
 
-                          setForm((prev) => {
-                            const nextImages =
-                              prev.images.length === 1 &&
-                              prev.images[0]?.url === "/FillerImage.webp"
-                                ? []
-                                : prev.images;
-
-                            return {
-                              ...prev,
-                              images: [
-                                ...nextImages,
-                                {
-                                  id: linkedImage.id,
-                                  s3Key: linkedImage.s3Key,
-                                  url: fileUrl,
-                                  createdAt: linkedImage.createdAt,
-                                },
-                              ],
-                            };
-                          });
-
+                          setForm((prev) =>
+                            mergeLinkedImageIntoForm(
+                              prev,
+                              linkedImage,
+                              fileUrl,
+                            ),
+                          );
                           setSuccessMessage(
-                            "Image uploaded and linked successfully.",
+                            linkedImage.alreadyLinked
+                              ? "This image was already linked to this item."
+                              : "Image uploaded and linked successfully.",
                           );
                           setSaveError(null);
                         } catch (error) {
@@ -1781,6 +2454,18 @@ function StaffItemEditPageContent() {
                       }}
                     />
                   </div>
+                  <button
+                    type="button"
+                    onClick={openBrowseImagesPopup}
+                    className="staff-dev-pill"
+                    aria-label="Browse images"
+                    disabled={
+                      isDeletingImage || isSaving || isDeletingItem || isLoading
+                    }
+                    title="Browse images"
+                  >
+                    Browse Images
+                  </button>
                   <button
                     type="button"
                     onClick={() => void removeImage()}
@@ -1910,6 +2595,426 @@ function StaffItemEditPageContent() {
         onClose={closeNewCategoryPopup}
         onCreated={handleCategoryCreated}
       />
+
+      {isBrowseImagesPopupOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Browse Images"
+          className="item-category-modal"
+          onPointerDown={browseImagesBackdropHandlers.onPointerDown}
+          onClick={browseImagesBackdropHandlers.onClick}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Browse Images</div>
+
+            <div className="item-category-form item-browse-images-form">
+              <div className="item-browse-images-toolbar">
+                <form
+                  className="item-browse-images-search-form"
+                  onSubmit={handleBrowseItemSearchSubmit}
+                >
+                  <div className="item-search-page__search-bar">
+                    <div className="item-search-page__search-input-wrap">
+                      <input
+                        type="text"
+                        className="item-search-page__search-input item-browse-images-search"
+                        value={browseItemSearchInput}
+                        onChange={(event) =>
+                          setBrowseItemSearchInput(event.target.value)
+                        }
+                        placeholder="Search by SKU or Name"
+                        disabled={
+                          isLoadingBrowseImages ||
+                          !!isLinkingBrowseImageKey ||
+                          !!isUnlinkingBrowseImageKey
+                        }
+                      />
+                      {(browseItemSearchInput || browseItemSearchQuery) && (
+                        <button
+                          type="button"
+                          className="item-search-page__search-clear"
+                          onClick={handleClearBrowseItemSearch}
+                          aria-label="Clear search"
+                          disabled={
+                            isLoadingBrowseImages ||
+                            !!isLinkingBrowseImageKey ||
+                            !!isUnlinkingBrowseImageKey
+                          }
+                        >
+                          x
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      className="item-search-page__search-submit"
+                      aria-label="Search catalog items"
+                      disabled={
+                        isLoadingBrowseImages ||
+                        !!isLinkingBrowseImageKey ||
+                        !!isUnlinkingBrowseImageKey
+                      }
+                    >
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="11" cy="11" r="7" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+
+                <button
+                  type="button"
+                  className="staff-dev-pill"
+                  onClick={() => void loadBrowseImages()}
+                  disabled={
+                    isLoadingBrowseImages ||
+                    !!isLinkingBrowseImageKey ||
+                    !!isUnlinkingBrowseImageKey
+                  }
+                >
+                  {isLoadingBrowseImages ? "Loading..." : "Refresh"}
+                </button>
+              </div>
+
+              {pendingBrowseImageDelete ? (
+                <div className="category-mgmt-delete-warning item-browse-image-delete-warning">
+                  <p>
+                    This is the last linked item for this image. Continuing will
+                    unlink it and permanently delete the image from storage.
+                  </p>
+                  <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+                    <button
+                      type="button"
+                      className="staff-dev-pill"
+                      onClick={() => setPendingBrowseImageDelete(null)}
+                      disabled={!!isUnlinkingBrowseImageKey}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="staff-dev-pill staff-dev-pill--danger"
+                      onClick={() =>
+                        void unlinkBrowseImage(
+                          pendingBrowseImageDelete.entry,
+                          true,
+                        )
+                      }
+                      disabled={!!isUnlinkingBrowseImageKey}
+                    >
+                      {isUnlinkingBrowseImageKey
+                        ? "Deleting..."
+                        : "Unlink & Delete Image"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {browseImagesError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {browseImagesError}
+                </div>
+              ) : null}
+
+              {!browseImagesError && isLoadingBrowseImages ? (
+                <div className="item-browse-images-state">
+                  Loading linked image library...
+                </div>
+              ) : null}
+
+              {!browseImagesError &&
+              !isLoadingBrowseImages &&
+              browseImages.length === 0 ? (
+                <div className="item-browse-images-state">
+                  {browseItemSearchQuery
+                    ? "No images found for matching catalog items."
+                    : "No linked images found."}
+                </div>
+              ) : null}
+
+              {!browseImagesError &&
+              !isLoadingBrowseImages &&
+              browseImages.length > 0 ? (
+                <div className="item-browse-images-grid">
+                  {browseImages.map((entry) => {
+                    const linkedImageRecord =
+                      form.images.find(
+                        (image) =>
+                          (image.s3Key?.trim() ?? "") === entry.s3Key &&
+                          image.id != null,
+                      ) ?? null;
+                    const isAlreadyLinked =
+                      entry.linkedToCatalogItem || linkedImageRecord !== null;
+                    const isLinkingThisImage =
+                      isLinkingBrowseImageKey === entry.s3Key;
+                    const isUnlinkingThisImage =
+                      isUnlinkingBrowseImageKey === entry.s3Key;
+                    const isActionInProgress =
+                      !!isLinkingBrowseImageKey || !!isUnlinkingBrowseImageKey;
+                    const linkDisabled =
+                      isAlreadyLinked ||
+                      isActionInProgress ||
+                      isSaving ||
+                      isDeletingImage ||
+                      isDeletingItem;
+                    const unlinkDisabled =
+                      linkedImageRecord === null ||
+                      isActionInProgress ||
+                      isSaving ||
+                      isDeletingImage ||
+                      isDeletingItem;
+
+                    return (
+                      <div
+                        key={entry.s3Key}
+                        className={`item-browse-images-card${isAlreadyLinked ? " item-browse-images-card--linked" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => void openBrowseImageDetails(entry)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            void openBrowseImageDetails(entry);
+                          }
+                        }}
+                      >
+                        <div className="item-browse-images-preview">
+                          <Image
+                            src={entry.url}
+                            alt={`Linked image ${entry.s3Key}`}
+                            width={600}
+                            height={450}
+                            className="item-browse-images-preview-img"
+                          />
+                        </div>
+                        <div className="item-browse-images-meta">
+                          <div
+                            className="item-browse-images-key"
+                            title={entry.s3Key}
+                          >
+                            {entry.s3Key}
+                          </div>
+                          <div className="item-browse-images-usage">
+                            Used by {entry.usageCount} item
+                            {entry.usageCount === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        {isAlreadyLinked ? (
+                          <button
+                            type="button"
+                            className="staff-dev-pill staff-dev-pill--danger"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              requestUnlinkBrowseImage(entry);
+                            }}
+                            disabled={
+                              unlinkDisabled || pendingBrowseImageDelete != null
+                            }
+                          >
+                            {linkedImageRecord === null
+                              ? "Linked"
+                              : isUnlinkingThisImage
+                                ? "Unlinking..."
+                                : "Unlink"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="staff-dev-pill"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void linkBrowseImage(entry);
+                            }}
+                            disabled={linkDisabled}
+                          >
+                            {isLinkingThisImage ? "Linking..." : "Use Image"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+              <button
+                type="button"
+                onClick={closeBrowseImagesPopup}
+                className="staff-dev-pill"
+                disabled={
+                  !!isLinkingBrowseImageKey || !!isUnlinkingBrowseImageKey
+                }
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isBrowseImageDetailsOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image Reference Details"
+          className="item-category-modal item-browse-image-details-modal"
+          onPointerDown={browseImageDetailsBackdropHandlers.onPointerDown}
+          onClick={browseImageDetailsBackdropHandlers.onClick}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Image References</div>
+
+            {browseImageDetails ? (
+              <div className="item-browse-image-details-layout">
+                <div className="item-browse-image-details-preview">
+                  <Image
+                    src={browseImageDetails.url}
+                    alt={`Image preview ${browseImageDetails.s3Key}`}
+                    width={960}
+                    height={720}
+                    className="item-browse-image-details-preview-img"
+                  />
+                </div>
+
+                <div className="item-browse-image-details-key">
+                  {browseImageDetails.s3Key}
+                </div>
+
+                {pendingReferenceDelete ? (
+                  <div className="category-mgmt-delete-warning item-browse-image-delete-warning">
+                    <p>
+                      This is the last linked item for this image. Continuing
+                      will unlink it and permanently delete the image from
+                      storage.
+                    </p>
+                    <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+                      <button
+                        type="button"
+                        className="staff-dev-pill"
+                        onClick={() => setPendingReferenceDelete(null)}
+                        disabled={isUnlinkingReferenceImageId != null}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="staff-dev-pill staff-dev-pill--danger"
+                        onClick={() =>
+                          void unlinkImageReference(
+                            pendingReferenceDelete.reference,
+                            pendingReferenceDelete.key,
+                            true,
+                          )
+                        }
+                        disabled={isUnlinkingReferenceImageId != null}
+                      >
+                        {isUnlinkingReferenceImageId != null
+                          ? "Deleting..."
+                          : "Unlink & Delete Image"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {browseImageDetailsError ? (
+                  <div className="item-category-form__status item-category-form__status--error">
+                    {browseImageDetailsError}
+                  </div>
+                ) : null}
+
+                {isLoadingBrowseImageDetails ? (
+                  <div className="item-browse-images-state">
+                    Loading reference list...
+                  </div>
+                ) : null}
+
+                {!isLoadingBrowseImageDetails &&
+                browseImageDetails.references.length === 0 ? (
+                  <div className="item-browse-images-state">
+                    No linked items found for this image.
+                  </div>
+                ) : null}
+
+                {!isLoadingBrowseImageDetails &&
+                browseImageDetails.references.length > 0 ? (
+                  <div className="item-browse-image-ref-list">
+                    {browseImageDetails.references.map((reference) => {
+                      const isCurrentItem = reference.catalogItemId === id;
+                      const isUnlinkingThisReference =
+                        isUnlinkingReferenceImageId === reference.imageId;
+
+                      return (
+                        <div
+                          key={reference.imageId}
+                          className={`item-browse-image-ref-row${isCurrentItem ? " item-browse-image-ref-row--current" : ""}`}
+                        >
+                          <div className="item-browse-image-ref-text">
+                            <strong>
+                              {reference.itemName} (Item #
+                              {reference.catalogItemId})
+                            </strong>
+                            <span>
+                              SKU:{" "}
+                              {reference.sku?.trim() ? reference.sku : "N/A"}
+                              {isCurrentItem ? " • Current item" : ""}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="staff-dev-pill staff-dev-pill--danger"
+                            onClick={() =>
+                              requestUnlinkImageReference(
+                                reference,
+                                browseImageDetails.s3Key,
+                              )
+                            }
+                            disabled={
+                              isUnlinkingReferenceImageId != null ||
+                              pendingReferenceDelete != null
+                            }
+                          >
+                            {isUnlinkingThisReference
+                              ? "Unlinking..."
+                              : "Unlink"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeBrowseImageDetailsPopup}
+                disabled={isUnlinkingReferenceImageId != null}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isDeleteConfirmationOpen ? (
         <div
