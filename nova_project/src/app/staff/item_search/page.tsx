@@ -29,6 +29,17 @@ type StaffCatalogResponse = {
   totalCount?: unknown;
 };
 
+type SessionResponse = {
+  ok?: boolean;
+  account?: {
+    role?: unknown;
+  };
+};
+
+function normalizeRole(value: string): string {
+  return value.trim().toUpperCase();
+}
+
 function parseCatalogItems(payload: unknown): StaffCatalogItem[] {
   if (!Array.isArray(payload)) {
     return [];
@@ -91,6 +102,7 @@ const StaffItemSearchPageContent = () => {
   const [subcategories, setSubcategories] = React.useState<string[]>([]);
   const [types, setTypes] = React.useState<string[]>([]);
   const [searchInput, setSearchInput] = React.useState(searchQueryParam);
+  const [viewerRole, setViewerRole] = React.useState<string | null>(null);
 
   // Cache for subcategory and type selections to avoid redundant API calls
   const subcategoriesCache = React.useRef<Map<string, string[]>>(new Map());
@@ -99,6 +111,42 @@ const StaffItemSearchPageContent = () => {
   React.useEffect(() => {
     setSearchInput(searchQueryParam);
   }, [searchQueryParam]);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const fetchViewerRole = async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (isMounted) {
+            setViewerRole(null);
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as SessionResponse;
+        const nextRole =
+          typeof payload.account?.role === "string" ? payload.account.role : "";
+
+        if (!isMounted) return;
+        setViewerRole(nextRole);
+      } catch {
+        if (isMounted) {
+          setViewerRole(null);
+        }
+      }
+    };
+
+    fetchViewerRole();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     const fetchCategories = async () => {
@@ -508,6 +556,7 @@ const StaffItemSearchPageContent = () => {
     pageSizeParam === "all"
       ? Math.max(totalItems || catalogItems.length || 1, 1)
       : Number(pageSizeParam) || 20;
+  const isViewerStaff = normalizeRole(viewerRole ?? "STAFF") === "STAFF";
   const totalPages = Math.ceil(totalItems / pageSize);
   const currentPage = Math.floor(offset / pageSize) + 1;
   const maxOffset = Math.max(0, (totalPages - 1) * pageSize);
@@ -680,12 +729,18 @@ const StaffItemSearchPageContent = () => {
         </div>
 
         <div className="item-search-page__actions">
-          <Link
-            href={`/staff/item_create${currentSearchQueryString ? `?${currentSearchQueryString}` : ""}`}
-            className="staffActionButton"
-          >
-            Create Item +
-          </Link>
+          {isViewerStaff ? (
+            <span className="staffActionButton staffActionButton--disabled">
+              Create Item +
+            </span>
+          ) : (
+            <Link
+              href={`/staff/item_create${currentSearchQueryString ? `?${currentSearchQueryString}` : ""}`}
+              className="staffActionButton"
+            >
+              Create Item +
+            </Link>
+          )}
         </div>
 
         <div className="item-search-page__table-wrap">
@@ -812,12 +867,18 @@ const StaffItemSearchPageContent = () => {
                       </td>
 
                       <td className="item-search-page__td">
-                        <Link
-                          href={`/staff/item_edit/${item.id}${currentSearchQueryString ? `?${currentSearchQueryString}` : ""}`}
-                          className="item-search-page__edit-link"
-                        >
-                          Edit
-                        </Link>
+                        {isViewerStaff ? (
+                          <span className="account-management__action-disabled">
+                            Edit
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/staff/item_edit/${item.id}${currentSearchQueryString ? `?${currentSearchQueryString}` : ""}`}
+                            className="item-search-page__edit-link account-management__action-link"
+                          >
+                            Edit
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))}

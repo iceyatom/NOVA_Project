@@ -35,6 +35,13 @@ type DependencyInfo = {
   typeCount: number;
 };
 
+type SessionResponse = {
+  ok?: boolean;
+  account?: {
+    role?: unknown;
+  };
+};
+
 const PAGE_SIZE = 10;
 
 function parseStringArray(payload: unknown): string[] {
@@ -62,6 +69,10 @@ function fetchListKey(
   key: "categories" | "subcategories" | "types",
 ): string[] {
   return parseStringArray(payload[key]);
+}
+
+function normalizeRole(value: string): string {
+  return value.trim().toUpperCase();
 }
 
 function TablePagination({
@@ -170,6 +181,44 @@ export default function StaffCategoryManagementPage() {
   const [showCreatePopup, setShowCreatePopup] = useState(false);
   const [createCategoryLevel, setCreateCategoryLevel] =
     useState<CategoryLevel>("category3");
+  const [viewerRole, setViewerRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const fetchViewerRole = async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (!disposed) {
+            setViewerRole(null);
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as SessionResponse;
+        const nextRole =
+          typeof payload.account?.role === "string" ? payload.account.role : "";
+
+        if (!disposed) {
+          setViewerRole(nextRole);
+        }
+      } catch {
+        if (!disposed) {
+          setViewerRole(null);
+        }
+      }
+    };
+
+    fetchViewerRole();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -356,10 +405,22 @@ export default function StaffCategoryManagementPage() {
   };
 
   const openCreatePopup = (level: CategoryLevel) => {
+    if (isViewerStaff) {
+      return;
+    }
+
     setEditPopupContext(null);
     setShowSaveConfirmation(false);
     setShowCreatePopup(true);
     setCreateCategoryLevel(level);
+  };
+
+  const openEditPopup = (context: EditPopupContext) => {
+    if (isViewerStaff) {
+      return;
+    }
+
+    setEditPopupContext(context);
   };
 
   const handleCategoryCreated = (result: {
@@ -739,6 +800,7 @@ export default function StaffCategoryManagementPage() {
       (editPopupContext.level !== "category3" && isParentCategoryDirty) ||
       (editPopupContext.level === "category1" && isParentSubcategoryDirty)
     : false;
+  const isViewerStaff = normalizeRole(viewerRole ?? "STAFF") === "STAFF";
   const editPopupBackdropHandlers =
     useBackdropPointerClose<HTMLDivElement>(closeEditPopup);
   const saveConfirmationBackdropHandlers =
@@ -761,9 +823,10 @@ export default function StaffCategoryManagementPage() {
             <div className="staffCardLabel">Category (Level 3)</div>
             <button
               type="button"
-              className="category-mgmt-add-btn"
+              className={`category-mgmt-add-btn${isViewerStaff ? " category-mgmt-add-btn--disabled" : ""}`}
               onClick={() => openCreatePopup("category3")}
               aria-label="Create new category"
+              disabled={isViewerStaff}
             >
               +
             </button>
@@ -820,14 +883,15 @@ export default function StaffCategoryManagementPage() {
                           {selectedCategory === name ? (
                             <button
                               type="button"
-                              className="category-mgmt-selected-icon"
+                              className={`category-mgmt-selected-icon${isViewerStaff ? " category-mgmt-selected-icon--disabled" : ""}`}
                               aria-label={`Open edit popup for ${name}`}
                               onClick={() =>
-                                setEditPopupContext({
+                                openEditPopup({
                                   level: "category3",
                                   name,
                                 })
                               }
+                              disabled={isViewerStaff}
                             >
                               &#9998;
                             </button>
@@ -858,9 +922,10 @@ export default function StaffCategoryManagementPage() {
             <div className="staffCardLabel">Subcategory (Level 2)</div>
             <button
               type="button"
-              className="category-mgmt-add-btn"
+              className={`category-mgmt-add-btn${isViewerStaff ? " category-mgmt-add-btn--disabled" : ""}`}
               onClick={() => openCreatePopup("category2")}
               aria-label="Create new subcategory"
+              disabled={isViewerStaff}
             >
               +
             </button>
@@ -919,16 +984,17 @@ export default function StaffCategoryManagementPage() {
                           {selectedSubcategory === name ? (
                             <button
                               type="button"
-                              className="category-mgmt-selected-icon"
+                              className={`category-mgmt-selected-icon${isViewerStaff ? " category-mgmt-selected-icon--disabled" : ""}`}
                               aria-label={`Open edit popup for ${name}`}
                               onClick={() =>
-                                setEditPopupContext({
+                                openEditPopup({
                                   level: "category2",
                                   name,
                                   parentCategory3:
                                     selectedCategory ?? undefined,
                                 })
                               }
+                              disabled={isViewerStaff}
                             >
                               &#9998;
                             </button>
@@ -959,9 +1025,10 @@ export default function StaffCategoryManagementPage() {
             <div className="staffCardLabel">Type (Level 1)</div>
             <button
               type="button"
-              className="category-mgmt-add-btn"
+              className={`category-mgmt-add-btn${isViewerStaff ? " category-mgmt-add-btn--disabled" : ""}`}
               onClick={() => openCreatePopup("category1")}
               aria-label="Create new type"
+              disabled={isViewerStaff}
             >
               +
             </button>
@@ -1016,10 +1083,10 @@ export default function StaffCategoryManagementPage() {
                           {selectedType === name ? (
                             <button
                               type="button"
-                              className="category-mgmt-selected-icon"
+                              className={`category-mgmt-selected-icon${isViewerStaff ? " category-mgmt-selected-icon--disabled" : ""}`}
                               aria-label={`Open edit popup for ${name}`}
                               onClick={() =>
-                                setEditPopupContext({
+                                openEditPopup({
                                   level: "category1",
                                   name,
                                   parentCategory3:
@@ -1028,6 +1095,7 @@ export default function StaffCategoryManagementPage() {
                                     selectedSubcategory ?? undefined,
                                 })
                               }
+                              disabled={isViewerStaff}
                             >
                               &#9998;
                             </button>

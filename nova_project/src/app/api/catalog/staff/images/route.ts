@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { requireStaffSession } from "@/lib/auth/staffAccess";
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION,
@@ -14,6 +15,11 @@ const s3 = new S3Client({
 });
 
 export async function POST(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   try {
     const body = await request.json();
     const { catalogItemId, fileKey } = body;
@@ -63,6 +69,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   try {
     const body = await request.json();
     const { imageId, deleteFromStorage } = body;

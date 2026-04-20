@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { requireStaffSession } from "@/lib/auth/staffAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,18 +49,6 @@ function badRequest(message: string) {
   );
 }
 
-function unauthorizedRequest(message = "Unauthorized.") {
-  return withNoCache(
-    NextResponse.json(
-      {
-        success: false,
-        error: message,
-      },
-      { status: 401 },
-    ),
-  );
-}
-
 function formatCardDate(date: Date): string {
   return date
     .toLocaleString("en-US", {
@@ -91,34 +79,9 @@ function mapDbTaskStatus(status: string): WidgetTaskStatus {
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("session")?.value;
-
-    if (!token) {
-      return unauthorizedRequest();
-    }
-
-    const session = await prisma.session.findUnique({
-      where: { token },
-      include: {
-        account: {
-          select: {
-            id: true,
-            status: true,
-            deletedAt: true,
-          },
-        },
-      },
-    });
-
-    if (
-      !session ||
-      session.expiresAt < new Date() ||
-      !session.account ||
-      session.account.deletedAt ||
-      session.account.status.toLowerCase() !== "active"
-    ) {
-      return unauthorizedRequest();
+    const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+    if (!auth.ok) {
+      return auth.response;
     }
 
     const accountIdParam = request.nextUrl.searchParams.get("accountId") ?? "";
@@ -128,7 +91,7 @@ export async function GET(request: NextRequest) {
       return badRequest("A valid accountId query parameter is required.");
     }
 
-    if (session.account.id !== accountId) {
+    if (auth.account.id !== accountId) {
       return withNoCache(
         NextResponse.json(
           {
@@ -213,6 +176,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   try {
     const payload = (await request.json()) as CreateTaskPayload;
 
@@ -304,6 +272,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   try {
     const payload = (await request.json()) as ReassignTaskPayload;
 
@@ -499,6 +472,11 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   try {
     const payload = (await request.json()) as DeleteTaskPayload;
     const taskId =

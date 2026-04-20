@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireStaffSession } from "@/lib/auth/staffAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -389,6 +390,11 @@ function errorResponse(message: string, details?: string, status = 500) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const q = parseStaffQuery(request);
   const mode = getDataSourceMode();
 

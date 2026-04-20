@@ -4500,6 +4500,17 @@ body:has(.loginPage) main {
   opacity: 0.95;
 }
 
+.staffActionButton.staffActionButton--disabled {
+  background: #e5e7eb;
+  color: #6b7280;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.staffActionButton.staffActionButton--disabled:hover {
+  opacity: 1;
+}
+
 .staffActionButtonIcon {
   display: inline-block;
   transition: transform 0.2s ease;
