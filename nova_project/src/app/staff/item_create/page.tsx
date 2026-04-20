@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import CategoryCombo from "@/app/components/CategoryCombo";
+import ImageUpload from "@/app/components/ImageUpload";
 import CategoryCreateModal, {
   type CategoryLevel,
 } from "@/app/components/CategoryCreateModal";
-import { useMemo, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
+
+type ItemImage = {
+  id: number | null;
+  s3Key: string | null;
+  url: string;
+  createdAt: string | null;
+};
 
 type CreateItemForm = {
   sku: string;
@@ -23,6 +33,7 @@ type CreateItemForm = {
   dateAcquired: string;
   reorderLevel: string;
   unitCost: string;
+  images: ItemImage[];
 };
 
 const INITIAL_FORM: CreateItemForm = {
@@ -41,6 +52,14 @@ const INITIAL_FORM: CreateItemForm = {
   dateAcquired: "",
   reorderLevel: "0",
   unitCost: "0",
+  images: [
+    {
+      id: null,
+      s3Key: null,
+      url: "/FillerImage.webp",
+      createdAt: null,
+    },
+  ],
 };
 
 const STORAGE_CONDITIONS_MAX_LENGTH = 500;
@@ -73,6 +92,42 @@ function asNullableString(value: string): string | null {
   return trimmed ? trimmed : null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function getNullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function getNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function withFallbackImage(images: ItemImage[]): ItemImage[] {
+  return images.length
+    ? images
+    : [
+        {
+          id: null,
+          s3Key: null,
+          url: "/FillerImage.webp",
+          createdAt: null,
+        },
+      ];
+}
+
 type CreateApiResponse = {
   success?: boolean;
   data?: {
@@ -82,7 +137,25 @@ type CreateApiResponse = {
   details?: unknown;
 };
 
-export default function StaffItemCreatePage() {
+type LinkImageApiResponse = {
+  success?: boolean;
+  data?: {
+    id?: unknown;
+    catalogItemId?: unknown;
+    s3Key?: unknown;
+    createdAt?: unknown;
+  };
+  error?: unknown;
+  details?: unknown;
+};
+
+function StaffItemCreatePageContent() {
+  const searchParams = useSearchParams();
+  const backToItemSearchHref = useMemo(() => {
+    const query = searchParams.toString();
+    return query ? `/staff/item_search?${query}` : "/staff/item_search";
+  }, [searchParams]);
+
   const [form, setForm] = useState<CreateItemForm>(INITIAL_FORM);
   const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<string[]>([]);
@@ -93,6 +166,10 @@ export default function StaffItemCreatePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null,
+  );
+  const [isDeletingImage, setIsDeletingImage] = useState(false);
   const [isZeroValueConfirmationOpen, setIsZeroValueConfirmationOpen] =
     useState(false);
   const [zeroValueFields, setZeroValueFields] = useState<string[]>([]);
@@ -203,7 +280,10 @@ export default function StaffItemCreatePage() {
     fetchTypes(form.category3, form.category2);
   }, [form.category3, form.category2]);
 
-  const canSubmit = useMemo(() => !isSaving, [isSaving]);
+  const canSubmit = useMemo(
+    () => !isSaving && !isDeletingImage,
+    [isSaving, isDeletingImage],
+  );
 
   const update =
     <K extends keyof CreateItemForm>(key: K) =>
@@ -254,6 +334,7 @@ export default function StaffItemCreatePage() {
     setForm(INITIAL_FORM);
     setError(null);
     setSuccessMessage(null);
+    setSelectedImageIndex(null);
     setIsZeroValueConfirmationOpen(false);
     setZeroValueFields([]);
   }
@@ -293,6 +374,113 @@ export default function StaffItemCreatePage() {
     }
   }
 
+  async function linkUploadedImage(catalogItemId: number, fileKey: string) {
+    const response = await fetch("/api/catalog/staff/images", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        catalogItemId,
+        fileKey,
+      }),
+    });
+
+    const result = (await response.json()) as LinkImageApiResponse;
+
+    if (!response.ok || result?.success === false) {
+      const message =
+        typeof result?.error === "string"
+          ? result.error
+          : `Failed to link image (HTTP ${response.status}).`;
+      const details =
+        typeof result?.details === "string" ? ` ${result.details}` : "";
+      throw new Error(`${message}${details}`.trim());
+    }
+
+    const imageData = asRecord(result.data);
+    if (!imageData) {
+      throw new Error("Image link response did not include image data.");
+    }
+
+    return {
+      id: getNullableNumber(imageData.id),
+      s3Key: getNullableString(imageData.s3Key),
+      createdAt: getNullableString(imageData.createdAt),
+    };
+  }
+
+  async function removeImage() {
+    if (selectedImageIndex === null || isDeletingImage) {
+      return;
+    }
+
+    const selectedImage = form.images[selectedImageIndex];
+    if (!selectedImage) {
+      return;
+    }
+
+    if (selectedImage.id == null) {
+      setForm((prev) => {
+        const nextImages = prev.images.filter(
+          (_, index) => index !== selectedImageIndex,
+        );
+        return { ...prev, images: withFallbackImage(nextImages) };
+      });
+      setSelectedImageIndex(null);
+      return;
+    }
+
+    setIsDeletingImage(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/catalog/staff/images", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageId: selectedImage.id,
+          deleteFromStorage: true,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+        details?: unknown;
+      };
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Failed to delete image (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      setForm((prev) => {
+        const nextImages = prev.images.filter(
+          (_, index) => index !== selectedImageIndex,
+        );
+        return { ...prev, images: withFallbackImage(nextImages) };
+      });
+      setSelectedImageIndex(null);
+      setSuccessMessage("Image unlinked successfully.");
+    } catch (removeError) {
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : "Failed to delete image.",
+      );
+    } finally {
+      setIsDeletingImage(false);
+    }
+  }
+
   async function submitCreateItem(skipZeroValueConfirmation: boolean) {
     setError(null);
     setSuccessMessage(null);
@@ -312,6 +500,12 @@ export default function StaffItemCreatePage() {
 
     setIsZeroValueConfirmationOpen(false);
     setZeroValueFields([]);
+
+    const imageKeysToLink = form.images
+      .filter(
+        (image) => image.url !== "/FillerImage.webp" && !!image.s3Key?.trim(),
+      )
+      .map((image) => image.s3Key!.trim());
 
     const payload = {
       sku: asNullableString(form.sku),
@@ -356,12 +550,36 @@ export default function StaffItemCreatePage() {
 
       const createdId =
         typeof result?.data?.id === "number" ? result.data.id : null;
+
+      if (createdId !== null && imageKeysToLink.length > 0) {
+        const failedKeys: string[] = [];
+
+        for (const fileKey of imageKeysToLink) {
+          try {
+            await linkUploadedImage(createdId, fileKey);
+          } catch {
+            failedKeys.push(fileKey);
+          }
+        }
+
+        if (failedKeys.length > 0) {
+          setError(
+            `Item created (ID: ${createdId}), but ${failedKeys.length} image link${failedKeys.length === 1 ? "" : "s"} failed.`,
+          );
+        }
+      } else if (createdId === null && imageKeysToLink.length > 0) {
+        setError(
+          "Item was created, but images were not linked because no item ID was returned.",
+        );
+      }
+
       setSuccessMessage(
         createdId
           ? `Item created successfully. New item ID: ${createdId}.`
           : "Item created successfully.",
       );
       setForm(INITIAL_FORM);
+      setSelectedImageIndex(null);
       setIsZeroValueConfirmationOpen(false);
       setZeroValueFields([]);
     } catch (submitError) {
@@ -389,12 +607,26 @@ export default function StaffItemCreatePage() {
     void submitCreateItem(false);
   }
 
+  const selectedImage =
+    selectedImageIndex !== null
+      ? (form.images[selectedImageIndex] ?? null)
+      : null;
+
   return (
     <div>
-      <div className="staffTitle">Create Catalog Item</div>
-      <div className="staffSubtitle">
-        New item form using inventory management styling. ID, created date, and
-        updated date are generated automatically.
+      <div className="item-create-page-header">
+        <div>
+          <div className="staffTitle">Create Catalog Item</div>
+          <div className="staffSubtitle">
+            New item form using inventory management styling. ID, created date,
+            and updated date are generated automatically.
+          </div>
+        </div>
+        <div className="staff-dev-back-wrapper">
+          <Link href={backToItemSearchHref} className="staff-dev-pill">
+            &larr; Back to Item Search
+          </Link>
+        </div>
       </div>
 
       <div className="staffGrid">
@@ -605,6 +837,100 @@ export default function StaffItemCreatePage() {
               />
             </label>
 
+            <label className="item-create-field">
+              <span className="item-create-label">Images</span>
+              <div className="item-edit-actions">
+                <div style={{ width: "100%" }}>
+                  <ImageUpload
+                    uploadButtonText="Upload Image"
+                    onUploadSuccess={async (fileUrl, fileKey) => {
+                      setForm((prev) => {
+                        const nextImages =
+                          prev.images.length === 1 &&
+                          prev.images[0]?.url === "/FillerImage.webp"
+                            ? []
+                            : prev.images;
+
+                        return {
+                          ...prev,
+                          images: [
+                            ...nextImages,
+                            {
+                              id: null,
+                              s3Key: fileKey,
+                              url: fileUrl,
+                              createdAt: null,
+                            },
+                          ],
+                        };
+                      });
+
+                      setSuccessMessage(
+                        "Image uploaded successfully. It will be linked when the item is created.",
+                      );
+                      setError(null);
+                    }}
+                    onUploadError={(message) => {
+                      setError(message);
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void removeImage()}
+                  className="staff-dev-pill item-edit-remove-image-button"
+                  aria-label="Remove selected image"
+                  disabled={
+                    selectedImageIndex === null || isDeletingImage || isSaving
+                  }
+                  title={
+                    selectedImageIndex === null
+                      ? "Click an image to select it first"
+                      : "Delete selected image"
+                  }
+                  style={{ opacity: selectedImageIndex === null ? 0.6 : 1 }}
+                >
+                  {isDeletingImage ? "Deleting..." : "Delete Image"}
+                </button>
+              </div>
+
+              <div className="item-image-grid">
+                {form.images.map((image, index) => {
+                  const isSelected = selectedImageIndex === index;
+
+                  return (
+                    <button
+                      key={`${image.id ?? "temp"}-${image.url}-${index}`}
+                      type="button"
+                      onClick={() =>
+                        setSelectedImageIndex((current) =>
+                          current === index ? null : index,
+                        )
+                      }
+                      aria-pressed={isSelected}
+                      aria-label={`Select image ${index + 1}`}
+                      className={`item-image-thumb-button${isSelected ? " item-image-thumb-button--selected" : ""}`}
+                    >
+                      <Image
+                        className={`product-carousel-thumb-img item-image-thumb${isSelected ? " item-image-thumb--selected" : ""}`}
+                        src={image.url}
+                        alt={`Image ${index + 1} of ${form.itemName || "item"}`}
+                        width={1000}
+                        height={1000}
+                        priority
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedImageIndex !== null && selectedImage && (
+                <div className="item-edit-selected-images">
+                  Selected image: {selectedImageIndex + 1}
+                </div>
+              )}
+            </label>
+
             {error && <div className="item-create-status error">{error}</div>}
             {successMessage && (
               <div className="item-create-status success">{successMessage}</div>
@@ -615,7 +941,7 @@ export default function StaffItemCreatePage() {
                 type="button"
                 className="staff-dev-pill"
                 onClick={resetForm}
-                disabled={isSaving}
+                disabled={isSaving || isDeletingImage}
               >
                 Clear Form
               </button>
@@ -626,7 +952,7 @@ export default function StaffItemCreatePage() {
               >
                 {isSaving ? "Creating..." : "Create Item"}
               </button>
-              <Link href="/staff/item_search" className="staff-dev-pill">
+              <Link href={backToItemSearchHref} className="staff-dev-pill">
                 Back to Item Search
               </Link>
             </div>
@@ -692,5 +1018,13 @@ export default function StaffItemCreatePage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function StaffItemCreatePage() {
+  return (
+    <Suspense fallback={null}>
+      <StaffItemCreatePageContent />
+    </Suspense>
   );
 }

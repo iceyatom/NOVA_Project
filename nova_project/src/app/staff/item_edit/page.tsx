@@ -876,10 +876,19 @@ function StaffItemEditPageContent() {
 
   return (
     <div>
-      <div className="staffTitle">Edit Catalog Item</div>
-      <div className="staffSubtitle">
-        Edit existing item form using inventory management styling. Created date
-        and updated date are generated automatically.
+      <div className="item-edit-page-header">
+        <div>
+          <div className="staffTitle">Edit Catalog Item</div>
+          <div className="staffSubtitle">
+            Edit attributes of this catalog item. Created and updated dates are
+            generated automatically.
+          </div>
+        </div>
+        <div className="staff-dev-back-wrapper">
+          <Link href={backToItemSearchHref} className="staff-dev-pill">
+            &larr; Back to Item Search
+          </Link>
+        </div>
       </div>
 
       <div className="staffGrid">
@@ -1287,10 +1296,6 @@ function StaffItemEditPageContent() {
               >
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
-            </div>
-
-            <div style={{ marginTop: "16px" }}>
-              <Link href={backToItemSearchHref}>Back to Item Search</Link>
             </div>
           </form>
         </div>

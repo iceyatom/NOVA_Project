@@ -679,6 +679,15 @@ const StaffItemSearchPageContent = () => {
           </div>
         </div>
 
+        <div className="item-search-page__actions">
+          <Link
+            href={`/staff/item_create${currentSearchQueryString ? `?${currentSearchQueryString}` : ""}`}
+            className="staffActionButton"
+          >
+            Create Item +
+          </Link>
+        </div>
+
         <div className="item-search-page__table-wrap">
           <div className="item-search-page__table-scroll">
             <div className="item-search-page__table-content">

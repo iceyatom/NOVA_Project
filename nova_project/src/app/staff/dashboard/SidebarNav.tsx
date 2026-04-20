@@ -49,11 +49,6 @@ export default function SidebarNav() {
       />
 
       <Section
-        title="Items"
-        items={[{ label: "Create Item", href: "/staff/item_create" }]}
-      />
-
-      <Section
         title="Tasks"
         items={[
           { label: "Employee Task Monitor", href: "/staff/adminTaskView" },
