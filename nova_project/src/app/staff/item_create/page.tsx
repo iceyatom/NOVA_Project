@@ -1182,7 +1182,7 @@ function StaffItemCreatePageContent() {
               />
             </label>
 
-            <label className="item-create-field">
+            <div className="item-create-field">
               <span className="item-create-label">Images</span>
               <div className="item-edit-actions">
                 <div style={{ width: "100%" }}>
@@ -1274,7 +1274,7 @@ function StaffItemCreatePageContent() {
                   Selected image: {selectedImageIndex + 1}
                 </div>
               )}
-            </label>
+            </div>
 
             {error && <div className="item-create-status error">{error}</div>}
             {successMessage && (

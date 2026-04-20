@@ -1733,7 +1733,7 @@ function StaffItemEditPageContent() {
                 />
               </label>
 
-              <label className="item-edit-field">
+              <div className="item-edit-field">
                 <strong className="item-edit-label">Images:</strong>
                 <div className="item-edit-actions">
                   <div style={{ width: "100%" }}>
@@ -1836,7 +1836,7 @@ function StaffItemEditPageContent() {
                     Selected image: {selectedImageIndex + 1}
                   </div>
                 )}
-              </label>
+              </div>
 
               {saveError && (
                 <div className="item-edit-status error">{saveError}</div>
