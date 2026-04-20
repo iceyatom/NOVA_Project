@@ -718,32 +718,30 @@ export default function StaffAccountManagementPage() {
     setIsBulkSaving(true);
 
     try {
-      for (const accountId of selectedAccountIds) {
-        const response = await fetch("/api/accounts/staff", {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            accountId,
-            role: nextRole,
-          }),
-        });
+      const response = await fetch("/api/accounts/staff", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accountIds: selectedAccountIds,
+          role: nextRole,
+        }),
+      });
 
-        let payload: StaffAccountMutationResponse | null = null;
-        try {
-          payload = (await response.json()) as StaffAccountMutationResponse;
-        } catch {
-          payload = null;
-        }
+      let payload: StaffAccountMutationResponse | null = null;
+      try {
+        payload = (await response.json()) as StaffAccountMutationResponse;
+      } catch {
+        payload = null;
+      }
 
-        if (!response.ok || payload?.success === false) {
-          const message =
-            typeof payload?.error === "string"
-              ? payload.error
-              : `Bulk account update failed (HTTP ${response.status}).`;
-          throw new Error(message);
-        }
+      if (!response.ok || payload?.success === false) {
+        const message =
+          typeof payload?.error === "string"
+            ? payload.error
+            : `Bulk account update failed (HTTP ${response.status}).`;
+        throw new Error(message);
       }
 
       setIsBulkSaveConfirmationOpen(false);

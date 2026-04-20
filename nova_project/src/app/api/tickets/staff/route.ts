@@ -379,7 +379,12 @@ export async function POST(request: NextRequest) {
     ];
     const foundCatalogItems = await prisma.catalogItem.findMany({
       where: { id: { in: catalogIds } },
-      select: { id: true, itemName: true, quantityInStock: true, reorderLevel: true },
+      select: {
+        id: true,
+        itemName: true,
+        quantityInStock: true,
+        reorderLevel: true,
+      },
     });
     const foundCatalogIdSet = new Set(foundCatalogItems.map((item) => item.id));
     catalogItemById = new Map(foundCatalogItems.map((item) => [item.id, item]));

@@ -440,6 +440,24 @@
   background: #fee2e2;
 }
 
+.staffAlertTypeBadge--permissionChange {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #dbeafe;
+}
+
+.staffAlertTypeBadge--taskComplete {
+  color: #166534;
+  border-color: #86efac;
+  background: #dcfce7;
+}
+
+.staffAlertTypeBadge--ticketCreated {
+  color: #92400e;
+  border-color: #fcd34d;
+  background: #fef3c7;
+}
+
 .staffAlertDetailModal {
   max-width: 700px;
 }

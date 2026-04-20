@@ -31,11 +31,18 @@ function truncateWithEllipsis(value: string, maxLength: number): string {
 function toAlertTypeLabel(type: string): string {
   if (type === "ANNOUNCEMENT") return "Announcement";
   if (type === "LOW_STOCK") return "Low Stock";
+  if (type === "PERMISSION_CHANGE") return "Permission Change";
+  if (type === "TASK_COMPLETE") return "Task Complete";
+  if (type === "TICKET_CREATED") return "Ticket Created";
   return type.replaceAll("_", " ");
 }
 
 function toAlertTypeClass(type: string): string {
   if (type === "LOW_STOCK") return "staffAlertTypeBadge--lowStock";
+  if (type === "PERMISSION_CHANGE")
+    return "staffAlertTypeBadge--permissionChange";
+  if (type === "TASK_COMPLETE") return "staffAlertTypeBadge--taskComplete";
+  if (type === "TICKET_CREATED") return "staffAlertTypeBadge--ticketCreated";
   return "staffAlertTypeBadge--announcement";
 }
 
