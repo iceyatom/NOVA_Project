@@ -12,7 +12,7 @@ datasource db {
 
 model CatalogItem {
   id                Int       @id @default(autoincrement())
-  sku               String?
+  sku               String
   itemName          String
   price             Decimal   @default(0) @db.Decimal(10, 2)
   category3         Int?
@@ -22,7 +22,7 @@ model CatalogItem {
   quantityInStock   Int       @default(0)
   unitOfMeasure     String?
   storageLocation   String?
-  storageConditions String?
+  storageConditions String?   @db.VarChar(500)
   expirationDate    DateTime?
   dateAcquired      DateTime?
   reorderLevel      Int       @default(0)

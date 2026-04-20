@@ -895,7 +895,7 @@ function errorResponse(
 }
 
 type CatalogUpdateInput = {
-  sku: string | null;
+  sku: string;
   itemName: string;
   price: number;
   category1: string | null;
@@ -982,7 +982,7 @@ function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
   }
 
   return {
-    sku: normalizeOptionalString(raw.sku, "sku"),
+    sku: normalizeRequiredString(raw.sku, "sku"),
     itemName: normalizeRequiredString(raw.itemName, "itemName"),
     price: normalizeNonNegativeNumber(raw.price, "price"),
     category1: normalizeOptionalString(raw.category1, "category1"),

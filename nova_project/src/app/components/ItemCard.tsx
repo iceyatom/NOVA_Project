@@ -17,6 +17,15 @@ type Item = {
   quantityInStock: number | null;
 };
 
+function formatDescriptionPreview(value: string | null): string {
+  if (value === null) return "N/A";
+
+  const cleaned = value.trim().replace(/^description\s*[:\-]?\s*/i, "");
+
+  if (cleaned.length <= 200) return cleaned || "N/A";
+  return `${cleaned.slice(0, 200).trimEnd()}...`;
+}
+
 export default function ItemCard({ item }: { item: Item }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -33,7 +42,6 @@ export default function ItemCard({ item }: { item: Item }) {
     price,
     unitOfMeasure,
     quantity,
-    quantityInStock,
   } = item;
 
   const safeSrc =
@@ -68,6 +76,8 @@ export default function ItemCard({ item }: { item: Item }) {
     width: "100%",
     height: "auto",
     minHeight: "fit-content",
+    display: "flex",
+    flexDirection: "column" as const,
   };
 
   const titleStyle = {
@@ -113,9 +123,11 @@ export default function ItemCard({ item }: { item: Item }) {
   };
 
   const costStyle = {
-    fontSize: "12px",
-    color: "#555555",
-    marginTop: "4px",
+    fontSize: "20px",
+    fontWeight: 700,
+    color: "#222222",
+    marginTop: "auto",
+    alignSelf: "flex-end",
   };
 
   const unitStyle = {
@@ -123,19 +135,6 @@ export default function ItemCard({ item }: { item: Item }) {
     color: "#aaaaaa",
     marginTop: "4px",
   };
-
-  const stockStyle =
-    quantityInStock && quantityInStock > 0
-      ? {
-          fontSize: "12px",
-          color: "#008000",
-          marginTop: "4px",
-        }
-      : {
-          fontSize: "12px",
-          color: "#FF0000",
-          marginTop: "4px",
-        };
 
   // HTML
   return (
@@ -158,26 +157,19 @@ export default function ItemCard({ item }: { item: Item }) {
         style={imageStyle}
       />
       <p className="item-card-description" style={descriptionStyle}>
-        Description: {description === null ? "N/A" : description}
+        {formatDescriptionPreview(description)}
       </p>
       <p className="item-card-category3" style={category3Style}>
-        Category 3: {category3 === null ? "N/A" : category3}
+        Category: {category3 === null ? "N/A" : category3}
       </p>
       <p className="item-card-category2" style={category2Style}>
-        Category 2: {category2 === null ? "N/A" : category2}
+        Subcategory: {category2 === null ? "N/A" : category2}
       </p>
       <p className="item-card-category1" style={category1Style}>
-        Category 1: {category1 === null ? "N/A" : category1}
+        Type: {category1 === null ? "N/A" : category1}
       </p>
       <p className="item-card-cost" style={costStyle}>
-        Cost: {price === null ? "N/A" : `$${price.toFixed(2)}`}
-      </p>
-      <p className="item-card-stock" style={stockStyle}>
-        {quantityInStock === null
-          ? "N/A"
-          : quantityInStock > 0
-            ? quantityInStock + " available"
-            : "Out of Stock"}
+        {price === null ? "N/A" : `$${price.toFixed(2)}`}
       </p>
     </div>
   );

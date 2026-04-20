@@ -202,16 +202,15 @@ type ItemForm = {
   unitCost: string;
 };
 
-const NA = "N/A";
+const STORAGE_CONDITIONS_MAX_LENGTH = 500;
 
 function normalizeOptional(value: string): string {
   const t = value.trim();
-  if (t === "" || t.toLowerCase() === "n/a") return NA;
   return t;
 }
 
 function initOptional(value: string | null | undefined): string {
-  if (value == null) return NA;
+  if (value == null) return "";
   return normalizeOptional(value);
 }
 
@@ -226,6 +225,18 @@ function withFallbackImage(images: ItemImage[]): ItemImage[] {
           createdAt: null,
         },
       ];
+}
+
+function sanitizeMoneyInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const [rawWhole = "", ...rawFractionParts] = cleaned.split(".");
+  const whole = rawWhole.slice(0, 8);
+  const fraction = rawFractionParts.join("").slice(0, 2);
+  const hasDecimal = rawFractionParts.length > 0;
+
+  if (!hasDecimal) return whole;
+  if (whole === "") return `0.${fraction}`;
+  return `${whole}.${fraction}`;
 }
 
 function applyNA(f: ItemForm): ItemForm {
@@ -322,45 +333,33 @@ function sameNonImageForm(a: ItemForm, b: ItemForm) {
 type NormalizedItemForm = ReturnType<typeof normalizeForCompare>;
 
 function validateForm(f: ItemForm): string | null {
-  const currencyToCheck = ["$", "€", "£", "¥"];
-  const hasCurrency = (s: string) => currencyToCheck.some((c) => s.includes(c));
+  const isValidMoney = (value: string): boolean => {
+    if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return false;
+    return Number(value) >= 0;
+  };
 
-  if (!f.itemName.trim()) return "Item Name cannot be empty.";
-  if (!f.sku.trim()) return "SKU cannot be empty.";
+  if (!f.itemName.trim()) return "Item name is required.";
+  if (!f.sku.trim()) return "SKU is required.";
+  if (!f.price.trim()) return "Price is required.";
+  if (!isValidMoney(f.price)) {
+    return "Price must be a non-negative number with up to 2 decimals.";
+  }
 
-  if (hasCurrency(f.price))
-    return "Price must be a number (no currency signs).";
-  if (f.price.trim() === "" || Number.isNaN(Number(f.price)))
-    return "Price must be a valid number.";
-  if (Number(f.price) < 0) return "Price cannot be negative.";
-  if ((f.price.split(".")[1] ?? "").length > 2)
-    return "Price must have at most 2 decimal places.";
+  if (!/^\d+$/.test(f.quantityInStock.trim())) {
+    return "Quantity in stock must be a whole number.";
+  }
 
-  if (!f.category3.trim()) return "Category 3 cannot be empty.";
-  if (!f.category2.trim()) return "Category 2 cannot be empty.";
-  if (!f.category1.trim()) return "Category 1 cannot be empty.";
+  if (!/^\d+$/.test(f.reorderLevel.trim())) {
+    return "Reorder level must be a whole number.";
+  }
 
-  if (
-    f.quantityInStock.trim() === "" ||
-    Number.isNaN(Number(f.quantityInStock))
-  )
-    return "Quantity in stock must be a valid number.";
-  if (Number(f.quantityInStock) < 0) return "Quantity cannot be negative.";
-
-  if (f.reorderLevel.trim() === "" || Number.isNaN(Number(f.reorderLevel)))
-    return "Reorder level must be a valid number.";
-
-  if (hasCurrency(f.unitCost))
-    return "Unit cost must be a number (no currency signs).";
-  if (f.unitCost.trim() === "" || Number.isNaN(Number(f.unitCost)))
-    return "Unit cost must be a valid number.";
-  if (Number(f.unitCost) < 0) return "Unit cost cannot be negative.";
-  if ((f.unitCost.split(".")[1] ?? "").length > 2)
-    return "Unit cost must have at most 2 decimal places.";
+  if (!f.unitCost.trim()) return "Unit cost is required.";
+  if (!isValidMoney(f.unitCost)) {
+    return "Unit cost must be a non-negative number with up to 2 decimals.";
+  }
 
   return null;
 }
-
 function StaffItemEditPageContent() {
   const params = useParams<{ id?: string | string[] }>();
   const searchParams = useSearchParams();
@@ -593,7 +592,10 @@ function StaffItemEditPageContent() {
   const update =
     <K extends keyof ItemForm>(key: K) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value = e.target.value;
+      const value =
+        key === "unitCost" || key === "price"
+          ? sanitizeMoneyInput(e.target.value)
+          : e.target.value;
       setForm((prev) => ({ ...prev, [key]: value }));
     };
 
@@ -899,7 +901,7 @@ function StaffItemEditPageContent() {
 
                 <label className="item-edit-field">
                   <span className={fieldNameClass(isFieldDirty("sku"))}>
-                    SKU
+                    SKU *
                   </span>
                   <input
                     className="item-search-page__search-input"
@@ -920,6 +922,8 @@ function StaffItemEditPageContent() {
                     value={form.price}
                     onChange={update("price")}
                     placeholder="0.00"
+                    pattern="^\\d{0,8}(\\.\\d{0,2})?$"
+                    maxLength={11}
                   />
                 </label>
 
@@ -934,6 +938,8 @@ function StaffItemEditPageContent() {
                     value={form.unitCost}
                     onChange={update("unitCost")}
                     placeholder="0.00"
+                    pattern="^\\d{0,8}(\\.\\d{0,2})?$"
+                    maxLength={11}
                   />
                 </label>
 
@@ -1119,16 +1125,29 @@ function StaffItemEditPageContent() {
               </label>
 
               <label className="item-edit-field">
-                <span
-                  className={fieldNameClass(isFieldDirty("storageConditions"))}
-                >
-                  Storage Conditions
-                </span>
+                <div className="account-management__notes-label-row">
+                  <span
+                    className={fieldNameClass(
+                      isFieldDirty("storageConditions"),
+                    )}
+                  >
+                    Storage Conditions
+                  </span>
+                  <span
+                    className={`${fieldNameClass(
+                      isFieldDirty("storageConditions"),
+                    )} account-management__notes-count`}
+                  >
+                    {form.storageConditions.length}/
+                    {STORAGE_CONDITIONS_MAX_LENGTH}
+                  </span>
+                </div>
                 <textarea
                   className="item-edit-textarea"
                   value={form.storageConditions}
                   onChange={update("storageConditions")}
                   onBlur={blurNA("storageConditions")}
+                  maxLength={STORAGE_CONDITIONS_MAX_LENGTH}
                 />
               </label>
 

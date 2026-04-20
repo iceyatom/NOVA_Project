@@ -28,7 +28,7 @@ type CreateItemForm = {
 const INITIAL_FORM: CreateItemForm = {
   sku: "",
   itemName: "",
-  price: "",
+  price: "0",
   category3: "",
   category2: "",
   category1: "",
@@ -40,12 +40,26 @@ const INITIAL_FORM: CreateItemForm = {
   expirationDate: "",
   dateAcquired: "",
   reorderLevel: "0",
-  unitCost: "",
+  unitCost: "0",
 };
+
+const STORAGE_CONDITIONS_MAX_LENGTH = 500;
 
 function isValidMoney(value: string): boolean {
   if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return false;
   return Number(value) >= 0;
+}
+
+function sanitizeMoneyInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const [rawWhole = "", ...rawFractionParts] = cleaned.split(".");
+  const whole = rawWhole.slice(0, 8);
+  const fraction = rawFractionParts.join("").slice(0, 2);
+  const hasDecimal = rawFractionParts.length > 0;
+
+  if (!hasDecimal) return whole;
+  if (whole === "") return `0.${fraction}`;
+  return `${whole}.${fraction}`;
 }
 
 function asPositiveIntegerOrZero(value: string): number {
@@ -79,6 +93,9 @@ export default function StaffItemCreatePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isZeroValueConfirmationOpen, setIsZeroValueConfirmationOpen] =
+    useState(false);
+  const [zeroValueFields, setZeroValueFields] = useState<string[]>([]);
 
   const fetchCategories = async () => {
     try {
@@ -191,19 +208,20 @@ export default function StaffItemCreatePage() {
   const update =
     <K extends keyof CreateItemForm>(key: K) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setForm((prev) => ({ ...prev, [key]: e.target.value }));
+      const value =
+        key === "price" || key === "unitCost"
+          ? sanitizeMoneyInput(e.target.value)
+          : e.target.value;
+      setForm((prev) => ({ ...prev, [key]: value }));
     };
 
   function validate(): string | null {
     if (!form.itemName.trim()) return "Item name is required.";
+    if (!form.sku.trim()) return "SKU is required.";
     if (!form.price.trim()) return "Price is required.";
     if (!isValidMoney(form.price)) {
       return "Price must be a non-negative number with up to 2 decimals.";
     }
-
-    if (!form.category3.trim()) return "Category is required.";
-    if (!form.category2.trim()) return "Subcategory is required.";
-    if (!form.category1.trim()) return "Type is required.";
 
     if (!/^\d+$/.test(form.quantityInStock.trim())) {
       return "Quantity in stock must be a whole number.";
@@ -221,10 +239,23 @@ export default function StaffItemCreatePage() {
     return null;
   }
 
+  function getZeroValueFields(): string[] {
+    const fields: string[] = [];
+
+    if (Number(form.price) === 0) fields.push("Price");
+    if (Number(form.quantityInStock) === 0) fields.push("Quantity In Stock");
+    if (Number(form.reorderLevel) === 0) fields.push("Reorder Level");
+    if (Number(form.unitCost) === 0) fields.push("Unit Cost");
+
+    return fields;
+  }
+
   function resetForm() {
     setForm(INITIAL_FORM);
     setError(null);
     setSuccessMessage(null);
+    setIsZeroValueConfirmationOpen(false);
+    setZeroValueFields([]);
   }
 
   function openNewCategoryPopup(level: CategoryLevel) {
@@ -262,8 +293,7 @@ export default function StaffItemCreatePage() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function submitCreateItem(skipZeroValueConfirmation: boolean) {
     setError(null);
     setSuccessMessage(null);
 
@@ -272,6 +302,16 @@ export default function StaffItemCreatePage() {
       setError(validationError);
       return;
     }
+
+    const fieldsAtZero = getZeroValueFields();
+    if (!skipZeroValueConfirmation && fieldsAtZero.length > 0) {
+      setZeroValueFields(fieldsAtZero);
+      setIsZeroValueConfirmationOpen(true);
+      return;
+    }
+
+    setIsZeroValueConfirmationOpen(false);
+    setZeroValueFields([]);
 
     const payload = {
       sku: asNullableString(form.sku),
@@ -322,6 +362,8 @@ export default function StaffItemCreatePage() {
           : "Item created successfully.",
       );
       setForm(INITIAL_FORM);
+      setIsZeroValueConfirmationOpen(false);
+      setZeroValueFields([]);
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -331,6 +373,20 @@ export default function StaffItemCreatePage() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function closeZeroValueConfirmation() {
+    if (isSaving) return;
+    setIsZeroValueConfirmationOpen(false);
+  }
+
+  function confirmZeroValueCreation() {
+    void submitCreateItem(true);
+  }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    void submitCreateItem(false);
   }
 
   return (
@@ -356,7 +412,7 @@ export default function StaffItemCreatePage() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">SKU</span>
+                <span className="item-create-label">SKU *</span>
                 <input
                   className="item-search-page__search-input"
                   type="text"
@@ -374,6 +430,7 @@ export default function StaffItemCreatePage() {
                   value={form.price}
                   onChange={update("price")}
                   placeholder="0.00"
+                  maxLength={11}
                 />
               </label>
 
@@ -386,6 +443,7 @@ export default function StaffItemCreatePage() {
                   value={form.unitCost}
                   onChange={update("unitCost")}
                   placeholder="0.00"
+                  maxLength={11}
                 />
               </label>
 
@@ -414,7 +472,7 @@ export default function StaffItemCreatePage() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">Category *</span>
+                <span className="item-create-label">Category</span>
                 <CategoryCombo
                   ariaLabel="Category"
                   value={form.category3}
@@ -433,7 +491,7 @@ export default function StaffItemCreatePage() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">Subcategory *</span>
+                <span className="item-create-label">Subcategory</span>
                 <CategoryCombo
                   ariaLabel="Subcategory"
                   value={form.category2}
@@ -451,7 +509,7 @@ export default function StaffItemCreatePage() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">Type *</span>
+                <span className="item-create-label">Type</span>
                 <CategoryCombo
                   ariaLabel="Type"
                   value={form.category1}
@@ -518,11 +576,32 @@ export default function StaffItemCreatePage() {
             </label>
 
             <label className="item-create-field">
-              <span className="item-create-label">Storage Conditions</span>
+              <div className="account-management__notes-label-row">
+                <span
+                  className={`item-create-label ${
+                    form.storageConditions.length > 0
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  Storage Conditions
+                </span>
+                <span
+                  className={`item-create-label account-management__notes-count ${
+                    form.storageConditions.length > 0
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  {form.storageConditions.length}/
+                  {STORAGE_CONDITIONS_MAX_LENGTH}
+                </span>
+              </div>
               <textarea
                 className="item-create-textarea"
                 value={form.storageConditions}
                 onChange={update("storageConditions")}
+                maxLength={STORAGE_CONDITIONS_MAX_LENGTH}
               />
             </label>
 
@@ -568,6 +647,50 @@ export default function StaffItemCreatePage() {
         onClose={closeNewCategoryPopup}
         onCreated={handleCategoryCreated}
       />
+
+      {isZeroValueConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Item Creation With Zero Values"
+          className="item-category-modal"
+          onClick={closeZeroValueConfirmation}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Creation</div>
+            <p className="category-mgmt-confirm-modal__message">
+              One or more key numeric values are set to 0. Are you sure you want
+              to create this item?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>
+                Fields at 0: <strong>{zeroValueFields.join(", ")}</strong>.
+              </p>
+            </div>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeZeroValueConfirmation}
+                disabled={isSaving}
+              >
+                Go Back
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={confirmZeroValueCreation}
+                disabled={isSaving}
+              >
+                {isSaving ? "Creating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
