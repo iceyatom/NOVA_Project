@@ -145,8 +145,11 @@ model Alert {
 }
 
 enum AlertType {
-  ANNOUNCEMENT @map("Announcement")
-  LOW_STOCK    @map("Low Stock")
+  ANNOUNCEMENT      @map("Announcement")
+  LOW_STOCK         @map("Low Stock")
+  PERMISSION_CHANGE @map("Permission Change")
+  TASK_COMPLETE     @map("Task Complete")
+  TICKET_CREATED    @map("Ticket Created")
 }
 
 model PendingVerification {

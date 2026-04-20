@@ -27,6 +27,9 @@ type TicketSummary = {
   spoilageTickets: number;
 };
 
+const ALERT_TITLE_MAX_LENGTH = 120;
+const ALERT_DESCRIPTION_MAX_LENGTH = 500;
+
 function withNoCache(response: NextResponse): NextResponse {
   response.headers.set(
     "Cache-Control",
@@ -78,6 +81,30 @@ function formatCardDate(date: Date): string {
       hour12: true,
     })
     .replace(/,([^,]*)$/, " -$1");
+}
+
+function clampText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function buildLowStockAlertTitle(itemName: string): string {
+  return clampText(`Low stock alert: ${itemName}`, ALERT_TITLE_MAX_LENGTH);
+}
+
+function buildLowStockAlertDescription(input: {
+  itemName: string;
+  ticketId: number;
+  currentStock: number;
+  reorderLevel: number;
+}): string {
+  return clampText(
+    `Item "${input.itemName}" dropped below reorder level after Ticket #${input.ticketId}. Current stock is ${input.currentStock}. Reorder level is ${input.reorderLevel}.`,
+    ALERT_DESCRIPTION_MAX_LENGTH,
+  );
 }
 
 function parseBody(body: CreateTicketRequestBody): {
@@ -312,7 +339,12 @@ export async function POST(request: NextRequest) {
 
   let catalogItemById = new Map<
     number,
-    { id: number; itemName: string; quantityInStock: number }
+    {
+      id: number;
+      itemName: string;
+      quantityInStock: number;
+      reorderLevel: number;
+    }
   >();
 
   try {
@@ -347,7 +379,7 @@ export async function POST(request: NextRequest) {
     ];
     const foundCatalogItems = await prisma.catalogItem.findMany({
       where: { id: { in: catalogIds } },
-      select: { id: true, itemName: true, quantityInStock: true },
+      select: { id: true, itemName: true, quantityInStock: true, reorderLevel: true },
     });
     const foundCatalogIdSet = new Set(foundCatalogItems.map((item) => item.id));
     catalogItemById = new Map(foundCatalogItems.map((item) => [item.id, item]));
@@ -423,6 +455,63 @@ export async function POST(request: NextRequest) {
 
         if (result.count !== 1) {
           throw new Error(`CATALOG_ITEM_NOT_FOUND:${line.catalogItemId}`);
+        }
+      }
+
+      const updatedCatalogItems = await tx.catalogItem.findMany({
+        where: {
+          id: {
+            in: lineWrites.map((line) => line.catalogItemId),
+          },
+        },
+        select: {
+          id: true,
+          itemName: true,
+          quantityInStock: true,
+          reorderLevel: true,
+        },
+      });
+
+      const lowStockItems = updatedCatalogItems.filter(
+        (item) => item.quantityInStock < item.reorderLevel,
+      );
+
+      if (lowStockItems.length > 0) {
+        const adminAccounts = await tx.account.findMany({
+          where: {
+            deletedAt: null,
+            role: "ADMIN",
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (adminAccounts.length > 0) {
+          const adminConnections = adminAccounts.map((account) => ({
+            id: account.id,
+          }));
+
+          for (const lowStockItem of lowStockItems) {
+            await tx.alert.create({
+              data: {
+                title: buildLowStockAlertTitle(lowStockItem.itemName),
+                description: buildLowStockAlertDescription({
+                  itemName: lowStockItem.itemName,
+                  ticketId: ticket.id,
+                  currentStock: lowStockItem.quantityInStock,
+                  reorderLevel: lowStockItem.reorderLevel,
+                }),
+                type: "LOW_STOCK",
+                accounts: {
+                  connect: adminConnections,
+                },
+              },
+              select: {
+                id: true,
+              },
+            });
+          }
         }
       }
 
