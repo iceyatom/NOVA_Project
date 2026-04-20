@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { deleteFileFromS3 } from "@/lib/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -912,6 +913,10 @@ type CatalogUpdateInput = {
   unitCost: number;
 };
 
+type CatalogDeleteInput = {
+  deleteImagesFromStorage: boolean;
+};
+
 class CatalogPayloadValidationError extends Error {}
 
 function normalizeOptionalString(
@@ -1006,6 +1011,45 @@ function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
     dateAcquired: normalizeNullableDate(raw.dateAcquired, "dateAcquired"),
     reorderLevel: normalizeNonNegativeInteger(raw.reorderLevel, "reorderLevel"),
     unitCost: normalizeNonNegativeNumber(raw.unitCost, "unitCost"),
+  };
+}
+
+async function parseCatalogDeletePayload(
+  request: NextRequest,
+): Promise<CatalogDeleteInput> {
+  const rawBody = await request.text();
+
+  if (!rawBody.trim()) {
+    return {
+      deleteImagesFromStorage: false,
+    };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBody) as unknown;
+  } catch {
+    throw new Error("Request body must be valid JSON.");
+  }
+
+  if (!isRecord(parsed)) {
+    throw new Error("Request body must be a JSON object.");
+  }
+
+  const deleteImagesFromStorageRaw = parsed.deleteImagesFromStorage;
+
+  if (deleteImagesFromStorageRaw === undefined) {
+    return {
+      deleteImagesFromStorage: false,
+    };
+  }
+
+  if (typeof deleteImagesFromStorageRaw !== "boolean") {
+    throw new Error("deleteImagesFromStorage must be a boolean.");
+  }
+
+  return {
+    deleteImagesFromStorage: deleteImagesFromStorageRaw,
   };
 }
 
@@ -1395,5 +1439,138 @@ export async function PATCH(request: NextRequest) {
 
     const msg = error instanceof Error ? error.message : "Unknown Prisma error";
     return errorResponse("Catalog update failed.", msg, 500);
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const q = parseCatalogQuery(request);
+
+  if (!q.id) {
+    return errorResponse(
+      "A valid id query parameter is required.",
+      undefined,
+      400,
+    );
+  }
+
+  let payload: CatalogDeleteInput;
+
+  try {
+    payload = await parseCatalogDeletePayload(request);
+  } catch (error: unknown) {
+    const msg =
+      error instanceof Error ? error.message : "Invalid JSON request body.";
+    return errorResponse("Invalid delete payload.", msg, 400);
+  }
+
+  const mode = getDataSourceMode();
+
+  if (mode === "lambda") {
+    return errorResponse(
+      "Catalog deletes are only supported with Prisma data source.",
+      "Set CATALOG_DATA_SOURCE to prisma or auto with DATABASE_URL configured.",
+      501,
+    );
+  }
+
+  if (!hasPrismaConfig()) {
+    return errorResponse(
+      "DATABASE_URL is required to delete catalog items.",
+      undefined,
+      500,
+    );
+  }
+
+  try {
+    const catalogItem = await prisma.catalogItem.findUnique({
+      where: { id: q.id },
+      select: {
+        id: true,
+        images: {
+          select: {
+            s3Key: true,
+          },
+        },
+      },
+    });
+
+    if (!catalogItem) {
+      return errorResponse("Catalog item not found.", undefined, 404);
+    }
+
+    const uniqueImageKeys = Array.from(
+      new Set(
+        catalogItem.images
+          .map((image) => image.s3Key.trim())
+          .filter((key) => key.length > 0),
+      ),
+    );
+
+    await prisma.catalogItem.delete({
+      where: { id: q.id },
+    });
+
+    const imageCleanupErrors: string[] = [];
+
+    if (payload.deleteImagesFromStorage) {
+      for (const imageKey of uniqueImageKeys) {
+        const remainingReferences = await prisma.catalogItemImage.count({
+          where: { s3Key: imageKey },
+        });
+
+        if (remainingReferences > 0) {
+          continue;
+        }
+
+        try {
+          await deleteFileFromS3(imageKey);
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unknown S3 cleanup error.";
+          imageCleanupErrors.push(
+            `Failed to delete image from storage (${imageKey}): ${message}`,
+          );
+        }
+      }
+    }
+
+    return withNoCache(
+      NextResponse.json(
+        {
+          success: true,
+          data: {
+            id: q.id,
+            deletedImageCount: catalogItem.images.length,
+            storageCleanupErrors: imageCleanupErrors,
+          },
+        },
+        { status: 200 },
+      ),
+    );
+  } catch (error: unknown) {
+    const code =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof (error as { code?: unknown }).code === "string"
+        ? ((error as { code: string }).code ?? "")
+        : "";
+
+    if (code === "P2003") {
+      return errorResponse(
+        "Catalog item cannot be deleted because it is referenced by existing ticket history.",
+        "Remove dependent ticket lines before deleting this catalog item.",
+        409,
+      );
+    }
+
+    if (code === "P2025") {
+      return errorResponse("Catalog item not found.", undefined, 404);
+    }
+
+    const msg = error instanceof Error ? error.message : "Unknown Prisma error";
+    return errorResponse("Catalog delete failed.", msg, 500);
   }
 }
