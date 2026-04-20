@@ -103,6 +103,11 @@ export default function AdminTaskViewClient({
     useState<EditTaskInitialState | null>(null);
   const [editTaskError, setEditTaskError] = useState<string | null>(null);
   const [isEditingTask, setIsEditingTask] = useState(false);
+  const [isDeleteTaskConfirmationOpen, setIsDeleteTaskConfirmationOpen] =
+    useState(false);
+  const [deleteTaskConfirmChecked, setDeleteTaskConfirmChecked] =
+    useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
@@ -257,6 +262,8 @@ export default function AdminTaskViewClient({
       status: editTask.currentStatus,
     });
     setEditTaskError(null);
+    setIsDeleteTaskConfirmationOpen(false);
+    setDeleteTaskConfirmChecked(false);
   }, [editTask]);
 
   const isEditTitleDirty =
@@ -290,6 +297,9 @@ export default function AdminTaskViewClient({
   const showBulkDueAtMixed =
     bulkEditInitial?.dueAtMixed === true && bulkDueAt.length === 0;
   const isBulkBusy = isBulkSaving || isBulkDeleting;
+  const isEditTaskBusy = isEditingTask || isDeletingTask;
+  const areAllTasksSelected =
+    allTaskIds.length > 0 && selectedTaskCount === allTaskIds.length;
 
   function toggleTaskCollapse(taskId: number) {
     setCollapsedTaskIds((currentIds) => {
@@ -364,6 +374,22 @@ export default function AdminTaskViewClient({
     });
   }
 
+  function toggleSelectAllTasks() {
+    if (!isSelectMode || allTaskIds.length === 0) {
+      return;
+    }
+
+    setSelectedTaskIds([...allTaskIds]);
+  }
+
+  function clearSelectedTasks() {
+    if (selectedTaskCount === 0) {
+      return;
+    }
+
+    setSelectedTaskIds([]);
+  }
+
   function closeCreateTaskModal() {
     if (isCreatingTask) return;
     setIsCreateTaskOpen(false);
@@ -386,10 +412,84 @@ export default function AdminTaskViewClient({
   }
 
   function closeEditTaskModal() {
-    if (isEditingTask) return;
+    if (isEditTaskBusy) return;
     setEditTask(null);
     setEditTaskInitial(null);
     setEditTaskError(null);
+    setIsDeleteTaskConfirmationOpen(false);
+    setDeleteTaskConfirmChecked(false);
+  }
+
+  function openDeleteTaskConfirmation() {
+    if (!editTask || isEditTaskBusy) {
+      return;
+    }
+
+    setIsDeleteTaskConfirmationOpen(true);
+    setDeleteTaskConfirmChecked(false);
+    setEditTaskError(null);
+  }
+
+  function closeDeleteTaskConfirmation() {
+    if (isDeletingTask) {
+      return;
+    }
+
+    setIsDeleteTaskConfirmationOpen(false);
+    setDeleteTaskConfirmChecked(false);
+  }
+
+  async function handleDeleteTask() {
+    if (!editTask) {
+      return;
+    }
+
+    if (!deleteTaskConfirmChecked) {
+      setEditTaskError("Please confirm the deletion warning first.");
+      return;
+    }
+
+    setEditTaskError(null);
+    setIsDeletingTask(true);
+
+    try {
+      const response = await fetch("/api/tasks/staff", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          taskId: editTask.id,
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+      };
+
+      if (!response.ok || payload.success === false) {
+        const message =
+          typeof payload.error === "string"
+            ? payload.error
+            : `Task deletion failed (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      setIsDeleteTaskConfirmationOpen(false);
+      setDeleteTaskConfirmChecked(false);
+      setEditTask(null);
+      setEditTaskInitial(null);
+      router.refresh();
+    } catch (deleteError) {
+      setEditTaskError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete task.",
+      );
+    } finally {
+      setIsDeletingTask(false);
+    }
   }
 
   async function handleCreateTask(event: React.FormEvent<HTMLFormElement>) {
@@ -890,6 +990,8 @@ export default function AdminTaskViewClient({
     useBackdropPointerClose<HTMLDivElement>(closeBulkDeleteConfirmation);
   const editTaskModalBackdropHandlers =
     useBackdropPointerClose<HTMLDivElement>(closeEditTaskModal);
+  const deleteTaskConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closeDeleteTaskConfirmation);
   const createTaskModalBackdropHandlers =
     useBackdropPointerClose<HTMLDivElement>(closeCreateTaskModal);
 
@@ -992,13 +1094,33 @@ export default function AdminTaskViewClient({
             </button>
           ) : null}
 
+          {isSelectMode && !areAllTasksSelected ? (
+            <button
+              type="button"
+              className="staffActionButton selectTasksButton"
+              onClick={toggleSelectAllTasks}
+              disabled={allTaskIds.length === 0}
+            >
+              Select All
+            </button>
+          ) : null}
+
+          {selectedTaskCount > 0 ? (
+            <button
+              type="button"
+              className="staffActionButton selectTasksButton"
+              onClick={clearSelectedTasks}
+            >
+              Clear All
+            </button>
+          ) : null}
+
           <button
             type="button"
             className={`staffActionButton selectTasksButton ${
               isSelectMode ? "isActive" : ""
             }`}
             onClick={toggleSelectMode}
-            disabled={allTaskIds.length === 0}
           >
             {isSelectMode ? `Select (${selectedTaskCount})` : "Select"}
           </button>
@@ -1357,7 +1479,7 @@ export default function AdminTaskViewClient({
                   value={editTaskTitle}
                   onChange={(event) => setEditTaskTitle(event.target.value)}
                   placeholder="Enter task title"
-                  disabled={isEditingTask}
+                  disabled={isEditTaskBusy}
                 />
               </label>
 
@@ -1378,7 +1500,7 @@ export default function AdminTaskViewClient({
                     onChange={(event) =>
                       setEditTaskAssigneeId(event.target.value)
                     }
-                    disabled={isEditingTask || assigneeOptions.length === 0}
+                    disabled={isEditTaskBusy || assigneeOptions.length === 0}
                   >
                     {assigneeOptions.length === 0 ? (
                       <option value="">No employees available</option>
@@ -1410,7 +1532,7 @@ export default function AdminTaskViewClient({
                     type="datetime-local"
                     value={editTaskDueAt}
                     onChange={(event) => setEditTaskDueAt(event.target.value)}
-                    disabled={isEditingTask}
+                    disabled={isEditTaskBusy}
                   />
                 </label>
               </div>
@@ -1431,7 +1553,7 @@ export default function AdminTaskViewClient({
                   onChange={(event) =>
                     setEditTaskStatus(event.target.value as TaskStatus)
                   }
-                  disabled={isEditingTask}
+                  disabled={isEditTaskBusy}
                 >
                   <option value="not-started">Not Started</option>
                   <option value="in-progress">In Progress</option>
@@ -1468,7 +1590,7 @@ export default function AdminTaskViewClient({
                   }
                   placeholder="Add task details"
                   maxLength={TASK_DESCRIPTION_MAX_LENGTH}
-                  disabled={isEditingTask}
+                  disabled={isEditTaskBusy}
                 />
               </label>
 
@@ -1483,21 +1605,85 @@ export default function AdminTaskViewClient({
                   type="button"
                   onClick={closeEditTaskModal}
                   className="staff-dev-pill"
-                  disabled={isEditingTask}
+                  disabled={isEditTaskBusy}
                 >
                   Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={openDeleteTaskConfirmation}
+                  className="staff-dev-pill staff-dev-pill--danger"
+                  disabled={isEditTaskBusy}
+                >
+                  Delete
                 </button>
                 <button
                   type="submit"
                   className={`staff-dev-pill${
                     isAnyEditTaskDirty ? " staff-dev-pill--ready" : ""
                   }`}
-                  disabled={isEditingTask || !isAnyEditTaskDirty}
+                  disabled={isEditTaskBusy || !isAnyEditTaskDirty}
                 >
                   {isEditingTask ? "Saving..." : "Save"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {editTask && isDeleteTaskConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Delete Task"
+          className="item-category-modal"
+          onPointerDown={deleteTaskConfirmationBackdropHandlers.onPointerDown}
+          onClick={deleteTaskConfirmationBackdropHandlers.onClick}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Deletion</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to delete this task?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>
+                This permanently deletes <strong>{editTask.title}</strong> and
+                cannot be undone.
+              </p>
+            </div>
+            <label className="category-mgmt-delete-confirm">
+              <input
+                type="checkbox"
+                checked={deleteTaskConfirmChecked}
+                onChange={(event) =>
+                  setDeleteTaskConfirmChecked(event.target.checked)
+                }
+                disabled={isDeletingTask}
+              />
+              I understand this deletion impact.
+            </label>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeDeleteTaskConfirmation}
+                disabled={isDeletingTask}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={() => void handleDeleteTask()}
+                disabled={isDeletingTask}
+              >
+                {isDeletingTask ? "Deleting..." : "Confirm"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

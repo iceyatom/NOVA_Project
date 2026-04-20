@@ -4838,9 +4838,11 @@ body:has(.loginPage) main {
   color: #334155;
   line-height: 1.6;
   word-break: break-word;
-  text-overflow: ellipsis;
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  white-space: nowrap;
 }
 
 .staffTaskExpandButton {
