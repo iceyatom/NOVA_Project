@@ -494,21 +494,7 @@ export default function StaffDashboardHome() {
           )}
         </div>
 
-        <div className="staffCard col8">
-          <div className="staffCardLabel">Inventory Activity</div>
-          <div className="staffCardHint">
-            Placeholder panel for charts / trends / recent updates.
-          </div>
-        </div>
-
         <TaskWidget accountId={accountId} />
-
-        <div className="staffCard col12">
-          <div className="staffCardLabel">Inventory Tracker</div>
-          <div className="staffCardHint">
-            Placeholder area for category cards / donut charts / breakdowns.
-          </div>
-        </div>
       </div>
 
       {isAlertDetailsOpen && selectedAlert ? (

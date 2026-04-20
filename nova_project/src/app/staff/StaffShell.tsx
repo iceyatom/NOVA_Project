@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useLoginStatus } from "../LoginStatusContext";
@@ -9,11 +9,37 @@ import "./dashboard/staff-dashboard.css";
 
 export default function StaffShell({ children }: { children: ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarLocked, setIsMobileSidebarLocked] = useState(false);
   const { userRole } = useLoginStatus();
   const normalizedRole = userRole.trim().toUpperCase();
   const dashboardBadgeLabel = normalizedRole === "ADMIN" ? "ADMIN" : "STAFF";
 
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 720px)");
+
+    const syncMobileLockState = (isMobile: boolean) => {
+      setIsMobileSidebarLocked(isMobile);
+      if (isMobile) {
+        setIsSidebarCollapsed(false);
+      }
+    };
+
+    syncMobileLockState(mobileQuery.matches);
+    const onChange = (event: MediaQueryListEvent) => {
+      syncMobileLockState(event.matches);
+    };
+
+    mobileQuery.addEventListener("change", onChange);
+    return () => {
+      mobileQuery.removeEventListener("change", onChange);
+    };
+  }, []);
+
   const handleToggleSidebar = () => {
+    if (isMobileSidebarLocked) {
+      return;
+    }
+
     setIsSidebarCollapsed((prev) => !prev);
   };
 
@@ -37,18 +63,20 @@ export default function StaffShell({ children }: { children: ReactNode }) {
       >
         <div className="staffSidebarHeader">
           <div className="staffSidebarHeaderTop">
-            <button
-              type="button"
-              className="staffSidebarToggle"
-              onClick={handleToggleSidebar}
-              aria-label={toggleLabel}
-              aria-controls="staff-sidebar"
-              aria-expanded={!isSidebarCollapsed}
-            >
-              <span className="staffSidebarToggleIcon" aria-hidden="true">
-                <PanelLeftClose size={16} strokeWidth={2} />
-              </span>
-            </button>
+            {!isMobileSidebarLocked ? (
+              <button
+                type="button"
+                className="staffSidebarToggle"
+                onClick={handleToggleSidebar}
+                aria-label={toggleLabel}
+                aria-controls="staff-sidebar"
+                aria-expanded={!isSidebarCollapsed}
+              >
+                <span className="staffSidebarToggleIcon" aria-hidden="true">
+                  <PanelLeftClose size={16} strokeWidth={2} />
+                </span>
+              </button>
+            ) : null}
             <div className="staffBadge">{dashboardBadgeLabel}</div>
           </div>
           <div className="staffSidebarTitle">Dashboard</div>
@@ -59,7 +87,7 @@ export default function StaffShell({ children }: { children: ReactNode }) {
 
       <main className="staffMain" role="main">
         <div className="staffMainInner">
-          {isSidebarCollapsed ? (
+          {isSidebarCollapsed && !isMobileSidebarLocked ? (
             <div className="staffMainToggleRow">
               <button
                 type="button"

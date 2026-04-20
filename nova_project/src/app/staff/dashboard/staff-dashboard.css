@@ -390,6 +390,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .staffNotificationPreviewTitle {
@@ -397,12 +398,17 @@
   font-weight: 800;
   line-height: 1.25;
   color: #0f172a;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .staffNotificationPreviewDescription {
   font-size: 0.9rem;
   line-height: 1.35;
   color: #334155;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .staffNotificationPreviewTime {
@@ -1558,5 +1564,31 @@
   .ticketPreviewItemsTotalLabel,
   .ticketPreviewItemsTotalValue {
     grid-column: auto;
+  }
+
+  .staffNotificationPreviewTopRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+  }
+
+  .staffNotificationPreviewTime {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    row-gap: 0.3rem;
+    white-space: normal;
+    font-size: 0.86rem;
+    text-align: left;
+  }
+
+  .staffNotificationPreviewTitle {
+    font-size: 0.95rem;
+    line-height: 1.28;
+  }
+
+  .staffNotificationPreviewDescription {
+    font-size: 0.85rem;
+    line-height: 1.35;
   }
 }
