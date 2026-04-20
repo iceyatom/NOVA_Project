@@ -7,7 +7,7 @@ import { useLoginStatus } from "../../LoginStatusContext";
 
 const ALERT_TITLE_MAX_LENGTH = 120;
 const ALERT_DESCRIPTION_MAX_LENGTH = 500;
-const ALERT_PREVIEW_LIMIT = 5;
+const ALERT_PREVIEW_LIMIT = 100;
 const ALERT_TITLE_PREVIEW_MAX = 60;
 const ALERT_DESCRIPTION_PREVIEW_MAX = 120;
 type AudienceRole = "ADMIN" | "STAFF";

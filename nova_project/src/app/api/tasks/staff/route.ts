@@ -4,6 +4,8 @@ import { requireStaffSession } from "@/lib/auth/staffAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const ALERT_TITLE_MAX_LENGTH = 120;
+const ALERT_DESCRIPTION_MAX_LENGTH = 500;
 
 type CreateTaskPayload = {
   title?: unknown;
@@ -75,6 +77,25 @@ function mapDbTaskStatus(status: string): WidgetTaskStatus {
   if (status === "IN_PROGRESS") return "in-progress";
   if (status === "COMPLETE") return "completed";
   return "not-started";
+}
+
+function clampText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function formatAlertDate(date: Date): string {
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -354,8 +375,16 @@ export async function PATCH(request: NextRequest) {
         },
         select: {
           id: true,
+          title: true,
           completedAt: true,
           assignedToAccountId: true,
+          assignedTo: {
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+            },
+          },
         },
       }),
       hasAssignee
@@ -445,6 +474,77 @@ export async function PATCH(request: NextRequest) {
         id: true,
       },
     });
+
+    const transitionedToComplete =
+      hasStatus && nextStatus === "completed" && task.completedAt === null;
+
+    if (transitionedToComplete) {
+      const completionTime = data.completedAt ?? new Date();
+      const completerName =
+        task.assignedTo.displayName?.trim() || task.assignedTo.email;
+      const alertTitle = clampText(
+        `${completerName} completed ${task.title}`,
+        ALERT_TITLE_MAX_LENGTH,
+      );
+      const alertDescription = clampText(
+        `${completerName} completed task "${task.title}" at ${formatAlertDate(completionTime)}.`,
+        ALERT_DESCRIPTION_MAX_LENGTH,
+      );
+
+      try {
+        const adminAccounts = await prisma.account.findMany({
+          where: {
+            deletedAt: null,
+            role: "ADMIN",
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (adminAccounts.length > 0) {
+          const adminConnections = adminAccounts.map((account) => ({
+            id: account.id,
+          }));
+
+          try {
+            await prisma.alert.create({
+              data: {
+                title: alertTitle,
+                description: alertDescription,
+                type: "TASK_COMPLETE",
+                accounts: {
+                  connect: adminConnections,
+                },
+              },
+              select: {
+                id: true,
+              },
+            });
+          } catch (taskCompleteAlertError) {
+            console.error(
+              "TASK_COMPLETE alert create failed; falling back to ANNOUNCEMENT",
+              taskCompleteAlertError,
+            );
+            await prisma.alert.create({
+              data: {
+                title: alertTitle,
+                description: alertDescription,
+                type: "ANNOUNCEMENT",
+                accounts: {
+                  connect: adminConnections,
+                },
+              },
+              select: {
+                id: true,
+              },
+            });
+          }
+        }
+      } catch (alertError) {
+        console.error("Failed to create task completion alert", alertError);
+      }
+    }
 
     return withNoCache(
       NextResponse.json(

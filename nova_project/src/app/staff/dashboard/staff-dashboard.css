@@ -344,6 +344,9 @@
   display: grid;
   gap: 0.45rem;
   margin-top: 0.35rem;
+  max-height: 23.5rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
 }
 
 .staffNotificationPreviewItem {
@@ -429,9 +432,9 @@
 }
 
 .staffAlertTypeBadge--announcement {
-  color: #065f46;
-  border-color: #6ee7b7;
-  background: #d1fae5;
+  color: #995b00;
+  border-color: #f5c27a;
+  background: #fff1dc;
 }
 
 .staffAlertTypeBadge--lowStock {
