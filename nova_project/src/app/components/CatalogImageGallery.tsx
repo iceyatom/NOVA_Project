@@ -36,7 +36,9 @@ export default function CatalogImageGallery({
           alt={`Image of ${title}`}
           width={640}
           height={428}
-          sizes="(max-width: 900px) 100vw, 320px"
+          sizes="(max-width: 900px) 100vw, 50vw"
+          quality={100}
+          unoptimized
           priority
         />
       </div>
@@ -67,6 +69,8 @@ export default function CatalogImageGallery({
                 alt={`Image ${i + 1} of ${title}`}
                 width={160}
                 height={120}
+                quality={100}
+                unoptimized
               />
             </button>
           ))}

@@ -5,16 +5,37 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import CategoryCombo from "@/app/components/CategoryCombo";
 import ImageUpload from "@/app/components/ImageUpload";
+import useImageLibraryBrowser, {
+  type BrowseImageLibraryEntry,
+} from "@/app/hooks/useImageLibraryBrowser";
 import CategoryCreateModal, {
   type CategoryLevel,
 } from "@/app/components/CategoryCreateModal";
-import { Suspense, useMemo, useState, useEffect } from "react";
+import {
+  Suspense,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 
 type ItemImage = {
   id: number | null;
   s3Key: string | null;
   url: string;
   createdAt: string | null;
+};
+
+type ImagePointerDragState = {
+  imageIndex: number;
+  pointerX: number;
+  pointerY: number;
+  startX: number;
+  startY: number;
+  offsetX: number;
+  offsetY: number;
+  width: number;
 };
 
 type CreateItemClassificationDraft = {
@@ -196,13 +217,39 @@ function StaffItemCreatePageContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
-    null,
-  );
-  const [isDeletingImage, setIsDeletingImage] = useState(false);
   const [isZeroValueConfirmationOpen, setIsZeroValueConfirmationOpen] =
     useState(false);
   const [zeroValueFields, setZeroValueFields] = useState<string[]>([]);
+  const [imagePointerDrag, setImagePointerDrag] =
+    useState<ImagePointerDragState | null>(null);
+  const [imageDragOverIndex, setImageDragOverIndex] = useState<number | null>(
+    null,
+  );
+  const imageThumbRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const imageDragOverIndexRef = useRef<number | null>(null);
+  const {
+    isBrowseImagesPopupOpen,
+    browseImages,
+    browseItemSearchInput,
+    setBrowseItemSearchInput,
+    browseItemSearchQuery,
+    isLoadingBrowseImages,
+    browseImagesError,
+    isBrowseImageDetailsOpen,
+    browseImageDetails,
+    isLoadingBrowseImageDetails,
+    browseImageDetailsError,
+    openBrowseImagesPopup: openBrowseImagesPopupBase,
+    closeBrowseImagesPopup: closeBrowseImagesPopupBase,
+    loadBrowseImages,
+    openBrowseImageDetails,
+    closeBrowseImageDetailsPopup,
+    handleBrowseItemSearchSubmit,
+    handleClearBrowseItemSearch,
+  } = useImageLibraryBrowser({
+    catalogItemId: null,
+    isBrowseOpenBlocked: isSaving,
+  });
 
   const fetchCategories = async () => {
     try {
@@ -320,10 +367,7 @@ function StaffItemCreatePageContent() {
     void fetchCategories();
   }, []);
 
-  const canSubmit = useMemo(
-    () => !isSaving && !isDeletingImage,
-    [isSaving, isDeletingImage],
-  );
+  const canSubmit = useMemo(() => !isSaving, [isSaving]);
 
   const update =
     <K extends keyof CreateItemForm>(key: K) =>
@@ -577,9 +621,10 @@ function StaffItemCreatePageContent() {
     );
     setError(null);
     setSuccessMessage(null);
-    setSelectedImageIndex(null);
     setIsZeroValueConfirmationOpen(false);
     setZeroValueFields([]);
+    closeBrowseImagesPopupBase();
+    closeBrowseImageDetailsPopup();
   }
 
   function openNewCategoryPopup(
@@ -671,75 +716,222 @@ function StaffItemCreatePageContent() {
     };
   }
 
-  async function removeImage() {
-    if (selectedImageIndex === null || isDeletingImage) {
-      return;
+  function getImageIndexAtPoint(
+    clientX: number,
+    clientY: number,
+  ): number | null {
+    for (const [index, element] of imageThumbRefs.current.entries()) {
+      const rect = element.getBoundingClientRect();
+      if (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      ) {
+        return index;
+      }
     }
 
-    const selectedImage = form.images[selectedImageIndex];
-    if (!selectedImage) {
-      return;
-    }
+    return null;
+  }
 
-    if (selectedImage.id == null) {
-      setForm((prev) => {
-        const nextImages = prev.images.filter(
-          (_, index) => index !== selectedImageIndex,
-        );
-        return { ...prev, images: withFallbackImage(nextImages) };
-      });
-      setSelectedImageIndex(null);
-      return;
-    }
+  const reorderImages = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (fromIndex === toIndex) {
+        return;
+      }
 
-    setIsDeletingImage(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/catalog/staff/images", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          imageId: selectedImage.id,
-          deleteFromStorage: true,
-        }),
-      });
-
-      const result = (await response.json()) as {
-        success?: boolean;
-        error?: unknown;
-        details?: unknown;
-      };
-
-      if (!response.ok || result?.success === false) {
-        const message =
-          typeof result?.error === "string"
-            ? result.error
-            : `Failed to delete image (HTTP ${response.status}).`;
-        const details =
-          typeof result?.details === "string" ? ` ${result.details}` : "";
-        throw new Error(`${message}${details}`.trim());
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= form.images.length ||
+        toIndex >= form.images.length
+      ) {
+        return;
       }
 
       setForm((prev) => {
-        const nextImages = prev.images.filter(
-          (_, index) => index !== selectedImageIndex,
-        );
-        return { ...prev, images: withFallbackImage(nextImages) };
+        const nextImages = [...prev.images];
+        const [movedImage] = nextImages.splice(fromIndex, 1);
+        if (!movedImage) {
+          return prev;
+        }
+        nextImages.splice(toIndex, 0, movedImage);
+        const reorderedImages = nextImages.map((image) => ({
+          ...image,
+        }));
+
+        return {
+          ...prev,
+          images: reorderedImages,
+        };
       });
-      setSelectedImageIndex(null);
-      setSuccessMessage("Image unlinked successfully.");
-    } catch (removeError) {
-      setError(
-        removeError instanceof Error
-          ? removeError.message
-          : "Failed to delete image.",
-      );
-    } finally {
-      setIsDeletingImage(false);
+
+      setSuccessMessage(null);
+    },
+    [form.images.length],
+  );
+
+  function handleImagePointerDown(
+    event: React.PointerEvent<HTMLButtonElement>,
+    imageIndex: number,
+  ) {
+    if (event.button !== 0) {
+      return;
     }
+
+    if (form.images.length <= 1 || isSaving) {
+      return;
+    }
+
+    const thumbButton = event.currentTarget;
+    const rect = thumbButton.getBoundingClientRect();
+
+    event.preventDefault();
+
+    setImagePointerDrag({
+      imageIndex,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      width: rect.width,
+    });
+    setImageDragOverIndex(imageIndex);
+    imageDragOverIndexRef.current = imageIndex;
+  }
+
+  useEffect(() => {
+    if (!imagePointerDrag) {
+      return;
+    }
+
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setImagePointerDrag((current) =>
+        current
+          ? {
+              ...current,
+              pointerX: event.clientX,
+              pointerY: event.clientY,
+            }
+          : current,
+      );
+
+      const hoveredIndex = getImageIndexAtPoint(event.clientX, event.clientY);
+      setImageDragOverIndex(hoveredIndex);
+      imageDragOverIndexRef.current = hoveredIndex;
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const currentDrag = imagePointerDrag;
+      const movementDistance = Math.hypot(
+        event.clientX - currentDrag.startX,
+        event.clientY - currentDrag.startY,
+      );
+      const didDrag = movementDistance > 6;
+
+      const hoveredIndex = getImageIndexAtPoint(event.clientX, event.clientY);
+      const targetIndex =
+        hoveredIndex ?? imageDragOverIndexRef.current ?? currentDrag.imageIndex;
+
+      if (didDrag && targetIndex !== currentDrag.imageIndex) {
+        reorderImages(currentDrag.imageIndex, targetIndex);
+      }
+
+      setImagePointerDrag(null);
+      setImageDragOverIndex(null);
+      imageDragOverIndexRef.current = null;
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+
+    return () => {
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [imagePointerDrag, reorderImages]);
+
+  function openBrowseImagesPopup() {
+    setError(null);
+    setSuccessMessage(null);
+    void openBrowseImagesPopupBase();
+  }
+
+  function closeBrowseImagesPopup() {
+    closeBrowseImagesPopupBase();
+  }
+
+  function addBrowseImageToDraft(entry: BrowseImageLibraryEntry) {
+    const key = entry.s3Key.trim();
+    if (!key) {
+      return;
+    }
+
+    const alreadyOnForm = form.images.some((image) => {
+      const imageKey = image.s3Key?.trim() ?? "";
+      return imageKey === key || image.url.trim() === entry.url;
+    });
+
+    if (alreadyOnForm) {
+      setError(null);
+      setSuccessMessage("This image is already selected for this item.");
+      return;
+    }
+
+    setForm((prev) => {
+      const nextImages =
+        prev.images.length === 1 && prev.images[0]?.url === "/FillerImage.webp"
+          ? []
+          : prev.images;
+
+      return {
+        ...prev,
+        images: [
+          ...nextImages,
+          {
+            id: null,
+            s3Key: key,
+            url: entry.url,
+            createdAt: entry.lastLinkedAt,
+          },
+        ],
+      };
+    });
+
+    setError(null);
+    setSuccessMessage(
+      "Image selected. It will be linked when the item is created.",
+    );
+  }
+
+  function removeBrowseImageFromDraft(entry: BrowseImageLibraryEntry) {
+    const key = entry.s3Key.trim();
+
+    setForm((prev) => {
+      const nextImages = prev.images.filter((image) => {
+        const imageKey = image.s3Key?.trim() ?? "";
+        if (key && imageKey === key) {
+          return false;
+        }
+
+        return image.url.trim() !== entry.url;
+      });
+
+      return {
+        ...prev,
+        images: withFallbackImage(nextImages),
+      };
+    });
+
+    setError(null);
+    setSuccessMessage("Image removed from this draft.");
   }
 
   async function submitCreateItem(skipZeroValueConfirmation: boolean) {
@@ -870,9 +1062,10 @@ function StaffItemCreatePageContent() {
       setCategoryModalTargetClassificationId(
         resetFormState.classifications[0]?.localId ?? 1,
       );
-      setSelectedImageIndex(null);
       setIsZeroValueConfirmationOpen(false);
       setZeroValueFields([]);
+      closeBrowseImagesPopupBase();
+      closeBrowseImageDetailsPopup();
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -898,10 +1091,33 @@ function StaffItemCreatePageContent() {
     void submitCreateItem(false);
   }
 
-  const selectedImage =
-    selectedImageIndex !== null
-      ? (form.images[selectedImageIndex] ?? null)
+  const draggingImage =
+    imagePointerDrag !== null
+      ? (form.images[imagePointerDrag.imageIndex] ?? null)
       : null;
+  const selectedBrowseImageKeySet = useMemo(
+    () =>
+      new Set(
+        form.images
+          .map((image) => image.s3Key?.trim() ?? "")
+          .filter((key) => key.length > 0),
+      ),
+    [form.images],
+  );
+  const sortedBrowseImages = useMemo(
+    () =>
+      [...browseImages].sort((a, b) => {
+        const aSelected = selectedBrowseImageKeySet.has(a.s3Key);
+        const bSelected = selectedBrowseImageKeySet.has(b.s3Key);
+
+        if (aSelected === bSelected) {
+          return 0;
+        }
+
+        return aSelected ? -1 : 1;
+      }),
+    [browseImages, selectedBrowseImageKeySet],
+  );
   const targetClassificationForModal =
     form.classifications.find(
       (classification) =>
@@ -1182,7 +1398,7 @@ function StaffItemCreatePageContent() {
               />
             </label>
 
-            <label className="item-create-field">
+            <div className="item-create-field">
               <span className="item-create-label">Images</span>
               <div className="item-edit-actions">
                 <div style={{ width: "100%" }}>
@@ -1222,42 +1438,45 @@ function StaffItemCreatePageContent() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => void removeImage()}
-                  className="staff-dev-pill item-edit-remove-image-button"
-                  aria-label="Remove selected image"
-                  disabled={
-                    selectedImageIndex === null || isDeletingImage || isSaving
-                  }
-                  title={
-                    selectedImageIndex === null
-                      ? "Click an image to select it first"
-                      : "Delete selected image"
-                  }
-                  style={{ opacity: selectedImageIndex === null ? 0.6 : 1 }}
+                  onClick={openBrowseImagesPopup}
+                  className="staff-dev-pill"
+                  aria-label="Browse images"
+                  disabled={isSaving}
+                  title="Browse images"
                 >
-                  {isDeletingImage ? "Deleting..." : "Delete Image"}
+                  Browse Images
                 </button>
               </div>
 
               <div className="item-image-grid">
                 {form.images.map((image, index) => {
-                  const isSelected = selectedImageIndex === index;
+                  const isDraggingSource =
+                    imagePointerDrag?.imageIndex === index;
+                  const isDragOverTarget =
+                    imagePointerDrag !== null &&
+                    imageDragOverIndex === index &&
+                    imagePointerDrag.imageIndex !== index;
 
                   return (
                     <button
                       key={`${image.id ?? "temp"}-${image.url}-${index}`}
                       type="button"
-                      onClick={() =>
-                        setSelectedImageIndex((current) =>
-                          current === index ? null : index,
-                        )
+                      ref={(element) => {
+                        if (element) {
+                          imageThumbRefs.current.set(index, element);
+                          return;
+                        }
+
+                        imageThumbRefs.current.delete(index);
+                      }}
+                      onPointerDown={(event) =>
+                        handleImagePointerDown(event, index)
                       }
-                      aria-pressed={isSelected}
-                      aria-label={`Select image ${index + 1}`}
-                      className={`item-image-thumb-button${isSelected ? " item-image-thumb-button--selected" : ""}`}
+                      aria-label={`Image ${index + 1}`}
+                      className={`item-image-thumb-button${isDraggingSource ? " item-image-thumb-button--dragging" : ""}${isDragOverTarget ? " item-image-thumb-button--drop-target" : ""}`}
                     >
                       <Image
-                        className={`product-carousel-thumb-img item-image-thumb${isSelected ? " item-image-thumb--selected" : ""}`}
+                        className="product-carousel-thumb-img item-image-thumb"
                         src={image.url}
                         alt={`Image ${index + 1} of ${form.itemName || "item"}`}
                         width={1000}
@@ -1269,12 +1488,26 @@ function StaffItemCreatePageContent() {
                 })}
               </div>
 
-              {selectedImageIndex !== null && selectedImage && (
-                <div className="item-edit-selected-images">
-                  Selected image: {selectedImageIndex + 1}
+              {imagePointerDrag && draggingImage ? (
+                <div
+                  className="item-image-drag-overlay"
+                  style={{
+                    width: `${imagePointerDrag.width}px`,
+                    transform: `translate(${Math.round(imagePointerDrag.pointerX - imagePointerDrag.offsetX)}px, ${Math.round(imagePointerDrag.pointerY - imagePointerDrag.offsetY)}px)`,
+                  }}
+                >
+                  <div className="item-image-drag-card">
+                    <Image
+                      src={draggingImage.url}
+                      alt={`Dragging image ${imagePointerDrag.imageIndex + 1}`}
+                      width={1000}
+                      height={1000}
+                      className="item-image-drag-preview-img"
+                    />
+                  </div>
                 </div>
-              )}
-            </label>
+              ) : null}
+            </div>
 
             {error && <div className="item-create-status error">{error}</div>}
             {successMessage && (
@@ -1286,7 +1519,7 @@ function StaffItemCreatePageContent() {
                 type="button"
                 className="staff-dev-pill"
                 onClick={resetForm}
-                disabled={isSaving || isDeletingImage}
+                disabled={isSaving}
               >
                 Clear Form
               </button>
@@ -1322,6 +1555,292 @@ function StaffItemCreatePageContent() {
         onClose={closeNewCategoryPopup}
         onCreated={handleCategoryCreated}
       />
+
+      {isBrowseImagesPopupOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Browse Images"
+          className="item-category-modal"
+          onClick={closeBrowseImagesPopup}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Browse Images</div>
+
+            <div className="item-category-form item-browse-images-form">
+              <div className="item-browse-images-toolbar">
+                <form
+                  className="item-browse-images-search-form"
+                  onSubmit={handleBrowseItemSearchSubmit}
+                >
+                  <div className="item-search-page__search-bar">
+                    <div className="item-search-page__search-input-wrap">
+                      <input
+                        type="text"
+                        className="item-search-page__search-input item-browse-images-search"
+                        value={browseItemSearchInput}
+                        onChange={(event) =>
+                          setBrowseItemSearchInput(event.target.value)
+                        }
+                        placeholder="Search by SKU or Name"
+                        disabled={isLoadingBrowseImages}
+                      />
+                      {(browseItemSearchInput || browseItemSearchQuery) && (
+                        <button
+                          type="button"
+                          className="item-search-page__search-clear"
+                          onClick={handleClearBrowseItemSearch}
+                          aria-label="Clear search"
+                          disabled={isLoadingBrowseImages}
+                        >
+                          x
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      className="item-search-page__search-submit"
+                      aria-label="Search catalog items"
+                      disabled={isLoadingBrowseImages}
+                    >
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="11" cy="11" r="7" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+
+                <button
+                  type="button"
+                  className="staff-dev-pill"
+                  onClick={() => void loadBrowseImages()}
+                  disabled={isLoadingBrowseImages}
+                >
+                  {isLoadingBrowseImages ? "Loading..." : "Refresh"}
+                </button>
+              </div>
+
+              {browseImagesError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {browseImagesError}
+                </div>
+              ) : null}
+
+              {!browseImagesError && isLoadingBrowseImages ? (
+                <div className="item-browse-images-state">
+                  Loading linked image library...
+                </div>
+              ) : null}
+
+              {!browseImagesError &&
+              !isLoadingBrowseImages &&
+              browseImages.length === 0 ? (
+                <div className="item-browse-images-state">
+                  {browseItemSearchQuery
+                    ? "No images found for matching catalog items."
+                    : "No linked images found."}
+                </div>
+              ) : null}
+
+              {!browseImagesError &&
+              !isLoadingBrowseImages &&
+              browseImages.length > 0 ? (
+                <div className="item-browse-images-grid">
+                  {sortedBrowseImages.map((entry) => {
+                    const isSelected =
+                      selectedBrowseImageKeySet.has(entry.s3Key) ||
+                      form.images.some(
+                        (image) => image.url.trim() === entry.url,
+                      );
+                    const actionDisabled = isSaving;
+
+                    return (
+                      <div
+                        key={entry.s3Key}
+                        className={`item-browse-images-card${isSelected ? " item-browse-images-card--linked" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => void openBrowseImageDetails(entry)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            void openBrowseImageDetails(entry);
+                          }
+                        }}
+                      >
+                        <div className="item-browse-images-preview">
+                          <Image
+                            src={entry.url}
+                            alt={`Linked image ${entry.s3Key}`}
+                            width={600}
+                            height={450}
+                            className="item-browse-images-preview-img"
+                          />
+                        </div>
+                        <div className="item-browse-images-meta">
+                          <div
+                            className="item-browse-images-key"
+                            title={entry.s3Key}
+                          >
+                            {entry.s3Key}
+                          </div>
+                          <div className="item-browse-images-usage">
+                            Used by {entry.usageCount} item
+                            {entry.usageCount === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        {isSelected ? (
+                          <button
+                            type="button"
+                            className="staff-dev-pill staff-dev-pill--danger"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              removeBrowseImageFromDraft(entry);
+                            }}
+                            disabled={actionDisabled}
+                          >
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="staff-dev-pill"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              addBrowseImageToDraft(entry);
+                            }}
+                            disabled={actionDisabled}
+                          >
+                            Use Image
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+              <button
+                type="button"
+                onClick={closeBrowseImagesPopup}
+                className="staff-dev-pill"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isBrowseImageDetailsOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image Reference Details"
+          className="item-category-modal item-browse-image-details-modal"
+          onClick={closeBrowseImageDetailsPopup}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Image References</div>
+
+            {browseImageDetails ? (
+              <div className="item-browse-image-details-layout">
+                <div className="item-browse-image-details-preview">
+                  <Image
+                    src={browseImageDetails.url}
+                    alt={`Image preview ${browseImageDetails.s3Key}`}
+                    width={960}
+                    height={720}
+                    className="item-browse-image-details-preview-img"
+                  />
+                </div>
+
+                <div className="item-browse-image-details-key">
+                  {browseImageDetails.s3Key}
+                </div>
+
+                {browseImageDetailsError ? (
+                  <div className="item-category-form__status item-category-form__status--error">
+                    {browseImageDetailsError}
+                  </div>
+                ) : null}
+
+                {isLoadingBrowseImageDetails ? (
+                  <div className="item-browse-images-state">
+                    Loading reference list...
+                  </div>
+                ) : null}
+
+                {!isLoadingBrowseImageDetails &&
+                browseImageDetails.references.length === 0 ? (
+                  <div className="item-browse-images-state">
+                    No linked items found for this image.
+                  </div>
+                ) : null}
+
+                {!isLoadingBrowseImageDetails &&
+                browseImageDetails.references.length > 0 ? (
+                  <div className="item-browse-image-ref-list">
+                    {browseImageDetails.references.map((reference) => {
+                      const isSelectedForDraft = selectedBrowseImageKeySet.has(
+                        browseImageDetails.s3Key,
+                      );
+
+                      return (
+                        <div
+                          key={reference.imageId}
+                          className="item-browse-image-ref-row"
+                        >
+                          <div className="item-browse-image-ref-text">
+                            <strong>
+                              {reference.itemName} (Item #
+                              {reference.catalogItemId})
+                            </strong>
+                            <span>
+                              SKU:{" "}
+                              {reference.sku?.trim() ? reference.sku : "N/A"}
+                              {isSelectedForDraft
+                                ? " - Selected for draft"
+                                : ""}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeBrowseImageDetailsPopup}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isZeroValueConfirmationOpen ? (
         <div

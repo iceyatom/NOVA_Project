@@ -476,11 +476,10 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
       select: {
         id: true,
         s3Key: true,
+        sortOrder: true,
         createdAt: true,
       },
-      orderBy: {
-        createdAt: "asc" as const,
-      },
+      orderBy: [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }],
       take: 1,
     },
   };
@@ -537,11 +536,10 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
       select: {
         id: true,
         s3Key: true,
+        sortOrder: true,
         createdAt: true,
       },
-      orderBy: {
-        createdAt: "asc" as const,
-      },
+      orderBy: [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }],
     },
   } satisfies Prisma.CatalogItemSelect;
 
@@ -586,6 +584,7 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
       images?: Array<{
         id: number;
         s3Key: string;
+        sortOrder: number;
         createdAt: Date;
       }> | null;
     },
@@ -636,6 +635,7 @@ async function tryPrisma(q: CatalogQuery): Promise<NextResponse> {
             images: images.map((img) => ({
               id: img.id,
               s3Key: img.s3Key,
+              sortOrder: img.sortOrder,
               createdAt: img.createdAt,
               url: getImageUrlFromKey(img.s3Key),
             })),
