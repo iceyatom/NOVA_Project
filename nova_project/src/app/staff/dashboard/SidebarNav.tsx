@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLoginStatus } from "@/app/LoginStatusContext";
 
 type NavItem = {
   label: string;
@@ -10,6 +11,9 @@ type NavItem = {
 
 function Section({ title, items }: { title: string; items: NavItem[] }) {
   const pathname = usePathname();
+  if (items.length === 0) {
+    return null;
+  }
 
   return (
     <div className="staffNavSection">
@@ -36,6 +40,9 @@ function Section({ title, items }: { title: string; items: NavItem[] }) {
 }
 
 export default function SidebarNav() {
+  const { userRole } = useLoginStatus();
+  const isStaff = userRole.trim().toUpperCase() === "STAFF";
+
   return (
     <nav className="staffNav">
       <Section
@@ -49,22 +56,21 @@ export default function SidebarNav() {
       />
 
       <Section
-        title="Items"
-        items={[{ label: "Create Item", href: "/staff/item_create" }]}
-      />
-
-      <Section
         title="Tasks"
-        items={[
-          { label: "Employee Task Monitor", href: "/staff/adminTaskView" },
-        ]}
+        items={
+          isStaff
+            ? []
+            : [{ label: "Employee Task Monitor", href: "/staff/adminTaskView" }]
+        }
       />
 
       <Section
         title="Support"
         items={[
           { label: "Ticket Dashboard", href: "/staff/ticket_dashboard" },
-          { label: "Create Ticket", href: "/staff/ticket_create" },
+          ...(isStaff
+            ? []
+            : [{ label: "Create Ticket", href: "/staff/ticket_create" }]),
         ]}
       />
 

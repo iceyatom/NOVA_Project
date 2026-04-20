@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireStaffSession } from "@/lib/auth/staffAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -147,6 +148,11 @@ function parseBody(body: CreateTicketRequestBody): {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const limitRaw = request.nextUrl.searchParams.get("limit");
   const parsedLimit = limitRaw ? Number.parseInt(limitRaw, 10) : 80;
   const limit =
@@ -282,6 +288,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   let body: CreateTicketRequestBody;
   try {
     body = (await request.json()) as CreateTicketRequestBody;

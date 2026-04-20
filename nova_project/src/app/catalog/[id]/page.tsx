@@ -50,23 +50,6 @@ function formatPrice(price: number | string | Decimal | null): string {
   return `$${numPrice.toFixed(2)}`;
 }
 
-function formatDate(date: Date | string | null): string {
-  if (!date) return "N/A";
-
-  const parsedDate = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(parsedDate.getTime())) return "N/A";
-
-  try {
-    return parsedDate.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch {
-    return "N/A";
-  }
-}
-
 function getStockStatus(quantity: number, reorderLevel: number): string {
   if (quantity === 0) return "OUT OF STOCK";
   if (quantity <= reorderLevel) return "LOW STOCK";
@@ -214,63 +197,6 @@ export default async function CatalogItemPage({
             <p className="product-description-text">
               {item.description || "No description available."}
             </p>
-          </section>
-
-          <section className="product-details" style={{ marginTop: "1.5rem" }}>
-            <h2
-              style={{
-                fontSize: "1.25rem",
-                fontWeight: "600",
-                marginBottom: "0.75rem",
-              }}
-            >
-              Product Details
-            </h2>
-
-            <div style={{ display: "grid", gap: "0.5rem" }}>
-              <div>
-                <strong>Quantity in Stock:</strong> {item.quantityInStock}
-                {item.unitOfMeasure && ` ${item.unitOfMeasure}`}
-              </div>
-
-              {item.unitCost && (
-                <div>
-                  <strong>Unit Cost:</strong> {formatPrice(item.unitCost)}
-                </div>
-              )}
-
-              {item.reorderLevel > 0 && (
-                <div>
-                  <strong>Reorder Level:</strong> {item.reorderLevel}
-                </div>
-              )}
-
-              {item.storageLocation && (
-                <div>
-                  <strong>Storage Location:</strong> {item.storageLocation}
-                </div>
-              )}
-
-              {item.storageConditions && (
-                <div>
-                  <strong>Storage Conditions:</strong> {item.storageConditions}
-                </div>
-              )}
-
-              {item.expirationDate && (
-                <div>
-                  <strong>Expiration Date:</strong>{" "}
-                  {formatDate(item.expirationDate)}
-                </div>
-              )}
-
-              {item.dateAcquired && (
-                <div>
-                  <strong>Date Acquired:</strong>{" "}
-                  {formatDate(item.dateAcquired)}
-                </div>
-              )}
-            </div>
           </section>
         </div>
       </div>

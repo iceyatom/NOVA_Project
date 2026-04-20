@@ -3,9 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import CategoryCombo from "@/app/components/CategoryCombo";
 import ImageUpload from "@/app/components/ImageUpload";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 import CategoryCreateModal, {
   type CategoryLevel,
 } from "@/app/components/CategoryCreateModal";
@@ -202,16 +203,15 @@ type ItemForm = {
   unitCost: string;
 };
 
-const NA = "N/A";
+const STORAGE_CONDITIONS_MAX_LENGTH = 500;
 
 function normalizeOptional(value: string): string {
   const t = value.trim();
-  if (t === "" || t.toLowerCase() === "n/a") return NA;
   return t;
 }
 
 function initOptional(value: string | null | undefined): string {
-  if (value == null) return NA;
+  if (value == null) return "";
   return normalizeOptional(value);
 }
 
@@ -226,6 +226,18 @@ function withFallbackImage(images: ItemImage[]): ItemImage[] {
           createdAt: null,
         },
       ];
+}
+
+function sanitizeMoneyInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const [rawWhole = "", ...rawFractionParts] = cleaned.split(".");
+  const whole = rawWhole.slice(0, 8);
+  const fraction = rawFractionParts.join("").slice(0, 2);
+  const hasDecimal = rawFractionParts.length > 0;
+
+  if (!hasDecimal) return whole;
+  if (whole === "") return `0.${fraction}`;
+  return `${whole}.${fraction}`;
 }
 
 function applyNA(f: ItemForm): ItemForm {
@@ -322,47 +334,36 @@ function sameNonImageForm(a: ItemForm, b: ItemForm) {
 type NormalizedItemForm = ReturnType<typeof normalizeForCompare>;
 
 function validateForm(f: ItemForm): string | null {
-  const currencyToCheck = ["$", "€", "£", "¥"];
-  const hasCurrency = (s: string) => currencyToCheck.some((c) => s.includes(c));
+  const isValidMoney = (value: string): boolean => {
+    if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return false;
+    return Number(value) >= 0;
+  };
 
-  if (!f.itemName.trim()) return "Item Name cannot be empty.";
-  if (!f.sku.trim()) return "SKU cannot be empty.";
+  if (!f.itemName.trim()) return "Item name is required.";
+  if (!f.sku.trim()) return "SKU is required.";
+  if (!f.price.trim()) return "Price is required.";
+  if (!isValidMoney(f.price)) {
+    return "Price must be a non-negative number with up to 2 decimals.";
+  }
 
-  if (hasCurrency(f.price))
-    return "Price must be a number (no currency signs).";
-  if (f.price.trim() === "" || Number.isNaN(Number(f.price)))
-    return "Price must be a valid number.";
-  if (Number(f.price) < 0) return "Price cannot be negative.";
-  if ((f.price.split(".")[1] ?? "").length > 2)
-    return "Price must have at most 2 decimal places.";
+  if (!/^\d+$/.test(f.quantityInStock.trim())) {
+    return "Quantity in stock must be a whole number.";
+  }
 
-  if (!f.category3.trim()) return "Category 3 cannot be empty.";
-  if (!f.category2.trim()) return "Category 2 cannot be empty.";
-  if (!f.category1.trim()) return "Category 1 cannot be empty.";
+  if (!/^\d+$/.test(f.reorderLevel.trim())) {
+    return "Reorder level must be a whole number.";
+  }
 
-  if (
-    f.quantityInStock.trim() === "" ||
-    Number.isNaN(Number(f.quantityInStock))
-  )
-    return "Quantity in stock must be a valid number.";
-  if (Number(f.quantityInStock) < 0) return "Quantity cannot be negative.";
-
-  if (f.reorderLevel.trim() === "" || Number.isNaN(Number(f.reorderLevel)))
-    return "Reorder level must be a valid number.";
-
-  if (hasCurrency(f.unitCost))
-    return "Unit cost must be a number (no currency signs).";
-  if (f.unitCost.trim() === "" || Number.isNaN(Number(f.unitCost)))
-    return "Unit cost must be a valid number.";
-  if (Number(f.unitCost) < 0) return "Unit cost cannot be negative.";
-  if ((f.unitCost.split(".")[1] ?? "").length > 2)
-    return "Unit cost must have at most 2 decimal places.";
+  if (!f.unitCost.trim()) return "Unit cost is required.";
+  if (!isValidMoney(f.unitCost)) {
+    return "Unit cost must be a non-negative number with up to 2 decimals.";
+  }
 
   return null;
 }
-
 function StaffItemEditPageContent() {
   const params = useParams<{ id?: string | string[] }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const itemId = Number.parseInt(rawId ?? "", 10) || 0;
@@ -406,6 +407,11 @@ function StaffItemEditPageContent() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isDeletingImage, setIsDeletingImage] = useState<boolean>(false);
+  const [isDeletingItem, setIsDeletingItem] = useState<boolean>(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState<boolean>(false);
+  const [deleteConfirmChecked, setDeleteConfirmChecked] =
+    useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
@@ -431,6 +437,15 @@ function StaffItemEditPageContent() {
     JSON.stringify(normalizedOriginal[field]);
   const fieldNameClass = (dirty: boolean) =>
     `item-edit-field-name${dirty ? " item-edit-field-name--dirty" : ""}`;
+  const deleteConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(() => {
+      if (isDeletingItem) {
+        return;
+      }
+
+      setIsDeleteConfirmationOpen(false);
+      setDeleteConfirmChecked(false);
+    });
 
   useEffect(() => {
     let mounted = true;
@@ -593,7 +608,10 @@ function StaffItemEditPageContent() {
   const update =
     <K extends keyof ItemForm>(key: K) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value = e.target.value;
+      const value =
+        key === "unitCost" || key === "price"
+          ? sanitizeMoneyInput(e.target.value)
+          : e.target.value;
       setForm((prev) => ({ ...prev, [key]: value }));
     };
 
@@ -607,7 +625,7 @@ function StaffItemEditPageContent() {
     };
 
   async function saveChanges() {
-    if (!isDirty || isSaving || isLoading || !!loadError) {
+    if (!isDirty || isSaving || isDeletingItem || isLoading || !!loadError) {
       return;
     }
 
@@ -712,7 +730,7 @@ function StaffItemEditPageContent() {
   }
 
   function resetChanges() {
-    if (!isDirty || isSaving || isLoading || !!loadError) {
+    if (!isDirty || isSaving || isDeletingItem || isLoading || !!loadError) {
       return;
     }
 
@@ -728,7 +746,7 @@ function StaffItemEditPageContent() {
   }
 
   async function removeImage() {
-    if (selectedImageIndex === null || isDeletingImage) {
+    if (selectedImageIndex === null || isDeletingImage || isDeletingItem) {
       return;
     }
 
@@ -793,6 +811,98 @@ function StaffItemEditPageContent() {
       );
     } finally {
       setIsDeletingImage(false);
+    }
+  }
+
+  function openDeleteConfirmation() {
+    if (
+      !id ||
+      isDeletingItem ||
+      isSaving ||
+      isDeletingImage ||
+      isLoading ||
+      !!loadError
+    ) {
+      return;
+    }
+
+    setIsDeleteConfirmationOpen(true);
+    setDeleteConfirmChecked(false);
+    setSaveError(null);
+    setSuccessMessage(null);
+  }
+
+  function closeDeleteConfirmation() {
+    if (isDeletingItem) {
+      return;
+    }
+
+    setIsDeleteConfirmationOpen(false);
+    setDeleteConfirmChecked(false);
+  }
+
+  async function deleteItem() {
+    if (
+      !id ||
+      isDeletingItem ||
+      isSaving ||
+      isDeletingImage ||
+      isLoading ||
+      !!loadError ||
+      !deleteConfirmChecked
+    ) {
+      return;
+    }
+
+    setIsDeletingItem(true);
+    setSaveError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch(`/api/catalog?id=${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          deleteImagesFromStorage: true,
+        }),
+      });
+
+      let result: {
+        success?: boolean;
+        error?: unknown;
+        details?: unknown;
+      } | null = null;
+
+      try {
+        result = (await response.json()) as {
+          success?: boolean;
+          error?: unknown;
+          details?: unknown;
+        };
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Failed to delete item (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      router.push(backToItemSearchHref);
+      router.refresh();
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to delete item.",
+      );
+    } finally {
+      setIsDeletingItem(false);
     }
   }
 
@@ -874,10 +984,19 @@ function StaffItemEditPageContent() {
 
   return (
     <div>
-      <div className="staffTitle">Edit Catalog Item</div>
-      <div className="staffSubtitle">
-        Edit existing item form using inventory management styling. Created date
-        and updated date are generated automatically.
+      <div className="item-edit-page-header">
+        <div>
+          <div className="staffTitle">Edit Catalog Item</div>
+          <div className="staffSubtitle">
+            Edit attributes of this catalog item. Created and updated dates are
+            generated automatically.
+          </div>
+        </div>
+        <div className="staff-dev-back-wrapper">
+          <Link href={backToItemSearchHref} className="staff-dev-pill">
+            &larr; Back to Item Search
+          </Link>
+        </div>
       </div>
 
       <div className="staffGrid">
@@ -899,7 +1018,7 @@ function StaffItemEditPageContent() {
 
                 <label className="item-edit-field">
                   <span className={fieldNameClass(isFieldDirty("sku"))}>
-                    SKU
+                    SKU *
                   </span>
                   <input
                     className="item-search-page__search-input"
@@ -920,6 +1039,8 @@ function StaffItemEditPageContent() {
                     value={form.price}
                     onChange={update("price")}
                     placeholder="0.00"
+                    pattern="^\\d{0,8}(\\.\\d{0,2})?$"
+                    maxLength={11}
                   />
                 </label>
 
@@ -934,6 +1055,8 @@ function StaffItemEditPageContent() {
                     value={form.unitCost}
                     onChange={update("unitCost")}
                     placeholder="0.00"
+                    pattern="^\\d{0,8}(\\.\\d{0,2})?$"
+                    maxLength={11}
                   />
                 </label>
 
@@ -1119,16 +1242,29 @@ function StaffItemEditPageContent() {
               </label>
 
               <label className="item-edit-field">
-                <span
-                  className={fieldNameClass(isFieldDirty("storageConditions"))}
-                >
-                  Storage Conditions
-                </span>
+                <div className="account-management__notes-label-row">
+                  <span
+                    className={fieldNameClass(
+                      isFieldDirty("storageConditions"),
+                    )}
+                  >
+                    Storage Conditions
+                  </span>
+                  <span
+                    className={`${fieldNameClass(
+                      isFieldDirty("storageConditions"),
+                    )} account-management__notes-count`}
+                  >
+                    {form.storageConditions.length}/
+                    {STORAGE_CONDITIONS_MAX_LENGTH}
+                  </span>
+                </div>
                 <textarea
                   className="item-edit-textarea"
                   value={form.storageConditions}
                   onChange={update("storageConditions")}
                   onBlur={blurNA("storageConditions")}
+                  maxLength={STORAGE_CONDITIONS_MAX_LENGTH}
                 />
               </label>
 
@@ -1186,7 +1322,10 @@ function StaffItemEditPageContent() {
                     className="staff-dev-pill item-edit-remove-image-button"
                     aria-label="Remove selected image"
                     disabled={
-                      selectedImageIndex === null || isDeletingImage || isSaving
+                      selectedImageIndex === null ||
+                      isDeletingImage ||
+                      isSaving ||
+                      isDeletingItem
                     }
                     title={
                       selectedImageIndex === null
@@ -1245,9 +1384,24 @@ function StaffItemEditPageContent() {
             <div className="item-edit-actions">
               <button
                 type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={openDeleteConfirmation}
+                disabled={
+                  isLoading ||
+                  !!loadError ||
+                  isSaving ||
+                  isDeletingImage ||
+                  isDeletingItem
+                }
+                title="Delete this catalog item"
+              >
+                {isDeletingItem ? "Deleting..." : "Delete Item"}
+              </button>
+              <button
+                type="button"
                 className="staff-dev-pill"
                 onClick={resetChanges}
-                disabled={isSaving || isDeletingImage}
+                disabled={isSaving || isDeletingImage || isDeletingItem}
                 title="Reset all changes"
               >
                 Reset Form
@@ -1262,16 +1416,13 @@ function StaffItemEditPageContent() {
                   !!loadError ||
                   isSaving ||
                   isDeletingImage ||
+                  isDeletingItem ||
                   !isDirty
                 }
                 title={isDirty ? "Save changes" : "No new changes to save"}
               >
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
-            </div>
-
-            <div style={{ marginTop: "16px" }}>
-              <Link href={backToItemSearchHref}>Back to Item Search</Link>
             </div>
           </form>
         </div>
@@ -1290,6 +1441,63 @@ function StaffItemEditPageContent() {
         onClose={closeNewCategoryPopup}
         onCreated={handleCategoryCreated}
       />
+
+      {isDeleteConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Delete Item"
+          className="item-category-modal"
+          onPointerDown={deleteConfirmationBackdropHandlers.onPointerDown}
+          onClick={deleteConfirmationBackdropHandlers.onClick}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Deletion</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to delete this item?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>
+                This permanently deletes{" "}
+                <strong>{form.itemName.trim() || `Item #${id}`}</strong> and
+                cannot be undone.
+              </p>
+            </div>
+            <label className="category-mgmt-delete-confirm">
+              <input
+                type="checkbox"
+                checked={deleteConfirmChecked}
+                onChange={(event) =>
+                  setDeleteConfirmChecked(event.target.checked)
+                }
+                disabled={isDeletingItem}
+              />
+              I understand this deletion impact.
+            </label>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeDeleteConfirmation}
+                disabled={isDeletingItem}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={() => void deleteItem()}
+                disabled={isDeletingItem || !deleteConfirmChecked}
+              >
+                {isDeletingItem ? "Deleting..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

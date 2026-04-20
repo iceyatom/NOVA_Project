@@ -41,7 +41,6 @@ type EditableRole = "ADMIN" | "STAFF" | "CUSTOMER";
 
 type EditAccountInitial = {
   displayName: string;
-  email: string;
   phone: string;
   notes: string;
   role: EditableRole;
@@ -122,16 +121,21 @@ function formatDateTime(value: string | null, fallback: string): string {
   });
 }
 
-function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
-}
-
 function isValidPhone(value: string): boolean {
   return value.replace(/\D/g, "").length === 10;
 }
 
 function getPhoneDigitsLength(value: string): number {
   return value.replace(/\D/g, "").length;
+}
+
+function isStrongPassword(value: string): boolean {
+  return (
+    value.length >= 8 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value)
+  );
 }
 
 function normalizeRole(value: string): string {
@@ -167,6 +171,9 @@ export default function StaffAccountManagementPage() {
   );
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [isPasswordInfoOpen, setIsPasswordInfoOpen] = useState(false);
   const [editPhone, setEditPhone] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editRole, setEditRole] = useState<EditableRole>("CUSTOMER");
@@ -333,15 +340,14 @@ export default function StaffAccountManagementPage() {
   );
 
   const normalizedDisplayNameInput = editDisplayName.trim();
-  const normalizedEmailInput = editEmail.trim().toLowerCase();
+  const normalizedPasswordInput = editPassword;
   const normalizedPhoneInput = editPhone.trim();
   const normalizedNotesInput = editNotes;
   const normalizedRoleInput = normalizeRole(editRole);
   const isDisplayNameDirty =
     editInitial !== null &&
     normalizedDisplayNameInput !== editInitial.displayName;
-  const isEmailDirty =
-    editInitial !== null && normalizedEmailInput !== editInitial.email;
+  const isPasswordDirty = normalizedPasswordInput.length > 0;
   const isPhoneDirty =
     editInitial !== null && normalizedPhoneInput !== editInitial.phone;
   const isNotesDirty =
@@ -350,7 +356,7 @@ export default function StaffAccountManagementPage() {
     editInitial !== null && normalizedRoleInput !== editInitial.role;
   const isAnyEditDirty =
     isDisplayNameDirty ||
-    isEmailDirty ||
+    isPasswordDirty ||
     isPhoneDirty ||
     isNotesDirty ||
     isRoleDirty;
@@ -844,6 +850,9 @@ export default function StaffAccountManagementPage() {
     setEditAccount(null);
     setEditDisplayName("");
     setEditEmail("");
+    setEditPassword("");
+    setShowEditPassword(false);
+    setIsPasswordInfoOpen(false);
     setEditPhone("");
     setEditNotes("");
     setEditRole("CUSTOMER");
@@ -869,12 +878,14 @@ export default function StaffAccountManagementPage() {
     setEditAccount(account);
     setEditDisplayName(normalizedAccountDisplayName);
     setEditEmail(normalizedAccountEmail);
+    setEditPassword("");
+    setShowEditPassword(false);
+    setIsPasswordInfoOpen(false);
     setEditPhone(normalizedAccountPhone);
     setEditNotes(normalizedAccountNotes);
     setEditRole(normalizedAccountRole);
     setEditInitial({
       displayName: normalizedAccountDisplayName,
-      email: normalizedAccountEmail,
       phone: normalizedAccountPhone,
       notes: normalizedAccountNotes,
       role: normalizedAccountRole,
@@ -919,7 +930,9 @@ export default function StaffAccountManagementPage() {
     }
 
     setEditDisplayName(editInitial.displayName);
-    setEditEmail(editInitial.email);
+    setEditPassword("");
+    setShowEditPassword(false);
+    setIsPasswordInfoOpen(false);
     setEditPhone(editInitial.phone);
     setEditNotes(editInitial.notes);
     setEditRole(editInitial.role);
@@ -936,8 +949,10 @@ export default function StaffAccountManagementPage() {
       return;
     }
 
-    if (!normalizedEmailInput || !isValidEmail(normalizedEmailInput)) {
-      setEditError("A valid email address is required.");
+    if (normalizedPasswordInput && !isStrongPassword(normalizedPasswordInput)) {
+      setEditError(
+        "Password must be at least 8 characters and include uppercase, lowercase, and a number.",
+      );
       return;
     }
 
@@ -966,8 +981,10 @@ export default function StaffAccountManagementPage() {
       return;
     }
 
-    if (!normalizedEmailInput || !isValidEmail(normalizedEmailInput)) {
-      setEditError("A valid email address is required.");
+    if (normalizedPasswordInput && !isStrongPassword(normalizedPasswordInput)) {
+      setEditError(
+        "Password must be at least 8 characters and include uppercase, lowercase, and a number.",
+      );
       setIsSaveConfirmationOpen(false);
       return;
     }
@@ -1002,10 +1019,12 @@ export default function StaffAccountManagementPage() {
         body: JSON.stringify({
           accountId: editAccount.id,
           displayName: normalizedDisplayNameInput,
-          email: normalizedEmailInput,
           phone: normalizedPhoneInput,
           notes: normalizedNotesInput,
           role: nextRole,
+          ...(normalizedPasswordInput
+            ? { password: normalizedPasswordInput }
+            : {}),
         }),
       });
 
@@ -1468,21 +1487,81 @@ export default function StaffAccountManagementPage() {
               </label>
 
               <label className="item-category-form__field">
-                <span
-                  className={`item-category-form__label ${
-                    isEmailDirty ? "category-mgmt-edit-modal__label--dirty" : ""
-                  }`}
-                >
-                  Email
-                </span>
-                <input
-                  className="item-search-page__search-input"
-                  type="email"
-                  value={editEmail}
-                  onChange={(event) => setEditEmail(event.target.value)}
-                  placeholder="Enter email"
-                  disabled={isModalBusy}
-                />
+                <span className="item-category-form__label">Email</span>
+                <div className="account-management__readonly-value">
+                  {editEmail}
+                </div>
+              </label>
+
+              <label className="item-category-form__field">
+                <div className="account-management__password-label-row">
+                  <span
+                    className={`item-category-form__label ${
+                      isPasswordDirty
+                        ? "category-mgmt-edit-modal__label--dirty"
+                        : ""
+                    }`}
+                  >
+                    Password
+                  </span>
+                  <button
+                    type="button"
+                    className="account-management__info-button"
+                    onClick={() => setIsPasswordInfoOpen((prev) => !prev)}
+                    aria-label="Password field info"
+                    aria-expanded={isPasswordInfoOpen}
+                    disabled={isModalBusy}
+                  >
+                    i
+                  </button>
+                </div>
+                <div className="passwordInputWrap">
+                  <input
+                    className="item-search-page__search-input passwordInput"
+                    type={showEditPassword ? "text" : "password"}
+                    value={editPassword}
+                    onChange={(event) => {
+                      setEditPassword(event.target.value);
+                      if (!event.target.value) {
+                        setShowEditPassword(false);
+                      }
+                    }}
+                    placeholder="Enter new password"
+                    disabled={isModalBusy}
+                  />
+                  {editPassword.length > 0 && (
+                    <button
+                      type="button"
+                      className="passwordToggle"
+                      onClick={() => setShowEditPassword((prev) => !prev)}
+                      aria-label={
+                        showEditPassword ? "Hide password" : "Show password"
+                      }
+                      aria-pressed={showEditPassword}
+                      disabled={isModalBusy}
+                    >
+                      {showEditPassword ? (
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M3 3l18 18" />
+                          <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                          <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7a11.92 11.92 0 0 1-4.05 5.19" />
+                          <path d="M6.61 6.61A11.95 11.95 0 0 0 1 12c1.73 3.89 6 7 11 7a10.94 10.94 0 0 0 5-.91" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                </div>
+                {isPasswordInfoOpen ? (
+                  <div className="account-management__password-info-popup">
+                    This field can only set a new password. The account&apos;s
+                    current password cannot be viewed.
+                  </div>
+                ) : null}
               </label>
 
               <label className="item-category-form__field">

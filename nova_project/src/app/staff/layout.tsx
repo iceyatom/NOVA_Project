@@ -1,26 +1,29 @@
 import type { ReactNode } from "react";
-import SidebarNav from "./dashboard/SidebarNav";
-import "./dashboard/staff-dashboard.css";
+import { redirect } from "next/navigation";
+import StaffShell from "./StaffShell";
+import {
+  getActiveSessionAccount,
+  isStaffRole,
+  normalizeRole,
+} from "@/lib/auth/staffAccess";
 
-export default function StaffDashboardLayout({
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export default async function StaffLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  return (
-    <div className="staffShell">
-      <aside className="staffSidebar" aria-label="Staff dashboard navigation">
-        <div className="staffSidebarHeader">
-          <div className="staffBadge">STAFF</div>
-          <div className="staffSidebarTitle">Dashboard</div>
-        </div>
+  const account = await getActiveSessionAccount();
 
-        <SidebarNav />
-      </aside>
+  if (!account) {
+    redirect("/login");
+  }
 
-      <main className="staffMain" role="main">
-        <div className="staffMainInner">{children}</div>
-      </main>
-    </div>
-  );
+  if (!isStaffRole(normalizeRole(account.role))) {
+    redirect("/account");
+  }
+
+  return <StaffShell>{children}</StaffShell>;
 }

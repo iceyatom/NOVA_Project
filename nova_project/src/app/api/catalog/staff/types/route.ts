@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireStaffSession } from "@/lib/auth/staffAccess";
 
 export async function GET(req: Request) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category");
   const subcategory = searchParams.get("subcategory");

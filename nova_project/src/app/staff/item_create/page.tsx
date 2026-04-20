@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import CategoryCombo from "@/app/components/CategoryCombo";
+import ImageUpload from "@/app/components/ImageUpload";
 import CategoryCreateModal, {
   type CategoryLevel,
 } from "@/app/components/CategoryCreateModal";
-import { useMemo, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
+
+type ItemImage = {
+  id: number | null;
+  s3Key: string | null;
+  url: string;
+  createdAt: string | null;
+};
 
 type CreateItemForm = {
   sku: string;
@@ -23,12 +33,13 @@ type CreateItemForm = {
   dateAcquired: string;
   reorderLevel: string;
   unitCost: string;
+  images: ItemImage[];
 };
 
 const INITIAL_FORM: CreateItemForm = {
   sku: "",
   itemName: "",
-  price: "",
+  price: "0",
   category3: "",
   category2: "",
   category1: "",
@@ -40,12 +51,34 @@ const INITIAL_FORM: CreateItemForm = {
   expirationDate: "",
   dateAcquired: "",
   reorderLevel: "0",
-  unitCost: "",
+  unitCost: "0",
+  images: [
+    {
+      id: null,
+      s3Key: null,
+      url: "/FillerImage.webp",
+      createdAt: null,
+    },
+  ],
 };
+
+const STORAGE_CONDITIONS_MAX_LENGTH = 500;
 
 function isValidMoney(value: string): boolean {
   if (!/^\d+(\.\d{1,2})?$/.test(value.trim())) return false;
   return Number(value) >= 0;
+}
+
+function sanitizeMoneyInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const [rawWhole = "", ...rawFractionParts] = cleaned.split(".");
+  const whole = rawWhole.slice(0, 8);
+  const fraction = rawFractionParts.join("").slice(0, 2);
+  const hasDecimal = rawFractionParts.length > 0;
+
+  if (!hasDecimal) return whole;
+  if (whole === "") return `0.${fraction}`;
+  return `${whole}.${fraction}`;
 }
 
 function asPositiveIntegerOrZero(value: string): number {
@@ -59,6 +92,42 @@ function asNullableString(value: string): string | null {
   return trimmed ? trimmed : null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function getNullableString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function getNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function withFallbackImage(images: ItemImage[]): ItemImage[] {
+  return images.length
+    ? images
+    : [
+        {
+          id: null,
+          s3Key: null,
+          url: "/FillerImage.webp",
+          createdAt: null,
+        },
+      ];
+}
+
 type CreateApiResponse = {
   success?: boolean;
   data?: {
@@ -68,7 +137,25 @@ type CreateApiResponse = {
   details?: unknown;
 };
 
-export default function StaffItemCreatePage() {
+type LinkImageApiResponse = {
+  success?: boolean;
+  data?: {
+    id?: unknown;
+    catalogItemId?: unknown;
+    s3Key?: unknown;
+    createdAt?: unknown;
+  };
+  error?: unknown;
+  details?: unknown;
+};
+
+function StaffItemCreatePageContent() {
+  const searchParams = useSearchParams();
+  const backToItemSearchHref = useMemo(() => {
+    const query = searchParams.toString();
+    return query ? `/staff/item_search?${query}` : "/staff/item_search";
+  }, [searchParams]);
+
   const [form, setForm] = useState<CreateItemForm>(INITIAL_FORM);
   const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<string[]>([]);
@@ -79,6 +166,13 @@ export default function StaffItemCreatePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null,
+  );
+  const [isDeletingImage, setIsDeletingImage] = useState(false);
+  const [isZeroValueConfirmationOpen, setIsZeroValueConfirmationOpen] =
+    useState(false);
+  const [zeroValueFields, setZeroValueFields] = useState<string[]>([]);
 
   const fetchCategories = async () => {
     try {
@@ -186,24 +280,28 @@ export default function StaffItemCreatePage() {
     fetchTypes(form.category3, form.category2);
   }, [form.category3, form.category2]);
 
-  const canSubmit = useMemo(() => !isSaving, [isSaving]);
+  const canSubmit = useMemo(
+    () => !isSaving && !isDeletingImage,
+    [isSaving, isDeletingImage],
+  );
 
   const update =
     <K extends keyof CreateItemForm>(key: K) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setForm((prev) => ({ ...prev, [key]: e.target.value }));
+      const value =
+        key === "price" || key === "unitCost"
+          ? sanitizeMoneyInput(e.target.value)
+          : e.target.value;
+      setForm((prev) => ({ ...prev, [key]: value }));
     };
 
   function validate(): string | null {
     if (!form.itemName.trim()) return "Item name is required.";
+    if (!form.sku.trim()) return "SKU is required.";
     if (!form.price.trim()) return "Price is required.";
     if (!isValidMoney(form.price)) {
       return "Price must be a non-negative number with up to 2 decimals.";
     }
-
-    if (!form.category3.trim()) return "Category is required.";
-    if (!form.category2.trim()) return "Subcategory is required.";
-    if (!form.category1.trim()) return "Type is required.";
 
     if (!/^\d+$/.test(form.quantityInStock.trim())) {
       return "Quantity in stock must be a whole number.";
@@ -221,10 +319,24 @@ export default function StaffItemCreatePage() {
     return null;
   }
 
+  function getZeroValueFields(): string[] {
+    const fields: string[] = [];
+
+    if (Number(form.price) === 0) fields.push("Price");
+    if (Number(form.quantityInStock) === 0) fields.push("Quantity In Stock");
+    if (Number(form.reorderLevel) === 0) fields.push("Reorder Level");
+    if (Number(form.unitCost) === 0) fields.push("Unit Cost");
+
+    return fields;
+  }
+
   function resetForm() {
     setForm(INITIAL_FORM);
     setError(null);
     setSuccessMessage(null);
+    setSelectedImageIndex(null);
+    setIsZeroValueConfirmationOpen(false);
+    setZeroValueFields([]);
   }
 
   function openNewCategoryPopup(level: CategoryLevel) {
@@ -262,8 +374,114 @@ export default function StaffItemCreatePage() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function linkUploadedImage(catalogItemId: number, fileKey: string) {
+    const response = await fetch("/api/catalog/staff/images", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        catalogItemId,
+        fileKey,
+      }),
+    });
+
+    const result = (await response.json()) as LinkImageApiResponse;
+
+    if (!response.ok || result?.success === false) {
+      const message =
+        typeof result?.error === "string"
+          ? result.error
+          : `Failed to link image (HTTP ${response.status}).`;
+      const details =
+        typeof result?.details === "string" ? ` ${result.details}` : "";
+      throw new Error(`${message}${details}`.trim());
+    }
+
+    const imageData = asRecord(result.data);
+    if (!imageData) {
+      throw new Error("Image link response did not include image data.");
+    }
+
+    return {
+      id: getNullableNumber(imageData.id),
+      s3Key: getNullableString(imageData.s3Key),
+      createdAt: getNullableString(imageData.createdAt),
+    };
+  }
+
+  async function removeImage() {
+    if (selectedImageIndex === null || isDeletingImage) {
+      return;
+    }
+
+    const selectedImage = form.images[selectedImageIndex];
+    if (!selectedImage) {
+      return;
+    }
+
+    if (selectedImage.id == null) {
+      setForm((prev) => {
+        const nextImages = prev.images.filter(
+          (_, index) => index !== selectedImageIndex,
+        );
+        return { ...prev, images: withFallbackImage(nextImages) };
+      });
+      setSelectedImageIndex(null);
+      return;
+    }
+
+    setIsDeletingImage(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/catalog/staff/images", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageId: selectedImage.id,
+          deleteFromStorage: true,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        error?: unknown;
+        details?: unknown;
+      };
+
+      if (!response.ok || result?.success === false) {
+        const message =
+          typeof result?.error === "string"
+            ? result.error
+            : `Failed to delete image (HTTP ${response.status}).`;
+        const details =
+          typeof result?.details === "string" ? ` ${result.details}` : "";
+        throw new Error(`${message}${details}`.trim());
+      }
+
+      setForm((prev) => {
+        const nextImages = prev.images.filter(
+          (_, index) => index !== selectedImageIndex,
+        );
+        return { ...prev, images: withFallbackImage(nextImages) };
+      });
+      setSelectedImageIndex(null);
+      setSuccessMessage("Image unlinked successfully.");
+    } catch (removeError) {
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : "Failed to delete image.",
+      );
+    } finally {
+      setIsDeletingImage(false);
+    }
+  }
+
+  async function submitCreateItem(skipZeroValueConfirmation: boolean) {
     setError(null);
     setSuccessMessage(null);
 
@@ -272,6 +490,22 @@ export default function StaffItemCreatePage() {
       setError(validationError);
       return;
     }
+
+    const fieldsAtZero = getZeroValueFields();
+    if (!skipZeroValueConfirmation && fieldsAtZero.length > 0) {
+      setZeroValueFields(fieldsAtZero);
+      setIsZeroValueConfirmationOpen(true);
+      return;
+    }
+
+    setIsZeroValueConfirmationOpen(false);
+    setZeroValueFields([]);
+
+    const imageKeysToLink = form.images
+      .filter(
+        (image) => image.url !== "/FillerImage.webp" && !!image.s3Key?.trim(),
+      )
+      .map((image) => image.s3Key!.trim());
 
     const payload = {
       sku: asNullableString(form.sku),
@@ -316,12 +550,38 @@ export default function StaffItemCreatePage() {
 
       const createdId =
         typeof result?.data?.id === "number" ? result.data.id : null;
+
+      if (createdId !== null && imageKeysToLink.length > 0) {
+        const failedKeys: string[] = [];
+
+        for (const fileKey of imageKeysToLink) {
+          try {
+            await linkUploadedImage(createdId, fileKey);
+          } catch {
+            failedKeys.push(fileKey);
+          }
+        }
+
+        if (failedKeys.length > 0) {
+          setError(
+            `Item created (ID: ${createdId}), but ${failedKeys.length} image link${failedKeys.length === 1 ? "" : "s"} failed.`,
+          );
+        }
+      } else if (createdId === null && imageKeysToLink.length > 0) {
+        setError(
+          "Item was created, but images were not linked because no item ID was returned.",
+        );
+      }
+
       setSuccessMessage(
         createdId
           ? `Item created successfully. New item ID: ${createdId}.`
           : "Item created successfully.",
       );
       setForm(INITIAL_FORM);
+      setSelectedImageIndex(null);
+      setIsZeroValueConfirmationOpen(false);
+      setZeroValueFields([]);
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -333,12 +593,40 @@ export default function StaffItemCreatePage() {
     }
   }
 
+  function closeZeroValueConfirmation() {
+    if (isSaving) return;
+    setIsZeroValueConfirmationOpen(false);
+  }
+
+  function confirmZeroValueCreation() {
+    void submitCreateItem(true);
+  }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    void submitCreateItem(false);
+  }
+
+  const selectedImage =
+    selectedImageIndex !== null
+      ? (form.images[selectedImageIndex] ?? null)
+      : null;
+
   return (
     <div>
-      <div className="staffTitle">Create Catalog Item</div>
-      <div className="staffSubtitle">
-        New item form using inventory management styling. ID, created date, and
-        updated date are generated automatically.
+      <div className="item-create-page-header">
+        <div>
+          <div className="staffTitle">Create Catalog Item</div>
+          <div className="staffSubtitle">
+            New item form using inventory management styling. ID, created date,
+            and updated date are generated automatically.
+          </div>
+        </div>
+        <div className="staff-dev-back-wrapper">
+          <Link href={backToItemSearchHref} className="staff-dev-pill">
+            &larr; Back to Item Search
+          </Link>
+        </div>
       </div>
 
       <div className="staffGrid">
@@ -356,7 +644,7 @@ export default function StaffItemCreatePage() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">SKU</span>
+                <span className="item-create-label">SKU *</span>
                 <input
                   className="item-search-page__search-input"
                   type="text"
@@ -374,6 +662,7 @@ export default function StaffItemCreatePage() {
                   value={form.price}
                   onChange={update("price")}
                   placeholder="0.00"
+                  maxLength={11}
                 />
               </label>
 
@@ -386,6 +675,7 @@ export default function StaffItemCreatePage() {
                   value={form.unitCost}
                   onChange={update("unitCost")}
                   placeholder="0.00"
+                  maxLength={11}
                 />
               </label>
 
@@ -414,7 +704,7 @@ export default function StaffItemCreatePage() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">Category *</span>
+                <span className="item-create-label">Category</span>
                 <CategoryCombo
                   ariaLabel="Category"
                   value={form.category3}
@@ -433,7 +723,7 @@ export default function StaffItemCreatePage() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">Subcategory *</span>
+                <span className="item-create-label">Subcategory</span>
                 <CategoryCombo
                   ariaLabel="Subcategory"
                   value={form.category2}
@@ -451,7 +741,7 @@ export default function StaffItemCreatePage() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">Type *</span>
+                <span className="item-create-label">Type</span>
                 <CategoryCombo
                   ariaLabel="Type"
                   value={form.category1}
@@ -518,12 +808,127 @@ export default function StaffItemCreatePage() {
             </label>
 
             <label className="item-create-field">
-              <span className="item-create-label">Storage Conditions</span>
+              <div className="account-management__notes-label-row">
+                <span
+                  className={`item-create-label ${
+                    form.storageConditions.length > 0
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  Storage Conditions
+                </span>
+                <span
+                  className={`item-create-label account-management__notes-count ${
+                    form.storageConditions.length > 0
+                      ? "category-mgmt-edit-modal__label--dirty"
+                      : ""
+                  }`}
+                >
+                  {form.storageConditions.length}/
+                  {STORAGE_CONDITIONS_MAX_LENGTH}
+                </span>
+              </div>
               <textarea
                 className="item-create-textarea"
                 value={form.storageConditions}
                 onChange={update("storageConditions")}
+                maxLength={STORAGE_CONDITIONS_MAX_LENGTH}
               />
+            </label>
+
+            <label className="item-create-field">
+              <span className="item-create-label">Images</span>
+              <div className="item-edit-actions">
+                <div style={{ width: "100%" }}>
+                  <ImageUpload
+                    uploadButtonText="Upload Image"
+                    onUploadSuccess={async (fileUrl, fileKey) => {
+                      setForm((prev) => {
+                        const nextImages =
+                          prev.images.length === 1 &&
+                          prev.images[0]?.url === "/FillerImage.webp"
+                            ? []
+                            : prev.images;
+
+                        return {
+                          ...prev,
+                          images: [
+                            ...nextImages,
+                            {
+                              id: null,
+                              s3Key: fileKey,
+                              url: fileUrl,
+                              createdAt: null,
+                            },
+                          ],
+                        };
+                      });
+
+                      setSuccessMessage(
+                        "Image uploaded successfully. It will be linked when the item is created.",
+                      );
+                      setError(null);
+                    }}
+                    onUploadError={(message) => {
+                      setError(message);
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void removeImage()}
+                  className="staff-dev-pill item-edit-remove-image-button"
+                  aria-label="Remove selected image"
+                  disabled={
+                    selectedImageIndex === null || isDeletingImage || isSaving
+                  }
+                  title={
+                    selectedImageIndex === null
+                      ? "Click an image to select it first"
+                      : "Delete selected image"
+                  }
+                  style={{ opacity: selectedImageIndex === null ? 0.6 : 1 }}
+                >
+                  {isDeletingImage ? "Deleting..." : "Delete Image"}
+                </button>
+              </div>
+
+              <div className="item-image-grid">
+                {form.images.map((image, index) => {
+                  const isSelected = selectedImageIndex === index;
+
+                  return (
+                    <button
+                      key={`${image.id ?? "temp"}-${image.url}-${index}`}
+                      type="button"
+                      onClick={() =>
+                        setSelectedImageIndex((current) =>
+                          current === index ? null : index,
+                        )
+                      }
+                      aria-pressed={isSelected}
+                      aria-label={`Select image ${index + 1}`}
+                      className={`item-image-thumb-button${isSelected ? " item-image-thumb-button--selected" : ""}`}
+                    >
+                      <Image
+                        className={`product-carousel-thumb-img item-image-thumb${isSelected ? " item-image-thumb--selected" : ""}`}
+                        src={image.url}
+                        alt={`Image ${index + 1} of ${form.itemName || "item"}`}
+                        width={1000}
+                        height={1000}
+                        priority
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedImageIndex !== null && selectedImage && (
+                <div className="item-edit-selected-images">
+                  Selected image: {selectedImageIndex + 1}
+                </div>
+              )}
             </label>
 
             {error && <div className="item-create-status error">{error}</div>}
@@ -536,7 +941,7 @@ export default function StaffItemCreatePage() {
                 type="button"
                 className="staff-dev-pill"
                 onClick={resetForm}
-                disabled={isSaving}
+                disabled={isSaving || isDeletingImage}
               >
                 Clear Form
               </button>
@@ -547,7 +952,7 @@ export default function StaffItemCreatePage() {
               >
                 {isSaving ? "Creating..." : "Create Item"}
               </button>
-              <Link href="/staff/item_search" className="staff-dev-pill">
+              <Link href={backToItemSearchHref} className="staff-dev-pill">
                 Back to Item Search
               </Link>
             </div>
@@ -568,6 +973,58 @@ export default function StaffItemCreatePage() {
         onClose={closeNewCategoryPopup}
         onCreated={handleCategoryCreated}
       />
+
+      {isZeroValueConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Item Creation With Zero Values"
+          className="item-category-modal"
+          onClick={closeZeroValueConfirmation}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Creation</div>
+            <p className="category-mgmt-confirm-modal__message">
+              One or more key numeric values are set to 0. Are you sure you want
+              to create this item?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>
+                Fields at 0: <strong>{zeroValueFields.join(", ")}</strong>.
+              </p>
+            </div>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeZeroValueConfirmation}
+                disabled={isSaving}
+              >
+                Go Back
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={confirmZeroValueCreation}
+                disabled={isSaving}
+              >
+                {isSaving ? "Creating..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+export default function StaffItemCreatePage() {
+  return (
+    <Suspense fallback={null}>
+      <StaffItemCreatePageContent />
+    </Suspense>
   );
 }

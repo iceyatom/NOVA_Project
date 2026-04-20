@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { hashPassword } from "@/lib/auth/passwordHash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ type StaffAccountUpdateBody = {
   accountId?: unknown;
   displayName?: unknown;
   email?: unknown;
+  password?: unknown;
   phone?: unknown;
   notes?: unknown;
   role?: unknown;
@@ -114,6 +116,15 @@ function normalizeNotes(value: string): string | null {
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
+}
+
+function isStrongPassword(value: string): boolean {
+  return (
+    value.length >= 8 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value)
+  );
 }
 
 function isValidPhone(value: string): boolean {
@@ -382,10 +393,13 @@ export async function PATCH(request: NextRequest) {
     const accountId = parsePositiveInt(body.accountId);
     const hasDisplayName = typeof body.displayName === "string";
     const hasEmail = typeof body.email === "string";
+    const hasPassword = typeof body.password === "string";
     const hasPhone = typeof body.phone === "string";
     const hasNotes = typeof body.notes === "string";
     const hasRole = typeof body.role === "string";
     const incomingEmail = hasEmail ? normalizeEmail(body.email as string) : "";
+    const incomingPassword =
+      hasPassword && typeof body.password === "string" ? body.password : "";
     const incomingPhone = hasPhone ? normalizePhone(body.phone as string) : "";
     const incomingRole = hasRole ? normalizeRole(body.role as string) : "";
     const displayName = hasDisplayName
@@ -402,7 +416,14 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (!hasDisplayName && !hasEmail && !hasPhone && !hasNotes && !hasRole) {
+    if (
+      !hasDisplayName &&
+      !hasEmail &&
+      !hasPassword &&
+      !hasPhone &&
+      !hasNotes &&
+      !hasRole
+    ) {
       return jsonResponse(
         { success: false, error: "Provide at least one field to update." },
         400,
@@ -412,6 +433,21 @@ export async function PATCH(request: NextRequest) {
     if (hasEmail && (!incomingEmail || !isValidEmail(incomingEmail))) {
       return jsonResponse(
         { success: false, error: "A valid email address is required." },
+        400,
+      );
+    }
+
+    if (
+      hasPassword &&
+      incomingPassword &&
+      !isStrongPassword(incomingPassword)
+    ) {
+      return jsonResponse(
+        {
+          success: false,
+          error:
+            "Password must be at least 8 characters and include uppercase, lowercase, and a number.",
+        },
         400,
       );
     }
@@ -488,6 +524,7 @@ export async function PATCH(request: NextRequest) {
     const updateData: {
       displayName?: string | null;
       email?: string;
+      passwordHash?: string;
       phone?: string | null;
       notes?: string | null;
       role?: AccountRole;
@@ -497,6 +534,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (hasEmail) {
       updateData.email = incomingEmail;
+    }
+    if (hasPassword && incomingPassword) {
+      updateData.passwordHash = await hashPassword(incomingPassword);
     }
     if (hasPhone) {
       updateData.phone = incomingPhone || null;

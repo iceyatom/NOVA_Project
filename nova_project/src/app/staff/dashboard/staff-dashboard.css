@@ -20,6 +20,24 @@
   padding: 14px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  transition:
+    transform 220ms ease,
+    opacity 180ms ease,
+    width 220ms ease,
+    flex-basis 220ms ease,
+    padding 220ms ease;
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.staffSidebar--collapsed {
+  width: 0;
+  flex-basis: 0;
+  padding: 0;
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Create the "boxed" sidebar panel */
@@ -46,6 +64,12 @@
 
 .staffSidebarHeader {
   padding: 18px 16px 12px 16px;
+}
+
+.staffSidebarHeaderTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .staffBadge {
@@ -76,6 +100,56 @@
 
 .staffSidebarBackLink:hover {
   text-decoration: underline;
+}
+
+.staffSidebarToggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.staffSidebarToggle:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.staffSidebarToggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.staffSidebarToggleIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.staffSidebarToggleIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.staffMainToggleRow {
+  margin-bottom: 10px;
+}
+
+.staffSidebarToggle--collapsed {
+  background: #ffffff;
 }
 
 .staffSidebarFooter {
@@ -146,6 +220,10 @@
   flex: 1;
   min-width: 0;
   display: flex;
+}
+
+.staffShell--sidebarCollapsed .staffMain {
+  width: 100%;
 }
 
 .staffMainInner {
@@ -301,6 +379,14 @@
   transform: scale(1.08);
 }
 
+.category-mgmt-add-btn.category-mgmt-add-btn--disabled,
+.category-mgmt-add-btn.category-mgmt-add-btn--disabled:hover {
+  color: #94a3b8;
+  cursor: not-allowed;
+  text-shadow: none;
+  transform: none;
+}
+
 .category-mgmt-table-wrap {
   background-color: #ffffff;
   border-radius: 0.5rem;
@@ -379,6 +465,15 @@
 
 .category-mgmt-selected-icon:hover {
   box-shadow: 0 2px 6px rgba(6, 95, 70, 0.28);
+}
+
+.category-mgmt-selected-icon.category-mgmt-selected-icon--disabled,
+.category-mgmt-selected-icon.category-mgmt-selected-icon--disabled:hover {
+  color: #94a3b8;
+  background: #e5e7eb;
+  border-color: rgba(148, 163, 184, 0.55);
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .category-mgmt-edit-modal__content {
@@ -1195,6 +1290,10 @@
 @media (max-width: 720px) {
   .staffShell {
     flex-direction: column;
+  }
+
+  .staffMainToggleRow {
+    margin-bottom: 12px;
   }
 
   .staffSidebar {
