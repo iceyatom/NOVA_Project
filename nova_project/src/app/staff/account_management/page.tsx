@@ -164,6 +164,8 @@ export default function StaffAccountManagementPage() {
   const [sortBy, setSortBy] = useState<SortColumn | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [roleFilter, setRoleFilter] = useState<AccountRoleFilter>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [editAccount, setEditAccount] = useState<StaffAccountListItem | null>(
@@ -266,6 +268,9 @@ export default function StaffAccountManagementPage() {
         if (roleFilter !== "all") {
           params.set("role", roleFilter);
         }
+        if (searchQuery) {
+          params.set("query", searchQuery);
+        }
         if (sortBy) {
           params.set("sortBy", sortBy);
           params.set("sortOrder", sortOrder);
@@ -323,7 +328,7 @@ export default function StaffAccountManagementPage() {
     return () => {
       isMounted = false;
     };
-  }, [offset, pageSize, roleFilter, sortBy, sortOrder, refreshNonce]);
+  }, [offset, pageSize, roleFilter, searchQuery, sortBy, sortOrder, refreshNonce]);
 
   const totalPages = useMemo(() => {
     if (totalAccounts <= 0) return 1;
@@ -557,6 +562,19 @@ export default function StaffAccountManagementPage() {
       ? parsedPageSize
       : DEFAULT_PAGE_SIZE;
     setPageSize(nextPageSize);
+    setOffset(0);
+  }
+
+  function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextSearchQuery = searchInput.trim().replace(/\s+/g, " ");
+    setSearchQuery(nextSearchQuery);
+    setOffset(0);
+  }
+
+  function handleClearSearch() {
+    setSearchInput("");
+    setSearchQuery("");
     setOffset(0);
   }
 
@@ -1127,7 +1145,7 @@ export default function StaffAccountManagementPage() {
     <div>
       <div className="staffTitle">Account Management</div>
       <div className="staffSubtitle">
-        View staff and customer accounts and filter by role or page size.
+        Search by display name, email, or ID and filter by role or page size.
       </div>
 
       <div className="staffGrid">
@@ -1136,6 +1154,48 @@ export default function StaffAccountManagementPage() {
 
           <div className="item-search-page__controls">
             <div className="item-search-page__search">
+              <form onSubmit={handleSearchSubmit}>
+                <div className="item-search-page__search-bar">
+                  <div className="item-search-page__search-input-wrap">
+                    <input
+                      type="text"
+                      placeholder="Search by Display Name, Email, or ID"
+                      className="item-search-page__search-input"
+                      value={searchInput}
+                      onChange={(event) => setSearchInput(event.target.value)}
+                    />
+                    {(searchInput || searchQuery) && (
+                      <button
+                        type="button"
+                        className="item-search-page__search-clear"
+                        onClick={handleClearSearch}
+                        aria-label="Clear search"
+                      >
+                        x
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className="item-search-page__search-submit"
+                    aria-label="Search"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </button>
+                </div>
+              </form>
+
               <div className="item-search-page__filter-row">
                 <select
                   className="item-search-page__select"

@@ -154,6 +154,19 @@ function parseRoleFilter(value: string | null): AccountRole | null {
   return parseAccountRole(normalizeRole(value));
 }
 
+function parseSearchQuery(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.toLowerCase();
+}
+
 function parsePositiveInt(value: unknown): number | null {
   const parsed =
     typeof value === "number"
@@ -421,6 +434,9 @@ export async function GET(request: NextRequest) {
     const roleFilter = parseRoleFilter(
       request.nextUrl.searchParams.get("role"),
     );
+    const searchQuery = parseSearchQuery(
+      request.nextUrl.searchParams.get("query"),
+    );
 
     const allAccounts = await prisma.account.findMany({
       where: {
@@ -439,7 +455,21 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const sortedAccounts = sortAccounts(allAccounts, sortBy, sortOrder);
+    const filteredAccounts = searchQuery
+      ? allAccounts.filter((account) => {
+          const accountId = String(account.id);
+          const accountDisplayName = (account.displayName ?? "").toLowerCase();
+          const accountEmail = account.email.toLowerCase();
+
+          return (
+            accountId.includes(searchQuery) ||
+            accountDisplayName.includes(searchQuery) ||
+            accountEmail.includes(searchQuery)
+          );
+        })
+      : allAccounts;
+
+    const sortedAccounts = sortAccounts(filteredAccounts, sortBy, sortOrder);
     const totalCount = sortedAccounts.length;
     const accounts = sortedAccounts.slice(offset, offset + limit);
 
@@ -452,6 +482,7 @@ export async function GET(request: NextRequest) {
       sortBy,
       sortOrder,
       roleFilter,
+      query: searchQuery,
     });
   } catch (error) {
     console.error("[accounts/staff] GET failed", error);
