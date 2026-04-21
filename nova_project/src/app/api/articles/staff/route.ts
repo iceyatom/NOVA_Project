@@ -310,3 +310,45 @@ export async function PATCH(request: NextRequest) {
     return errorResponse("Failed to save article changes.", 500);
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  const auth = await requireStaffSession(["ADMIN", "STAFF"]);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const { searchParams } = new URL(request.url);
+  const articleId = parsePositiveInt(searchParams.get("id"));
+  if (!articleId) {
+    return errorResponse("A valid id query parameter is required.", 400);
+  }
+
+  try {
+    const deleted = await prisma.article.delete({
+      where: { id: articleId },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+
+    return jsonResponse({
+      success: true,
+      data: deleted,
+    });
+  } catch (error) {
+    const code =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof (error as { code?: unknown }).code === "string"
+        ? ((error as { code: string }).code ?? "")
+        : "";
+    if (code === "P2025") {
+      return errorResponse("Article not found.", 404);
+    }
+
+    console.error("[articles/staff] delete failed", error);
+    return errorResponse("Failed to delete article.", 500);
+  }
+}

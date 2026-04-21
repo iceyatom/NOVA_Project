@@ -84,6 +84,15 @@ type ArticleLoadApiResponse = {
   };
 };
 
+type ArticleDeleteApiResponse = {
+  success?: boolean;
+  error?: string;
+  data?: {
+    id?: number;
+    title?: string;
+  };
+};
+
 function normalizeArticleType(value: unknown): ArticleType | null {
   if (typeof value !== "string") {
     return null;
@@ -245,8 +254,13 @@ export default function StaffArticleManagmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isDeletingArticle, setIsDeletingArticle] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<EditorViewMode>("split");
   const [isClearConfirmationOpen, setIsClearConfirmationOpen] =
+    useState<boolean>(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState<boolean>(false);
+  const [deleteConfirmChecked, setDeleteConfirmChecked] =
     useState<boolean>(false);
   const [activeBodyFormat, setActiveBodyFormat] =
     useState<ActiveBodyFormatMode>("none");
@@ -355,6 +369,15 @@ export default function StaffArticleManagmentPage() {
       setIsBrowseArticlesPopupOpen(false);
       setBrowseArticlesError(null);
     });
+  const deleteConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(() => {
+      if (isDeletingArticle) {
+        return;
+      }
+
+      setIsDeleteConfirmationOpen(false);
+      setDeleteConfirmChecked(false);
+    });
   const clearConfirmationBackdropHandlers =
     useBackdropPointerClose<HTMLDivElement>(() => {
       setIsClearConfirmationOpen(false);
@@ -416,6 +439,7 @@ export default function StaffArticleManagmentPage() {
   async function openBrowseArticlesPopup() {
     if (
       isSaving ||
+      isDeletingArticle ||
       isInsertingImageKey !== null ||
       isLoadingArticleId != null
     ) {
@@ -437,6 +461,24 @@ export default function StaffArticleManagmentPage() {
 
     setIsBrowseArticlesPopupOpen(false);
     setBrowseArticlesError(null);
+  }
+
+  function openDeleteConfirmation() {
+    if (!isEditMode || isDeletingArticle || isSaving || !loadedArticleId) {
+      return;
+    }
+
+    setIsDeleteConfirmationOpen(true);
+    setDeleteConfirmChecked(false);
+  }
+
+  function closeDeleteConfirmation() {
+    if (isDeletingArticle) {
+      return;
+    }
+
+    setIsDeleteConfirmationOpen(false);
+    setDeleteConfirmChecked(false);
   }
 
   function handleBrowseArticlesSearchSubmit(event: FormEvent<HTMLFormElement>) {
@@ -522,6 +564,58 @@ export default function StaffArticleManagmentPage() {
     setSuccess(null);
     setActiveBodyFormat("none");
     setIsClearConfirmationOpen(false);
+    setIsDeleteConfirmationOpen(false);
+    setDeleteConfirmChecked(false);
+  }
+
+  async function deleteArticle() {
+    if (!isEditMode || !loadedArticleId || isDeletingArticle || isSaving) {
+      return;
+    }
+
+    setIsDeletingArticle(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(
+        `/api/articles/staff?id=${loadedArticleId}`,
+        {
+          method: "DELETE",
+        },
+      );
+      const payload = (await response.json()) as ArticleDeleteApiResponse;
+      if (!response.ok || payload.success === false) {
+        const message =
+          typeof payload.error === "string"
+            ? payload.error
+            : `Failed to delete article (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      const deletedTitle =
+        (typeof payload.data?.title === "string" &&
+          payload.data.title.trim()) ||
+        draft.title.trim();
+
+      handleClear();
+      setBrowseArticles((prev) =>
+        prev.filter((entry) => entry.id !== loadedArticleId),
+      );
+      setSuccess(
+        deletedTitle
+          ? `"${deletedTitle}" deleted successfully.`
+          : "Article deleted successfully.",
+      );
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete article.",
+      );
+    } finally {
+      setIsDeletingArticle(false);
+    }
   }
 
   function requestClear() {
@@ -537,6 +631,10 @@ export default function StaffArticleManagmentPage() {
     event.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (isDeletingArticle) {
+      return;
+    }
 
     if (isEditMode && !hasUnsavedChanges) {
       return;
@@ -601,7 +699,8 @@ export default function StaffArticleManagmentPage() {
         }
       } else {
         const createdTitle =
-          (typeof payload.data?.title === "string" && payload.data.title.trim()) ||
+          (typeof payload.data?.title === "string" &&
+            payload.data.title.trim()) ||
           draft.title.trim();
         const successMessage = createdTitle
           ? `"${createdTitle}" created successfully.`
@@ -775,6 +874,7 @@ export default function StaffArticleManagmentPage() {
               onClick={() => void openBrowseArticlesPopup()}
               disabled={
                 isSaving ||
+                isDeletingArticle ||
                 isInsertingImageKey !== null ||
                 isLoadingArticleId != null
               }
@@ -856,7 +956,11 @@ export default function StaffArticleManagmentPage() {
                           event.currentTarget.blur();
                           void openBrowseImagesPopup();
                         }}
-                        disabled={isInsertingImageKey !== null || isSaving}
+                        disabled={
+                          isInsertingImageKey !== null ||
+                          isSaving ||
+                          isDeletingArticle
+                        }
                       >
                         Insert Image
                       </button>
@@ -927,7 +1031,7 @@ export default function StaffArticleManagmentPage() {
                     type="button"
                     className="staff-dev-pill"
                     onClick={requestClear}
-                    disabled={isSaving}
+                    disabled={isSaving || isDeletingArticle}
                   >
                     Clear
                   </button>
@@ -940,7 +1044,11 @@ export default function StaffArticleManagmentPage() {
                           : ""
                         : " staff-dev-pill--ready"
                     }`}
-                    disabled={isSaving || (isEditMode && !hasUnsavedChanges)}
+                    disabled={
+                      isSaving ||
+                      isDeletingArticle ||
+                      (isEditMode && !hasUnsavedChanges)
+                    }
                     title={
                       isEditMode
                         ? hasUnsavedChanges
@@ -955,6 +1063,16 @@ export default function StaffArticleManagmentPage() {
                         ? "Save Changes"
                         : "Create Article"}
                   </button>
+                  {isEditMode ? (
+                    <button
+                      type="button"
+                      className="staff-dev-pill staff-dev-pill--danger"
+                      onClick={openDeleteConfirmation}
+                      disabled={isSaving || isDeletingArticle}
+                    >
+                      {isDeletingArticle ? "Deleting..." : "Delete Article"}
+                    </button>
+                  ) : null}
                 </div>
               </form>
             ) : null}
@@ -1061,6 +1179,63 @@ export default function StaffArticleManagmentPage() {
                 onClick={handleClear}
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isDeleteConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Delete Article"
+          className="item-category-modal"
+          onPointerDown={deleteConfirmationBackdropHandlers.onPointerDown}
+          onClick={deleteConfirmationBackdropHandlers.onClick}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Deletion</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to delete this article?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>
+                This permanently deletes{" "}
+                <strong>{draft.title.trim() || "this article"}</strong> and
+                cannot be undone.
+              </p>
+            </div>
+            <label className="category-mgmt-delete-confirm">
+              <input
+                type="checkbox"
+                checked={deleteConfirmChecked}
+                onChange={(event) =>
+                  setDeleteConfirmChecked(event.target.checked)
+                }
+                disabled={isDeletingArticle}
+              />
+              I understand this deletion impact.
+            </label>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeDeleteConfirmation}
+                disabled={isDeletingArticle}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={() => void deleteArticle()}
+                disabled={isDeletingArticle || !deleteConfirmChecked}
+              >
+                {isDeletingArticle ? "Deleting..." : "Confirm"}
               </button>
             </div>
           </div>
@@ -1297,7 +1472,8 @@ export default function StaffArticleManagmentPage() {
                         disabled={
                           isLoadingBrowseImages ||
                           isInsertingImageKey !== null ||
-                          isSaving
+                          isSaving ||
+                          isDeletingArticle
                         }
                       />
                       {(browseItemSearchInput || browseItemSearchQuery) && (
@@ -1309,7 +1485,8 @@ export default function StaffArticleManagmentPage() {
                           disabled={
                             isLoadingBrowseImages ||
                             isInsertingImageKey !== null ||
-                            isSaving
+                            isSaving ||
+                            isDeletingArticle
                           }
                         >
                           x
@@ -1323,7 +1500,8 @@ export default function StaffArticleManagmentPage() {
                       disabled={
                         isLoadingBrowseImages ||
                         isInsertingImageKey !== null ||
-                        isSaving
+                        isSaving ||
+                        isDeletingArticle
                       }
                     >
                       <svg
@@ -1349,7 +1527,8 @@ export default function StaffArticleManagmentPage() {
                   disabled={
                     isLoadingBrowseImages ||
                     isInsertingImageKey !== null ||
-                    isSaving
+                    isSaving ||
+                    isDeletingArticle
                   }
                 >
                   {isLoadingBrowseImages ? "Loading..." : "Refresh"}
@@ -1416,7 +1595,11 @@ export default function StaffArticleManagmentPage() {
                           type="button"
                           className="staff-dev-pill"
                           onClick={() => void handleInsertBrowseImage(entry)}
-                          disabled={isInsertingImageKey !== null || isSaving}
+                          disabled={
+                            isInsertingImageKey !== null ||
+                            isSaving ||
+                            isDeletingArticle
+                          }
                         >
                           {isInsertingThisImage ? "Inserting..." : "Insert"}
                         </button>
@@ -1432,7 +1615,9 @@ export default function StaffArticleManagmentPage() {
                 type="button"
                 className="staff-dev-pill"
                 onClick={closeBrowseImagesPopupBase}
-                disabled={isInsertingImageKey !== null || isSaving}
+                disabled={
+                  isInsertingImageKey !== null || isSaving || isDeletingArticle
+                }
               >
                 Close
               </button>
