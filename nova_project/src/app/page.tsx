@@ -1,9 +1,8 @@
-"use client";
-
 // Home page: three-pane layout
 import Image from "next/image";
 import Link from "next/link";
 
+import { prisma } from "@/lib/db";
 import type { HighlightContent } from "@/content/siteContent";
 import { homeContent } from "@/content/siteContent";
 
@@ -14,24 +13,42 @@ const slugify = (text: string) =>
     .replace(/[\s-]+/g, "-")
     .replace(/[^\w-]+/g, "");
 
-const leftLinks = [
-  { label: "Owl pellets", href: "" },
-  { label: "Live Algae Specimens", href: "" },
-  { label: "Live Invertebrates", href: "" },
-  { label: "Live Vertebrates", href: "" },
-  { label: "Live Bacteria & Fungi Specimens", href: "" },
-  { label: "Live Plant Specimens", href: "" },
-  { label: "Live Protozoa Specimens", href: "" },
-  { label: "Preserved Invertebrates", href: "" },
-  { label: "Preserved Vertebrates", href: "" },
-].map((link) => ({ ...link, href: `/info/${slugify(link.label)}` }));
+const NEWS_TITLE_PREVIEW_MAX = 60;
+const NEWS_DESCRIPTION_PREVIEW_MAX = 120;
+const NEWS_PREVIEW_FALLBACK = "Open this article to read the latest update.";
 
-const rightLinks = [
-  { label: "Classroom Kits", href: "/catalog?c=kits" },
-  { label: "Model Organisms", href: "/catalog?c=models" },
-  { label: "Reagents", href: "/catalog?c=reagents" },
-  { label: "Accessories", href: "/catalog?c=accessories" },
-];
+function truncateWithEllipsis(value: string, maxLength: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, maxLength).trimEnd()}...`;
+}
+
+function extractNewsPreview(body: string): string {
+  const blocks = body
+    .split(/\n{2,}/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  for (const block of blocks) {
+    if (block.startsWith("# ")) continue;
+    if (block.startsWith("## ")) continue;
+    if (/^!\[.*?\]\((https?:\/\/[^\s)]+)\)$/.test(block)) continue;
+    return block.replace(/\s+/g, " ");
+  }
+
+  return NEWS_PREVIEW_FALLBACK;
+}
+
+function formatNewsDate(creationTime: Date): string {
+  return creationTime.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 const { mission, highlights, fallbacks } = homeContent;
 
@@ -54,6 +71,8 @@ const missionCta = mission.cta ?? {
   href: "/catalog",
 };
 
+export const dynamic = "force-dynamic";
+
 const highlightData: HighlightContent[] =
   highlights.length > 0
     ? highlights
@@ -64,7 +83,59 @@ const highlightData: HighlightContent[] =
         }),
       );
 
-export default function HomePage() {
+export default async function HomePage() {
+  const newsArticles = await prisma.article.findMany({
+    where: {
+      type: "NEWS",
+    },
+    select: {
+      id: true,
+      title: true,
+      body: true,
+      createdAt: true,
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+
+  const infoArticles = await prisma.article.findMany({
+    where: {
+      type: "INFO",
+    },
+    select: {
+      id: true,
+      title: true,
+      createdAt: true,
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+
+  const leftLinks = infoArticles.map((article) => {
+    const titleSlug = slugify(article.title);
+    const articleSlug = titleSlug
+      ? `${article.id}-${titleSlug}`
+      : `${article.id}`;
+
+    return {
+      label: article.title,
+      href: `/info/${articleSlug}`,
+    };
+  });
+
+  const newsCards = newsArticles.map((article) => {
+    const titleSlug = slugify(article.title);
+    const articleSlug = titleSlug
+      ? `${article.id}-${titleSlug}`
+      : `${article.id}`;
+
+    return {
+      id: article.id,
+      label: article.title,
+      preview: extractNewsPreview(article.body),
+      createdAt: article.createdAt,
+      href: `/info/${articleSlug}`,
+    };
+  });
+
   return (
     <div className="three-pane">
       {/* Center: mission storytelling */}
@@ -156,21 +227,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Right: quick-start links */}
+      {/* Right: news links */}
       <aside className="pane pane-right" aria-labelledby="right-nav-heading">
         <h2 id="right-nav-heading" className="pane-title">
-          Start Here
+          News
         </h2>
-        <nav aria-label="Right catalog links">
-          <ul className="pane-list">
-            {rightLinks.map((l) => (
-              <li key={l.href}>
-                <Link className="nav-link" href={l.href}>
-                  {l.label}
-                </Link>
+        <nav aria-label="News links">
+          {newsCards.length > 0 ? (
+            <ul className="home-news-preview-list">
+              {newsCards.map((article) => (
+                <li key={article.id}>
+                  <Link className="home-news-preview-item" href={article.href}>
+                    <div className="home-news-preview-top-row">
+                      <div className="home-news-preview-title">
+                        {truncateWithEllipsis(
+                          article.label,
+                          NEWS_TITLE_PREVIEW_MAX,
+                        )}
+                      </div>
+                      <div className="home-news-preview-time">
+                        <span>{formatNewsDate(article.createdAt)}</span>
+                      </div>
+                    </div>
+                    <div className="home-news-preview-description">
+                      {truncateWithEllipsis(
+                        article.preview,
+                        NEWS_DESCRIPTION_PREVIEW_MAX,
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ul className="pane-list">
+              <li>
+                <p className="hero-detail">No news articles published yet.</p>
               </li>
-            ))}
-          </ul>
+            </ul>
+          )}
         </nav>
       </aside>
 
@@ -181,13 +276,19 @@ export default function HomePage() {
         </h2>
         <nav aria-label="Left catalog links">
           <ul className="pane-list">
-            {leftLinks.map((l) => (
-              <li key={l.href}>
-                <Link className="nav-link" href={l.href}>
-                  {l.label}
-                </Link>
+            {leftLinks.length > 0 ? (
+              leftLinks.map((l) => (
+                <li key={l.href}>
+                  <Link className="nav-link" href={l.href}>
+                    {l.label}
+                  </Link>
+                </li>
+              ))
+            ) : (
+              <li>
+                <p className="hero-detail">No info articles published yet.</p>
               </li>
-            ))}
+            )}
           </ul>
         </nav>
       </aside>

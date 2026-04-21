@@ -221,3 +221,18 @@ model Session {
 
   @@index([accountId])
 }
+
+model Article {
+  id         Int         @id @default(autoincrement())
+  title      String
+  body       String      @db.Text
+  type       ArticleType @default(INFO)
+  author     String
+  createdAt  DateTime    @default(now())
+  modifiedAt DateTime    @updatedAt
+}
+
+enum ArticleType {
+  INFO @map("Info")
+  NEWS @map("News")
+}
