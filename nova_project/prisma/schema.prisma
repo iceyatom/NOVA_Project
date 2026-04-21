@@ -223,10 +223,16 @@ model Session {
 }
 
 model Article {
-  id         Int      @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   title      String
-  body       String   @db.Text
+  body       String      @db.Text
+  type       ArticleType @default(INFO)
   author     String
-  createdAt  DateTime @default(now())
-  modifiedAt DateTime @updatedAt
+  createdAt  DateTime    @default(now())
+  modifiedAt DateTime    @updatedAt
+}
+
+enum ArticleType {
+  INFO @map("Info")
+  NEWS @map("News")
 }

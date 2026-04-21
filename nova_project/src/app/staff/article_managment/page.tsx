@@ -11,6 +11,7 @@ const ARTICLE_TITLE_MAX_LENGTH = 140;
 const ARTICLE_BODY_MAX_LENGTH = 10000;
 
 type ArticleDraft = {
+  type: "info" | "news";
   title: string;
   body: string;
 };
@@ -18,6 +19,7 @@ type ArticleDraft = {
 type EditorViewMode = "edit" | "split" | "preview";
 
 const INITIAL_DRAFT: ArticleDraft = {
+  type: "info",
   title: "",
   body: "",
 };
@@ -177,6 +179,7 @@ export default function StaffArticleManagmentPage() {
   const previewTitle = draft.title.trim() || "Untitled Article";
   const previewBlocks = parsePreviewBlocks(draft.body);
   const hasUnsavedChanges =
+    draft.type !== INITIAL_DRAFT.type ||
     draft.title !== INITIAL_DRAFT.title || draft.body !== INITIAL_DRAFT.body;
   const sortedBrowseImages = useMemo(
     () =>
@@ -390,6 +393,23 @@ export default function StaffArticleManagmentPage() {
             {viewMode !== "preview" ? (
               <form className="ticket-create-form" onSubmit={handleSubmit}>
                 <div className="ticket-create-grid">
+                  <label className="ticket-create-field article-managment__field--full">
+                    <span className="ticket-create-label">Article Type</span>
+                    <select
+                      className="ticket-create-input"
+                      value={draft.type}
+                      onChange={(event) =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          type: event.target.value as "info" | "news",
+                        }))
+                      }
+                    >
+                      <option value="info">Info</option>
+                      <option value="news">News</option>
+                    </select>
+                  </label>
+
                   <label className="ticket-create-field article-managment__field--full">
                     <div className="account-management__notes-label-row">
                       <span className="ticket-create-label">Title</span>
