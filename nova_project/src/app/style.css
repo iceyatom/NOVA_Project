@@ -3066,12 +3066,12 @@ body:has(.loginPage) main {
 }
 
 .account-management__edit-selected-button {
-  background: #0f766e;
-  color: #ffffff;
+  background: var(--brand-teal);
+  color: var(--brand-teal-contrast);
 }
 
 .account-management__edit-selected-button:hover {
-  background: #0d5f58;
+  background: var(--brand-teal);
 }
 
 .account-management__select-col {

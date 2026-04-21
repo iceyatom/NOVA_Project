@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type KeyboardEvent,
+  type SetStateAction,
+} from "react";
 import CategoryCreateModal, {
   type CategoryLevel,
 } from "@/app/components/CategoryCreateModal";
@@ -19,9 +28,40 @@ type TypeApiResponse = {
   types?: unknown;
 };
 
+type HierarchySubcategoryEntry = {
+  name: string;
+  parentCategory3: string;
+};
+
+type HierarchyTypeEntry = {
+  name: string;
+  parentCategory3: string;
+  parentCategory2: string;
+};
+
+type HierarchySearchResponse = {
+  success?: boolean;
+  data?: {
+    categories?: unknown;
+    subcategories?: unknown;
+    types?: unknown;
+  };
+};
+
 type HierarchyListPayload = Partial<
   Record<"categories" | "subcategories" | "types", unknown>
 >;
+
+type ClassificationSearchOption = {
+  key: string;
+  level: CategoryLevel;
+  name: string;
+  parentCategory3: string | null;
+  parentCategory2: string | null;
+  displayValue: string;
+  contextText: string;
+  searchText: string;
+};
 
 type EditPopupContext = {
   level: CategoryLevel;
@@ -50,6 +90,68 @@ function parseStringArray(payload: unknown): string[] {
   }
 
   return payload.filter((entry): entry is string => typeof entry === "string");
+}
+
+function parseHierarchySubcategories(
+  payload: unknown,
+): HierarchySubcategoryEntry[] {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  return payload
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const candidate = entry as Record<string, unknown>;
+      if (
+        typeof candidate.name !== "string" ||
+        typeof candidate.parentCategory3 !== "string"
+      ) {
+        return null;
+      }
+
+      return {
+        name: candidate.name,
+        parentCategory3: candidate.parentCategory3,
+      } satisfies HierarchySubcategoryEntry;
+    })
+    .filter((entry): entry is HierarchySubcategoryEntry => entry !== null);
+}
+
+function parseHierarchyTypes(payload: unknown): HierarchyTypeEntry[] {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  return payload
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const candidate = entry as Record<string, unknown>;
+      if (
+        typeof candidate.name !== "string" ||
+        typeof candidate.parentCategory3 !== "string" ||
+        typeof candidate.parentCategory2 !== "string"
+      ) {
+        return null;
+      }
+
+      return {
+        name: candidate.name,
+        parentCategory3: candidate.parentCategory3,
+        parentCategory2: candidate.parentCategory2,
+      } satisfies HierarchyTypeEntry;
+    })
+    .filter((entry): entry is HierarchyTypeEntry => entry !== null);
+}
+
+function normalizeSearchText(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function getTotalPages(itemCount: number): number {
@@ -145,6 +247,17 @@ export default function StaffCategoryManagementPage() {
     null,
   );
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [allSubcategories, setAllSubcategories] = useState<
+    HierarchySubcategoryEntry[]
+  >([]);
+  const [allTypes, setAllTypes] = useState<HierarchyTypeEntry[]>([]);
+  const [classificationSearchInput, setClassificationSearchInput] =
+    useState("");
+  const [selectedSearchOptionKey, setSelectedSearchOptionKey] = useState<
+    string | null
+  >(null);
+  const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState(false);
+  const [searchMessage, setSearchMessage] = useState<string | null>(null);
 
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
@@ -182,6 +295,9 @@ export default function StaffCategoryManagementPage() {
   const [createCategoryLevel, setCreateCategoryLevel] =
     useState<CategoryLevel>("category3");
   const [viewerRole, setViewerRole] = useState<string | null>(null);
+  const searchBlurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -221,6 +337,14 @@ export default function StaffCategoryManagementPage() {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (searchBlurTimeoutRef.current) {
+        clearTimeout(searchBlurTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     let disposed = false;
 
     const loadCategories = async () => {
@@ -256,6 +380,51 @@ export default function StaffCategoryManagementPage() {
     };
 
     loadCategories();
+
+    return () => {
+      disposed = true;
+    };
+  }, [refreshToken]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const loadHierarchyForSearch = async () => {
+      try {
+        const response = await fetch(
+          "/api/catalog/staff/categories?action=hierarchy",
+          {
+            cache: "no-store",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load classification search data.");
+        }
+
+        const payload = (await response.json()) as HierarchySearchResponse;
+        const nextCategories = fetchListKey(payload.data ?? {}, "categories");
+        const nextSubcategories = parseHierarchySubcategories(
+          payload.data?.subcategories,
+        );
+        const nextTypes = parseHierarchyTypes(payload.data?.types);
+
+        if (disposed) {
+          return;
+        }
+
+        setCategories(nextCategories);
+        setAllSubcategories(nextSubcategories);
+        setAllTypes(nextTypes);
+      } catch {
+        if (!disposed) {
+          setAllSubcategories([]);
+          setAllTypes([]);
+        }
+      }
+    };
+
+    void loadHierarchyForSearch();
 
     return () => {
       disposed = true;
@@ -362,6 +531,117 @@ export default function StaffCategoryManagementPage() {
     };
   }, [selectedCategory, selectedSubcategory, refreshToken]);
 
+  const classificationOptions = useMemo<ClassificationSearchOption[]>(() => {
+    const levelOrder: Record<CategoryLevel, number> = {
+      category3: 0,
+      category2: 1,
+      category1: 2,
+    };
+
+    const nextOptions: ClassificationSearchOption[] = [
+      ...categories.map((category) => ({
+        key: `category3::${category}`,
+        level: "category3" as const,
+        name: category,
+        parentCategory3: null,
+        parentCategory2: null,
+        displayValue: `${category} (Category)`,
+        contextText: "Category (Level 3)",
+        searchText: normalizeSearchText(`${category} category level 3`),
+      })),
+      ...allSubcategories.map((subcategory) => ({
+        key: `category2::${subcategory.parentCategory3}::${subcategory.name}`,
+        level: "category2" as const,
+        name: subcategory.name,
+        parentCategory3: subcategory.parentCategory3,
+        parentCategory2: null,
+        displayValue: `${subcategory.name} (${subcategory.parentCategory3})`,
+        contextText: `Subcategory (Level 2) | ${subcategory.parentCategory3}`,
+        searchText: normalizeSearchText(
+          `${subcategory.name} ${subcategory.parentCategory3} subcategory level 2`,
+        ),
+      })),
+      ...allTypes.map((typeEntry) => ({
+        key: `category1::${typeEntry.parentCategory3}::${typeEntry.parentCategory2}::${typeEntry.name}`,
+        level: "category1" as const,
+        name: typeEntry.name,
+        parentCategory3: typeEntry.parentCategory3,
+        parentCategory2: typeEntry.parentCategory2,
+        displayValue: `${typeEntry.name} (${typeEntry.parentCategory3} > ${typeEntry.parentCategory2})`,
+        contextText: `Type (Level 1) | ${typeEntry.parentCategory3} > ${typeEntry.parentCategory2}`,
+        searchText: normalizeSearchText(
+          `${typeEntry.name} ${typeEntry.parentCategory3} ${typeEntry.parentCategory2} type level 1`,
+        ),
+      })),
+    ];
+
+    nextOptions.sort((left, right) => {
+      const levelDiff = levelOrder[left.level] - levelOrder[right.level];
+      if (levelDiff !== 0) return levelDiff;
+
+      const byName = left.name.localeCompare(right.name, undefined, {
+        sensitivity: "base",
+      });
+      if (byName !== 0) return byName;
+
+      const byParentCategory3 = (left.parentCategory3 ?? "").localeCompare(
+        right.parentCategory3 ?? "",
+        undefined,
+        { sensitivity: "base" },
+      );
+      if (byParentCategory3 !== 0) return byParentCategory3;
+
+      return (left.parentCategory2 ?? "").localeCompare(
+        right.parentCategory2 ?? "",
+        undefined,
+        { sensitivity: "base" },
+      );
+    });
+
+    return nextOptions;
+  }, [allSubcategories, allTypes, categories]);
+
+  const normalizedSearchQuery = normalizeSearchText(classificationSearchInput);
+
+  const classificationSuggestions = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return [] as ClassificationSearchOption[];
+    }
+
+    return classificationOptions
+      .filter((option) => option.searchText.includes(normalizedSearchQuery))
+      .sort((left, right) => {
+        const leftStartsWithName = left.name
+          .toLowerCase()
+          .startsWith(normalizedSearchQuery)
+          ? 0
+          : 1;
+        const rightStartsWithName = right.name
+          .toLowerCase()
+          .startsWith(normalizedSearchQuery)
+          ? 0
+          : 1;
+        if (leftStartsWithName !== rightStartsWithName) {
+          return leftStartsWithName - rightStartsWithName;
+        }
+
+        return left.name.localeCompare(right.name, undefined, {
+          sensitivity: "base",
+        });
+      })
+      .slice(0, 25);
+  }, [classificationOptions, normalizedSearchQuery]);
+
+  const selectedSearchOption = useMemo(
+    () =>
+      selectedSearchOptionKey
+        ? (classificationOptions.find(
+            (option) => option.key === selectedSearchOptionKey,
+          ) ?? null)
+        : null,
+    [classificationOptions, selectedSearchOptionKey],
+  );
+
   const categoryTotalPages = getTotalPages(categories.length);
   const subcategoryTotalPages = getTotalPages(subcategories.length);
   const typeTotalPages = getTotalPages(types.length);
@@ -378,6 +658,46 @@ export default function StaffCategoryManagementPage() {
     setTypePage((current) => Math.min(current, typeTotalPages));
   }, [typeTotalPages]);
 
+  useEffect(() => {
+    if (!selectedSearchOptionKey) return;
+
+    if (
+      !classificationOptions.some(
+        (option) => option.key === selectedSearchOptionKey,
+      )
+    ) {
+      setSelectedSearchOptionKey(null);
+    }
+  }, [classificationOptions, selectedSearchOptionKey]);
+
+  useEffect(() => {
+    if (!selectedCategory) return;
+    const selectedIndex = categories.findIndex(
+      (name) => name === selectedCategory,
+    );
+    if (selectedIndex < 0) return;
+
+    setCategoryPage(Math.floor(selectedIndex / PAGE_SIZE) + 1);
+  }, [categories, selectedCategory]);
+
+  useEffect(() => {
+    if (!selectedSubcategory) return;
+    const selectedIndex = subcategories.findIndex(
+      (name) => name === selectedSubcategory,
+    );
+    if (selectedIndex < 0) return;
+
+    setSubcategoryPage(Math.floor(selectedIndex / PAGE_SIZE) + 1);
+  }, [selectedSubcategory, subcategories]);
+
+  useEffect(() => {
+    if (!selectedType) return;
+    const selectedIndex = types.findIndex((name) => name === selectedType);
+    if (selectedIndex < 0) return;
+
+    setTypePage(Math.floor(selectedIndex / PAGE_SIZE) + 1);
+  }, [selectedType, types]);
+
   const pagedCategories = categories.slice(
     (categoryPage - 1) * PAGE_SIZE,
     categoryPage * PAGE_SIZE,
@@ -390,6 +710,108 @@ export default function StaffCategoryManagementPage() {
     (typePage - 1) * PAGE_SIZE,
     typePage * PAGE_SIZE,
   );
+
+  const shouldShowSearchSuggestions =
+    isSearchSuggestionsOpen && normalizedSearchQuery.length > 0;
+
+  const applySearchOptionSelection = (option: ClassificationSearchOption) => {
+    setClassificationSearchInput(option.displayValue);
+    setSelectedSearchOptionKey(option.key);
+    setIsSearchSuggestionsOpen(false);
+    setSearchMessage(null);
+    setEditPopupContext(null);
+
+    if (option.level === "category3") {
+      setSelectedCategory(option.name);
+      setSelectedSubcategory(null);
+      setSelectedType(null);
+      setSubcategoryPage(1);
+      setTypePage(1);
+      return;
+    }
+
+    if (option.level === "category2") {
+      if (!option.parentCategory3) {
+        return;
+      }
+
+      setSelectedCategory(option.parentCategory3);
+      setSelectedSubcategory(option.name);
+      setSelectedType(null);
+      setTypePage(1);
+      return;
+    }
+
+    if (!option.parentCategory3 || !option.parentCategory2) {
+      return;
+    }
+
+    setSelectedCategory(option.parentCategory3);
+    setSelectedSubcategory(option.parentCategory2);
+    setSelectedType(option.name);
+  };
+
+  const handleSearchInputChange = (value: string) => {
+    setClassificationSearchInput(value);
+    setSelectedSearchOptionKey(null);
+    setSearchMessage(null);
+    setIsSearchSuggestionsOpen(true);
+  };
+
+  const handleSearchInputFocus = () => {
+    if (searchBlurTimeoutRef.current) {
+      clearTimeout(searchBlurTimeoutRef.current);
+      searchBlurTimeoutRef.current = null;
+    }
+    setIsSearchSuggestionsOpen(true);
+  };
+
+  const handleSearchInputBlur = () => {
+    if (searchBlurTimeoutRef.current) {
+      clearTimeout(searchBlurTimeoutRef.current);
+    }
+
+    searchBlurTimeoutRef.current = setTimeout(() => {
+      setIsSearchSuggestionsOpen(false);
+      searchBlurTimeoutRef.current = null;
+    }, 120);
+  };
+
+  const handleSearchInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setIsSearchSuggestionsOpen(false);
+      return;
+    }
+
+    if (event.key === "Enter" && !selectedSearchOptionKey) {
+      event.preventDefault();
+      setSearchMessage(
+        "Select one autocomplete option before applying classification search.",
+      );
+    }
+  };
+
+  const handleClassificationSearchSubmit = (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (!selectedSearchOption) {
+      setSearchMessage(
+        "Select one autocomplete option before applying classification search.",
+      );
+      return;
+    }
+
+    applySearchOptionSelection(selectedSearchOption);
+  };
+
+  const handleClearClassificationSearch = () => {
+    setClassificationSearchInput("");
+    setSelectedSearchOptionKey(null);
+    setSearchMessage(null);
+    setIsSearchSuggestionsOpen(false);
+  };
 
   const closeEditPopup = () => {
     setEditPopupContext(null);
@@ -814,6 +1236,99 @@ export default function StaffCategoryManagementPage() {
       <div className="staffSubtitle">
         Manage top-level categories, subcategories, and item types from one
         place.
+      </div>
+      <div className="item-search-page__controls category-mgmt-search-controls">
+        <div className="item-search-page__search">
+          <form onSubmit={handleClassificationSearchSubmit}>
+            <div className="item-search-page__search-bar category-mgmt-search-bar">
+              <div className="item-search-page__search-input-wrap category-mgmt-search-input-wrap">
+                <input
+                  type="text"
+                  placeholder="Search classification name, parent category, or parent subcategory"
+                  className="item-search-page__search-input"
+                  value={classificationSearchInput}
+                  onChange={(event) =>
+                    handleSearchInputChange(event.target.value)
+                  }
+                  onFocus={handleSearchInputFocus}
+                  onBlur={handleSearchInputBlur}
+                  onKeyDown={handleSearchInputKeyDown}
+                  autoComplete="off"
+                />
+                {(classificationSearchInput || selectedSearchOptionKey) && (
+                  <button
+                    type="button"
+                    className="item-search-page__search-clear"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={handleClearClassificationSearch}
+                    aria-label="Clear classification search"
+                  >
+                    x
+                  </button>
+                )}
+
+                {shouldShowSearchSuggestions ? (
+                  <div
+                    className="category-mgmt-search-suggestions"
+                    role="listbox"
+                    aria-label="Classification suggestions"
+                  >
+                    {classificationSuggestions.length === 0 ? (
+                      <div className="category-mgmt-search-suggestion-empty">
+                        No matching classifications
+                      </div>
+                    ) : (
+                      classificationSuggestions.map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          className={`category-mgmt-search-suggestion-btn${
+                            option.key === selectedSearchOptionKey
+                              ? " category-mgmt-search-suggestion-btn--selected"
+                              : ""
+                          }`}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => applySearchOptionSelection(option)}
+                        >
+                          <span className="category-mgmt-search-suggestion-name">
+                            {option.name}
+                          </span>
+                          <span className="category-mgmt-search-suggestion-meta">
+                            {option.contextText}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              <button
+                type="submit"
+                className="item-search-page__search-submit"
+                aria-label="Apply classification search"
+                disabled={!selectedSearchOption}
+              >
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </button>
+            </div>
+          </form>
+          {searchMessage ? (
+            <div className="staffCardHint category-mgmt-search-message">
+              {searchMessage}
+            </div>
+          ) : null}
+        </div>
       </div>
       {loadError && <div className="staffCardHint">{loadError}</div>}
 
