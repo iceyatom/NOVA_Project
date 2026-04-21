@@ -41,7 +41,7 @@ export default async function InfoTopicPage({
     },
   });
 
-  if (!article || article.type !== "INFO") {
+  if (!article || (article.type !== "INFO" && article.type !== "NEWS")) {
     notFound();
   }
 

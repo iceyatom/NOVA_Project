@@ -13,12 +13,42 @@ const slugify = (text: string) =>
     .replace(/[\s-]+/g, "-")
     .replace(/[^\w-]+/g, "");
 
-const rightLinks = [
-  { label: "Classroom Kits", href: "/catalog?c=kits" },
-  { label: "Model Organisms", href: "/catalog?c=models" },
-  { label: "Reagents", href: "/catalog?c=reagents" },
-  { label: "Accessories", href: "/catalog?c=accessories" },
-];
+const NEWS_TITLE_PREVIEW_MAX = 60;
+const NEWS_DESCRIPTION_PREVIEW_MAX = 120;
+const NEWS_PREVIEW_FALLBACK = "Open this article to read the latest update.";
+
+function truncateWithEllipsis(value: string, maxLength: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, maxLength).trimEnd()}...`;
+}
+
+function extractNewsPreview(body: string): string {
+  const blocks = body
+    .split(/\n{2,}/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  for (const block of blocks) {
+    if (block.startsWith("# ")) continue;
+    if (block.startsWith("## ")) continue;
+    if (/^!\[.*?\]\((https?:\/\/[^\s)]+)\)$/.test(block)) continue;
+    return block.replace(/\s+/g, " ");
+  }
+
+  return NEWS_PREVIEW_FALLBACK;
+}
+
+function formatNewsDate(creationTime: Date): string {
+  return creationTime.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 const { mission, highlights, fallbacks } = homeContent;
 
@@ -54,6 +84,19 @@ const highlightData: HighlightContent[] =
       );
 
 export default async function HomePage() {
+  const newsArticles = await prisma.article.findMany({
+    where: {
+      type: "NEWS",
+    },
+    select: {
+      id: true,
+      title: true,
+      body: true,
+      createdAt: true,
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+
   const infoArticles = await prisma.article.findMany({
     where: {
       type: "INFO",
@@ -74,6 +117,21 @@ export default async function HomePage() {
 
     return {
       label: article.title,
+      href: `/info/${articleSlug}`,
+    };
+  });
+
+  const newsCards = newsArticles.map((article) => {
+    const titleSlug = slugify(article.title);
+    const articleSlug = titleSlug
+      ? `${article.id}-${titleSlug}`
+      : `${article.id}`;
+
+    return {
+      id: article.id,
+      label: article.title,
+      preview: extractNewsPreview(article.body),
+      createdAt: article.createdAt,
       href: `/info/${articleSlug}`,
     };
   });
@@ -169,21 +227,45 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Right: quick-start links */}
+      {/* Right: news links */}
       <aside className="pane pane-right" aria-labelledby="right-nav-heading">
         <h2 id="right-nav-heading" className="pane-title">
-          Start Here
+          News
         </h2>
-        <nav aria-label="Right catalog links">
-          <ul className="pane-list">
-            {rightLinks.map((l) => (
-              <li key={l.href}>
-                <Link className="nav-link" href={l.href}>
-                  {l.label}
-                </Link>
+        <nav aria-label="News links">
+          {newsCards.length > 0 ? (
+            <ul className="home-news-preview-list">
+              {newsCards.map((article) => (
+                <li key={article.id}>
+                  <Link className="home-news-preview-item" href={article.href}>
+                    <div className="home-news-preview-top-row">
+                      <div className="home-news-preview-title">
+                        {truncateWithEllipsis(
+                          article.label,
+                          NEWS_TITLE_PREVIEW_MAX,
+                        )}
+                      </div>
+                      <div className="home-news-preview-time">
+                        <span>{formatNewsDate(article.createdAt)}</span>
+                      </div>
+                    </div>
+                    <div className="home-news-preview-description">
+                      {truncateWithEllipsis(
+                        article.preview,
+                        NEWS_DESCRIPTION_PREVIEW_MAX,
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ul className="pane-list">
+              <li>
+                <p className="hero-detail">No news articles published yet.</p>
               </li>
-            ))}
-          </ul>
+            </ul>
+          )}
         </nav>
       </aside>
 
