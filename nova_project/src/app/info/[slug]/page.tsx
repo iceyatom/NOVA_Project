@@ -1,25 +1,103 @@
-// src/app/info/[slug]/page.tsx
-import React from "react";
-import InfoTemplate from "../../components/InfoTemplate";
+import Image from "next/image";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { parseArticleBodyBlocks } from "@/app/lib/articleContent";
 
-// Helper function to capitalize words
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+export const dynamic = "force-dynamic";
 
-const InfoTopicPage = ({ params }: { params: { slug: string } }) => {
-  // Create a title from the slug
-  const title = params.slug.split("-").map(capitalize).join(" ");
+function extractArticleId(slug: string): number | null {
+  const match = slug.match(/^(\d+)/);
+  if (!match) {
+    return null;
+  }
 
-  // Since content isn't ready, we display a placeholder using the InfoTemplate.
-  // This fulfills the requirement to defer to an empty-like page.
+  const parsed = Number.parseInt(match[1], 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
+export default async function InfoTopicPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const articleId = extractArticleId(params.slug);
+  if (!articleId) {
+    notFound();
+  }
+
+  const article = await prisma.article.findUnique({
+    where: { id: articleId },
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      body: true,
+      author: true,
+      modifiedAt: true,
+    },
+  });
+
+  if (!article || article.type !== "INFO") {
+    notFound();
+  }
+
+  const blocks = parseArticleBodyBlocks(article.body);
+  const modifiedLabel = article.modifiedAt.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
   return (
-    <main className="info-demo-page">
-      <InfoTemplate
-        title={title}
-        subtitle="Content Coming Soon"
-        body={`More information about "${title}" will be available here shortly.`}
-      />
+    <main className="info-article-page">
+      <div className="info-article-shell">
+        <article className="info-article-column">
+          <h1>{article.title}</h1>
+          <p className="info-article-meta">
+            By {article.author} · Updated {modifiedLabel}
+          </p>
+
+          {blocks.map((block, index) => {
+            if (block.kind === "image") {
+              return (
+                <figure key={`info-article-image-${index}`}>
+                  <Image
+                    src={block.src}
+                    alt={block.alt}
+                    width={1400}
+                    height={900}
+                    className="info-article-image"
+                    sizes="(max-width: 900px) 100vw, 72ch"
+                  />
+                </figure>
+              );
+            }
+
+            if (block.kind === "title") {
+              return (
+                <h2 key={`info-article-title-${index}`}>{block.content}</h2>
+              );
+            }
+
+            if (block.kind === "subtitle") {
+              return (
+                <h3 key={`info-article-subtitle-${index}`}>{block.content}</h3>
+              );
+            }
+
+            return (
+              <p key={`info-article-paragraph-${index}`}>{block.content}</p>
+            );
+          })}
+        </article>
+      </div>
     </main>
   );
-};
-
-export default InfoTopicPage;
+}

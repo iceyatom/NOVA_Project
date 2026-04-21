@@ -954,6 +954,78 @@ body {
   font-size: 0.85rem;
   color: #4b5563;
 }
+
+/* Info article pages (public) */
+.info-article-page {
+  padding: 1rem 0 2rem;
+}
+
+.info-article-shell {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.8rem;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 0.8rem;
+}
+
+.info-article-column {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.65rem;
+  background: #ffffff;
+  width: min(100%, 72ch);
+  margin: 0 auto;
+  padding: 1.35rem;
+}
+
+.info-article-column h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.1vw, 2rem);
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.info-article-meta {
+  margin: 0.4rem 0 1rem;
+  color: #64748b;
+  font-size: 0.87rem;
+}
+
+.info-article-column h2 {
+  margin: 1.25rem 0 0.65rem;
+  font-size: clamp(1.25rem, 1.6vw, 1.65rem);
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.info-article-column h3 {
+  margin: 1rem 0 0.55rem;
+  font-size: clamp(1.05rem, 1.25vw, 1.25rem);
+  line-height: 1.35;
+  color: #1e293b;
+}
+
+.info-article-column p {
+  margin: 0 0 1rem;
+  color: #334155;
+  font-size: 1rem;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.info-article-column figure {
+  margin: 1rem 0 1.2rem;
+  display: block;
+}
+
+.info-article-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: 0.65rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
 /* Diagnostics panels (collapsible status bars) */
 .diagnostics-panel {
   margin: 1rem auto;

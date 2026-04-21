@@ -1,9 +1,8 @@
-"use client";
-
 // Home page: three-pane layout
 import Image from "next/image";
 import Link from "next/link";
 
+import { prisma } from "@/lib/db";
 import type { HighlightContent } from "@/content/siteContent";
 import { homeContent } from "@/content/siteContent";
 
@@ -13,18 +12,6 @@ const slugify = (text: string) =>
     .replace(/ & /g, " and ")
     .replace(/[\s-]+/g, "-")
     .replace(/[^\w-]+/g, "");
-
-const leftLinks = [
-  { label: "Owl pellets", href: "" },
-  { label: "Live Algae Specimens", href: "" },
-  { label: "Live Invertebrates", href: "" },
-  { label: "Live Vertebrates", href: "" },
-  { label: "Live Bacteria & Fungi Specimens", href: "" },
-  { label: "Live Plant Specimens", href: "" },
-  { label: "Live Protozoa Specimens", href: "" },
-  { label: "Preserved Invertebrates", href: "" },
-  { label: "Preserved Vertebrates", href: "" },
-].map((link) => ({ ...link, href: `/info/${slugify(link.label)}` }));
 
 const rightLinks = [
   { label: "Classroom Kits", href: "/catalog?c=kits" },
@@ -54,6 +41,8 @@ const missionCta = mission.cta ?? {
   href: "/catalog",
 };
 
+export const dynamic = "force-dynamic";
+
 const highlightData: HighlightContent[] =
   highlights.length > 0
     ? highlights
@@ -64,7 +53,31 @@ const highlightData: HighlightContent[] =
         }),
       );
 
-export default function HomePage() {
+export default async function HomePage() {
+  const infoArticles = await prisma.article.findMany({
+    where: {
+      type: "INFO",
+    },
+    select: {
+      id: true,
+      title: true,
+      createdAt: true,
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+
+  const leftLinks = infoArticles.map((article) => {
+    const titleSlug = slugify(article.title);
+    const articleSlug = titleSlug
+      ? `${article.id}-${titleSlug}`
+      : `${article.id}`;
+
+    return {
+      label: article.title,
+      href: `/info/${articleSlug}`,
+    };
+  });
+
   return (
     <div className="three-pane">
       {/* Center: mission storytelling */}
@@ -181,13 +194,19 @@ export default function HomePage() {
         </h2>
         <nav aria-label="Left catalog links">
           <ul className="pane-list">
-            {leftLinks.map((l) => (
-              <li key={l.href}>
-                <Link className="nav-link" href={l.href}>
-                  {l.label}
-                </Link>
+            {leftLinks.length > 0 ? (
+              leftLinks.map((l) => (
+                <li key={l.href}>
+                  <Link className="nav-link" href={l.href}>
+                    {l.label}
+                  </Link>
+                </li>
+              ))
+            ) : (
+              <li>
+                <p className="hero-detail">No info articles published yet.</p>
               </li>
-            ))}
+            )}
           </ul>
         </nav>
       </aside>

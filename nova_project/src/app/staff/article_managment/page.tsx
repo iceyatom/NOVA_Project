@@ -6,6 +6,7 @@ import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 import useImageLibraryBrowser, {
   type BrowseImageLibraryEntry,
 } from "@/app/hooks/useImageLibraryBrowser";
+import { parseArticleBodyBlocks } from "@/app/lib/articleContent";
 
 const ARTICLE_TITLE_MAX_LENGTH = 140;
 const ARTICLE_BODY_MAX_LENGTH = 10000;
@@ -24,14 +25,19 @@ const INITIAL_DRAFT: ArticleDraft = {
   body: "",
 };
 
-type PreviewBlock =
-  | { kind: "title"; content: string }
-  | { kind: "subtitle"; content: string }
-  | { kind: "paragraph"; content: string }
-  | { kind: "image"; src: string; alt: string };
-
 type BodyFormatMode = "title" | "subtitle" | "normal";
 type ActiveBodyFormatMode = BodyFormatMode | "mixed" | "none";
+
+type CreateArticleApiResponse = {
+  success?: boolean;
+  error?: string;
+  data?: {
+    id?: number;
+    title?: string;
+    type?: string;
+    author?: string;
+  };
+};
 
 function formatSelectedLines(
   value: string,
@@ -39,7 +45,8 @@ function formatSelectedLines(
   selectionEnd: number,
   mode: BodyFormatMode,
 ) {
-  const lineStart = value.lastIndexOf("\n", Math.max(0, selectionStart - 1)) + 1;
+  const lineStart =
+    value.lastIndexOf("\n", Math.max(0, selectionStart - 1)) + 1;
   const lineEndBreak = value.indexOf("\n", selectionEnd);
   const lineEnd = lineEndBreak === -1 ? value.length : lineEndBreak;
   const target = value.slice(lineStart, lineEnd);
@@ -76,7 +83,8 @@ function detectSelectionFormat(
   selectionStart: number,
   selectionEnd: number,
 ): BodyFormatMode | "mixed" {
-  const lineStart = value.lastIndexOf("\n", Math.max(0, selectionStart - 1)) + 1;
+  const lineStart =
+    value.lastIndexOf("\n", Math.max(0, selectionStart - 1)) + 1;
   const lineEndBreak = value.indexOf("\n", selectionEnd);
   const lineEnd = lineEndBreak === -1 ? value.length : lineEndBreak;
   const target = value.slice(lineStart, lineEnd);
@@ -107,48 +115,11 @@ function detectSelectionFormat(
   return detected ?? "normal";
 }
 
-function parsePreviewBlocks(body: string): PreviewBlock[] {
-  const blocks = body
-    .split(/\n{2,}/)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-
-  return blocks.map((block) => {
-    const imageMatch = block.match(/^!\[(.*?)\]\((https?:\/\/[^\s)]+)\)$/);
-    if (imageMatch) {
-      const [, alt, src] = imageMatch;
-      return {
-        kind: "image",
-        src,
-        alt: alt.trim() || "Inserted article image",
-      };
-    }
-
-    if (block.startsWith("## ")) {
-      return {
-        kind: "subtitle",
-        content: block.replace(/^##\s+/, "").trim(),
-      };
-    }
-
-    if (block.startsWith("# ")) {
-      return {
-        kind: "title",
-        content: block.replace(/^#\s+/, "").trim(),
-      };
-    }
-
-    return {
-      kind: "paragraph",
-      content: block,
-    };
-  });
-}
-
 export default function StaffArticleManagmentPage() {
   const [draft, setDraft] = useState<ArticleDraft>(INITIAL_DRAFT);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<EditorViewMode>("split");
   const [isClearConfirmationOpen, setIsClearConfirmationOpen] =
     useState<boolean>(false);
@@ -177,19 +148,16 @@ export default function StaffArticleManagmentPage() {
   });
 
   const previewTitle = draft.title.trim() || "Untitled Article";
-  const previewBlocks = parsePreviewBlocks(draft.body);
+  const previewBlocks = parseArticleBodyBlocks(draft.body);
   const hasUnsavedChanges =
     draft.type !== INITIAL_DRAFT.type ||
-    draft.title !== INITIAL_DRAFT.title || draft.body !== INITIAL_DRAFT.body;
+    draft.title !== INITIAL_DRAFT.title ||
+    draft.body !== INITIAL_DRAFT.body;
   const sortedBrowseImages = useMemo(
     () =>
       [...browseImages].sort((a, b) => {
-        const aTimestamp = a.lastLinkedAt
-          ? Date.parse(a.lastLinkedAt) || 0
-          : 0;
-        const bTimestamp = b.lastLinkedAt
-          ? Date.parse(b.lastLinkedAt) || 0
-          : 0;
+        const aTimestamp = a.lastLinkedAt ? Date.parse(a.lastLinkedAt) || 0 : 0;
+        const bTimestamp = b.lastLinkedAt ? Date.parse(b.lastLinkedAt) || 0 : 0;
 
         if (bTimestamp !== aTimestamp) {
           return bTimestamp - aTimestamp;
@@ -234,7 +202,7 @@ export default function StaffArticleManagmentPage() {
     setIsClearConfirmationOpen(true);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSuccess(null);
@@ -249,7 +217,48 @@ export default function StaffArticleManagmentPage() {
       return;
     }
 
-    setSuccess("Article draft is ready. Save endpoint can be connected next.");
+    setIsSaving(true);
+
+    try {
+      const response = await fetch("/api/articles/staff", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: draft.type,
+          title: draft.title,
+          body: draft.body,
+        }),
+      });
+
+      const payload = (await response.json()) as CreateArticleApiResponse;
+      if (!response.ok || payload.success === false) {
+        const message =
+          typeof payload.error === "string"
+            ? payload.error
+            : `Failed to create article (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      const createdId = payload.data?.id;
+      const successMessage = Number.isInteger(createdId)
+        ? `Article #${createdId} created successfully.`
+        : "Article created successfully.";
+
+      setDraft(INITIAL_DRAFT);
+      setActiveBodyFormat("none");
+      setIsClearConfirmationOpen(false);
+      setSuccess(successMessage);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Failed to create article.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function syncActiveBodyFormatFromSelection() {
@@ -304,7 +313,9 @@ export default function StaffArticleManagmentPage() {
   function insertImageMarkdownAtSelection(entry: BrowseImageLibraryEntry) {
     const textarea = bodyTextareaRef.current;
     const currentBody = draft.body;
-    const selectionStart = textarea ? textarea.selectionStart : currentBody.length;
+    const selectionStart = textarea
+      ? textarea.selectionStart
+      : currentBody.length;
     const selectionEnd = textarea ? textarea.selectionEnd : currentBody.length;
     const before = currentBody.slice(0, selectionStart);
     const after = currentBody.slice(selectionEnd);
@@ -365,7 +376,11 @@ export default function StaffArticleManagmentPage() {
 
       <div className="staffGrid">
         <div className="staffCard col12">
-          <div className="article-managment__mode-row" role="group" aria-label="Editor view mode">
+          <div
+            className="article-managment__mode-row"
+            role="group"
+            aria-label="Editor view mode"
+          >
             <button
               type="button"
               className={`staff-dev-pill ${viewMode === "edit" ? "staff-dev-pill--ready" : ""}`}
@@ -389,7 +404,9 @@ export default function StaffArticleManagmentPage() {
             </button>
           </div>
 
-          <div className={`article-managment__workspace article-managment__workspace--${viewMode}`}>
+          <div
+            className={`article-managment__workspace article-managment__workspace--${viewMode}`}
+          >
             {viewMode !== "preview" ? (
               <form className="ticket-create-form" onSubmit={handleSubmit}>
                 <div className="ticket-create-grid">
@@ -423,7 +440,10 @@ export default function StaffArticleManagmentPage() {
                       value={draft.title}
                       maxLength={ARTICLE_TITLE_MAX_LENGTH}
                       onChange={(event) =>
-                        setDraft((prev) => ({ ...prev, title: event.target.value }))
+                        setDraft((prev) => ({
+                          ...prev,
+                          title: event.target.value,
+                        }))
                       }
                       placeholder="Enter article title"
                     />
@@ -442,17 +462,17 @@ export default function StaffArticleManagmentPage() {
                       </span>
                     </div>
                     <div className="article-managment__format-row">
-                  <button
-                    type="button"
-                    className="staff-dev-pill article-managment__insert-image-btn"
-                    onClick={(event) => {
-                      event.currentTarget.blur();
-                      void openBrowseImagesPopup();
-                    }}
-                    disabled={isInsertingImageKey !== null}
-                  >
-                    Insert Image
-                  </button>
+                      <button
+                        type="button"
+                        className="staff-dev-pill article-managment__insert-image-btn"
+                        onClick={(event) => {
+                          event.currentTarget.blur();
+                          void openBrowseImagesPopup();
+                        }}
+                        disabled={isInsertingImageKey !== null || isSaving}
+                      >
+                        Insert Image
+                      </button>
                       <button
                         type="button"
                         className={`staff-dev-pill ${
@@ -495,7 +515,10 @@ export default function StaffArticleManagmentPage() {
                       maxLength={ARTICLE_BODY_MAX_LENGTH}
                       value={draft.body}
                       onChange={(event) =>
-                        setDraft((prev) => ({ ...prev, body: event.target.value }))
+                        setDraft((prev) => ({
+                          ...prev,
+                          body: event.target.value,
+                        }))
                       }
                       onClick={syncActiveBodyFormatFromSelection}
                       onKeyUp={syncActiveBodyFormatFromSelection}
@@ -505,7 +528,9 @@ export default function StaffArticleManagmentPage() {
                   </div>
                 </div>
 
-                {error ? <div className="ticket-create-status error">{error}</div> : null}
+                {error ? (
+                  <div className="ticket-create-status error">{error}</div>
+                ) : null}
                 {success ? (
                   <div className="ticket-create-status success">{success}</div>
                 ) : null}
@@ -515,18 +540,26 @@ export default function StaffArticleManagmentPage() {
                     type="button"
                     className="staff-dev-pill"
                     onClick={requestClear}
+                    disabled={isSaving}
                   >
                     Clear
                   </button>
-                  <button type="submit" className="staff-dev-pill staff-dev-pill--ready">
-                    Create Article
+                  <button
+                    type="submit"
+                    className="staff-dev-pill staff-dev-pill--ready"
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Create Article"}
                   </button>
                 </div>
               </form>
             ) : null}
 
             {viewMode !== "edit" ? (
-              <section className="article-managment__preview-shell" aria-label="Live article preview">
+              <section
+                className="article-managment__preview-shell"
+                aria-label="Live article preview"
+              >
                 <div className="article-managment__preview-canvas">
                   <article className="article-managment__preview-column">
                     <h1>{previewTitle}</h1>
@@ -552,7 +585,9 @@ export default function StaffArticleManagmentPage() {
 
                         if (block.kind === "title") {
                           return (
-                            <h2 key={`preview-title-${index}`}>{block.content}</h2>
+                            <h2 key={`preview-title-${index}`}>
+                              {block.content}
+                            </h2>
                           );
                         }
 
@@ -565,12 +600,15 @@ export default function StaffArticleManagmentPage() {
                         }
 
                         return (
-                          <p key={`preview-paragraph-${index}`}>{block.content}</p>
+                          <p key={`preview-paragraph-${index}`}>
+                            {block.content}
+                          </p>
                         );
                       })
                     ) : (
                       <p className="article-managment__preview-placeholder">
-                        Start writing the article body to preview the final reading layout.
+                        Start writing the article body to preview the final
+                        reading layout.
                       </p>
                     )}
                   </article>
@@ -657,7 +695,9 @@ export default function StaffArticleManagmentPage() {
                         }
                         placeholder="Search by SKU or Name"
                         disabled={
-                          isLoadingBrowseImages || isInsertingImageKey !== null
+                          isLoadingBrowseImages ||
+                          isInsertingImageKey !== null ||
+                          isSaving
                         }
                       />
                       {(browseItemSearchInput || browseItemSearchQuery) && (
@@ -667,7 +707,9 @@ export default function StaffArticleManagmentPage() {
                           onClick={handleClearBrowseItemSearch}
                           aria-label="Clear search"
                           disabled={
-                            isLoadingBrowseImages || isInsertingImageKey !== null
+                            isLoadingBrowseImages ||
+                            isInsertingImageKey !== null ||
+                            isSaving
                           }
                         >
                           x
@@ -679,7 +721,9 @@ export default function StaffArticleManagmentPage() {
                       className="item-search-page__search-submit"
                       aria-label="Search image library"
                       disabled={
-                        isLoadingBrowseImages || isInsertingImageKey !== null
+                        isLoadingBrowseImages ||
+                        isInsertingImageKey !== null ||
+                        isSaving
                       }
                     >
                       <svg
@@ -703,7 +747,9 @@ export default function StaffArticleManagmentPage() {
                   className="staff-dev-pill"
                   onClick={() => void loadBrowseImages()}
                   disabled={
-                    isLoadingBrowseImages || isInsertingImageKey !== null
+                    isLoadingBrowseImages ||
+                    isInsertingImageKey !== null ||
+                    isSaving
                   }
                 >
                   {isLoadingBrowseImages ? "Loading..." : "Refresh"}
@@ -741,7 +787,10 @@ export default function StaffArticleManagmentPage() {
                       isInsertingImageKey === entry.s3Key;
 
                     return (
-                      <div key={entry.s3Key} className="item-browse-images-card">
+                      <div
+                        key={entry.s3Key}
+                        className="item-browse-images-card"
+                      >
                         <div className="item-browse-images-preview">
                           <Image
                             src={entry.url}
@@ -767,7 +816,7 @@ export default function StaffArticleManagmentPage() {
                           type="button"
                           className="staff-dev-pill"
                           onClick={() => void handleInsertBrowseImage(entry)}
-                          disabled={isInsertingImageKey !== null}
+                          disabled={isInsertingImageKey !== null || isSaving}
                         >
                           {isInsertingThisImage ? "Inserting..." : "Insert"}
                         </button>
@@ -783,7 +832,7 @@ export default function StaffArticleManagmentPage() {
                 type="button"
                 className="staff-dev-pill"
                 onClick={closeBrowseImagesPopupBase}
-                disabled={isInsertingImageKey !== null}
+                disabled={isInsertingImageKey !== null || isSaving}
               >
                 Close
               </button>

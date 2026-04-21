@@ -1617,6 +1617,12 @@
     flex-basis: 240px;
   }
 
+  .staffSidebar--collapsed {
+    width: 0;
+    flex-basis: 0;
+    padding: 0;
+  }
+
   .col4,
   .col3,
   .col6,
