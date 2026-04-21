@@ -971,7 +971,7 @@ body {
   border: 1px solid #e2e8f0;
   border-radius: 0.65rem;
   background: #ffffff;
-  width: min(100%, 72ch);
+  width: min(100%, 108ch);
   margin: 0 auto;
   padding: 1.35rem;
 }

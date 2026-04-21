@@ -74,7 +74,7 @@ export default async function InfoTopicPage({
                     width={1400}
                     height={900}
                     className="info-article-image"
-                    sizes="(max-width: 900px) 100vw, 72ch"
+                    sizes="(max-width: 900px) 100vw, 108ch"
                   />
                 </figure>
               );
