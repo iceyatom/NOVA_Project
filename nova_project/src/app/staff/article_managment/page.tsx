@@ -1,7 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 import useImageLibraryBrowser, {
   type BrowseImageLibraryEntry,
@@ -28,16 +34,134 @@ const INITIAL_DRAFT: ArticleDraft = {
 type BodyFormatMode = "title" | "subtitle" | "normal";
 type ActiveBodyFormatMode = BodyFormatMode | "mixed" | "none";
 
-type CreateArticleApiResponse = {
+type ArticleType = "info" | "news";
+type BrowseArticleTypeFilter = "all" | ArticleType;
+
+type ArticleSummary = {
+  id: number;
+  type: ArticleType;
+  title: string;
+  author: string;
+  createdAt: string | null;
+  modifiedAt: string | null;
+};
+
+type ArticleDetails = ArticleSummary & {
+  body: string;
+};
+
+type ArticleMutationApiResponse = {
   success?: boolean;
   error?: string;
   data?: {
     id?: number;
     title?: string;
     type?: string;
+    body?: string;
     author?: string;
+    createdAt?: string;
+    modifiedAt?: string;
   };
 };
+
+type ArticleBrowseApiResponse = {
+  success?: boolean;
+  error?: string;
+  data?: unknown;
+};
+
+type ArticleLoadApiResponse = {
+  success?: boolean;
+  error?: string;
+  data?: {
+    id?: number;
+    title?: string;
+    type?: string;
+    body?: string;
+    author?: string;
+    createdAt?: string;
+    modifiedAt?: string;
+  };
+};
+
+function normalizeArticleType(value: unknown): ArticleType | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "info") {
+    return "info";
+  }
+  if (normalized === "news") {
+    return "news";
+  }
+
+  return null;
+}
+
+function parseArticleSummary(value: unknown): ArticleSummary | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const rawId = record.id;
+  const id =
+    typeof rawId === "number"
+      ? rawId
+      : typeof rawId === "string"
+        ? Number(rawId)
+        : NaN;
+  const type = normalizeArticleType(record.type);
+  const title = typeof record.title === "string" ? record.title.trim() : "";
+  const author = typeof record.author === "string" ? record.author.trim() : "";
+
+  if (!Number.isInteger(id) || id <= 0 || !type || !title || !author) {
+    return null;
+  }
+
+  return {
+    id,
+    type,
+    title,
+    author,
+    createdAt:
+      typeof record.createdAt === "string" && record.createdAt.trim()
+        ? record.createdAt
+        : null,
+    modifiedAt:
+      typeof record.modifiedAt === "string" && record.modifiedAt.trim()
+        ? record.modifiedAt
+        : null,
+  };
+}
+
+function parseArticleDetails(value: unknown): ArticleDetails | null {
+  const summary = parseArticleSummary(value);
+  if (!summary) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const body = typeof record.body === "string" ? record.body : "";
+  return {
+    ...summary,
+    body,
+  };
+}
+
+function getDraftValidationError(draft: ArticleDraft): string | null {
+  if (!draft.title.trim()) {
+    return "Article title is required.";
+  }
+
+  if (!draft.body.trim()) {
+    return "Article body is required.";
+  }
+
+  return null;
+}
 
 function formatSelectedLines(
   value: string,
@@ -117,6 +241,7 @@ function detectSelectionFormat(
 
 export default function StaffArticleManagmentPage() {
   const [draft, setDraft] = useState<ArticleDraft>(INITIAL_DRAFT);
+  const [loadedArticleId, setLoadedArticleId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -128,6 +253,24 @@ export default function StaffArticleManagmentPage() {
   const [isInsertingImageKey, setIsInsertingImageKey] = useState<string | null>(
     null,
   );
+  const [isBrowseArticlesPopupOpen, setIsBrowseArticlesPopupOpen] =
+    useState<boolean>(false);
+  const [browseArticles, setBrowseArticles] = useState<ArticleSummary[]>([]);
+  const [browseArticlesSearchInput, setBrowseArticlesSearchInput] =
+    useState<string>("");
+  const [browseArticlesSearchQuery, setBrowseArticlesSearchQuery] =
+    useState<string>("");
+  const [browseArticlesTypeFilter, setBrowseArticlesTypeFilter] =
+    useState<BrowseArticleTypeFilter>("all");
+  const [isLoadingBrowseArticles, setIsLoadingBrowseArticles] =
+    useState<boolean>(false);
+  const [browseArticlesError, setBrowseArticlesError] = useState<string | null>(
+    null,
+  );
+  const [isLoadingArticleId, setIsLoadingArticleId] = useState<number | null>(
+    null,
+  );
+  const originalRef = useRef<ArticleDraft>(INITIAL_DRAFT);
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const {
     isBrowseImagesPopupOpen,
@@ -149,10 +292,19 @@ export default function StaffArticleManagmentPage() {
 
   const previewTitle = draft.title.trim() || "Untitled Article";
   const previewBlocks = parseArticleBodyBlocks(draft.body);
+  const isEditMode = loadedArticleId !== null;
   const hasUnsavedChanges =
-    draft.type !== INITIAL_DRAFT.type ||
-    draft.title !== INITIAL_DRAFT.title ||
-    draft.body !== INITIAL_DRAFT.body;
+    draft.type !== originalRef.current.type ||
+    draft.title !== originalRef.current.title ||
+    draft.body !== originalRef.current.body;
+  const isFieldDirty = (field: keyof ArticleDraft) =>
+    draft[field] !== originalRef.current[field];
+  const fieldLabelClass = (dirty: boolean) =>
+    `ticket-create-label${dirty ? " category-mgmt-edit-modal__label--dirty" : ""}`;
+  const currentValidationError = useMemo(
+    () => getDraftValidationError(draft),
+    [draft],
+  );
   const sortedBrowseImages = useMemo(
     () =>
       [...browseImages].sort((a, b) => {
@@ -171,6 +323,20 @@ export default function StaffArticleManagmentPage() {
       }),
     [browseImages],
   );
+  const sortedBrowseArticles = useMemo(
+    () =>
+      [...browseArticles].sort((a, b) => {
+        const aTimestamp = a.modifiedAt ? Date.parse(a.modifiedAt) || 0 : 0;
+        const bTimestamp = b.modifiedAt ? Date.parse(b.modifiedAt) || 0 : 0;
+
+        if (bTimestamp !== aTimestamp) {
+          return bTimestamp - aTimestamp;
+        }
+
+        return b.id - a.id;
+      }),
+    [browseArticles],
+  );
 
   const browseImagesBackdropHandlers = useBackdropPointerClose<HTMLDivElement>(
     () => {
@@ -180,13 +346,178 @@ export default function StaffArticleManagmentPage() {
       closeBrowseImagesPopupBase();
     },
   );
+  const browseArticlesBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(() => {
+      if (isLoadingArticleId != null) {
+        return;
+      }
+
+      setIsBrowseArticlesPopupOpen(false);
+      setBrowseArticlesError(null);
+    });
   const clearConfirmationBackdropHandlers =
     useBackdropPointerClose<HTMLDivElement>(() => {
       setIsClearConfirmationOpen(false);
     });
 
+  async function loadBrowseArticles(
+    nextQuery?: string,
+    nextTypeFilter?: BrowseArticleTypeFilter,
+  ) {
+    const normalizedQuery = (nextQuery ?? browseArticlesSearchQuery)
+      .trim()
+      .replace(/\s+/g, " ");
+    const typeFilter = nextTypeFilter ?? browseArticlesTypeFilter;
+
+    setIsLoadingBrowseArticles(true);
+    setBrowseArticlesError(null);
+
+    try {
+      const params = new URLSearchParams({
+        limit: "180",
+      });
+      if (normalizedQuery) {
+        params.set("query", normalizedQuery);
+      }
+      if (typeFilter !== "all") {
+        params.set("type", typeFilter);
+      }
+
+      const response = await fetch(`/api/articles/staff?${params}`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as ArticleBrowseApiResponse;
+      if (!response.ok || payload.success === false) {
+        const message =
+          typeof payload.error === "string"
+            ? payload.error
+            : `Failed to load articles (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      const entries = Array.isArray(payload.data)
+        ? payload.data
+            .map((entry) => parseArticleSummary(entry))
+            .filter((entry): entry is ArticleSummary => entry !== null)
+        : [];
+      setBrowseArticles(entries);
+    } catch (loadError) {
+      setBrowseArticles([]);
+      setBrowseArticlesError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load articles.",
+      );
+    } finally {
+      setIsLoadingBrowseArticles(false);
+    }
+  }
+
+  async function openBrowseArticlesPopup() {
+    if (
+      isSaving ||
+      isInsertingImageKey !== null ||
+      isLoadingArticleId != null
+    ) {
+      return;
+    }
+
+    setBrowseArticlesSearchInput("");
+    setBrowseArticlesSearchQuery("");
+    setBrowseArticlesTypeFilter("all");
+    setBrowseArticlesError(null);
+    setIsBrowseArticlesPopupOpen(true);
+    await loadBrowseArticles("", "all");
+  }
+
+  function closeBrowseArticlesPopup() {
+    if (isLoadingArticleId != null) {
+      return;
+    }
+
+    setIsBrowseArticlesPopupOpen(false);
+    setBrowseArticlesError(null);
+  }
+
+  function handleBrowseArticlesSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedQuery = browseArticlesSearchInput
+      .trim()
+      .replace(/\s+/g, " ");
+    setBrowseArticlesSearchQuery(normalizedQuery);
+    void loadBrowseArticles(normalizedQuery, browseArticlesTypeFilter);
+  }
+
+  function handleClearBrowseArticlesSearch() {
+    setBrowseArticlesSearchInput("");
+    setBrowseArticlesSearchQuery("");
+    void loadBrowseArticles("", browseArticlesTypeFilter);
+  }
+
+  function handleBrowseArticlesTypeFilterChange(
+    event: ChangeEvent<HTMLSelectElement>,
+  ) {
+    const nextType = event.target.value as BrowseArticleTypeFilter;
+    setBrowseArticlesTypeFilter(nextType);
+    void loadBrowseArticles(browseArticlesSearchQuery, nextType);
+  }
+
+  async function handleLoadArticle(articleId: number) {
+    if (articleId <= 0) {
+      return;
+    }
+
+    setIsLoadingArticleId(articleId);
+    setBrowseArticlesError(null);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/articles/staff?id=${articleId}`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as ArticleLoadApiResponse;
+      if (!response.ok || payload.success === false) {
+        const message =
+          typeof payload.error === "string"
+            ? payload.error
+            : `Failed to load article (HTTP ${response.status}).`;
+        throw new Error(message);
+      }
+
+      const parsed = parseArticleDetails(payload.data);
+      if (!parsed) {
+        throw new Error("Article response was missing required fields.");
+      }
+
+      const nextDraft: ArticleDraft = {
+        type: parsed.type,
+        title: parsed.title,
+        body: parsed.body,
+      };
+
+      setDraft(nextDraft);
+      originalRef.current = nextDraft;
+      setLoadedArticleId(parsed.id);
+      setActiveBodyFormat("none");
+      setIsClearConfirmationOpen(false);
+      setIsBrowseArticlesPopupOpen(false);
+      setSuccess(`"${parsed.title}" loaded. Save changes to update it.`);
+    } catch (loadError) {
+      setBrowseArticlesError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load article details.",
+      );
+    } finally {
+      setIsLoadingArticleId(null);
+    }
+  }
+
   function handleClear() {
     setDraft(INITIAL_DRAFT);
+    originalRef.current = INITIAL_DRAFT;
+    setLoadedArticleId(null);
     setError(null);
     setSuccess(null);
     setActiveBodyFormat("none");
@@ -202,26 +533,30 @@ export default function StaffArticleManagmentPage() {
     setIsClearConfirmationOpen(true);
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSuccess(null);
 
-    if (!draft.title.trim()) {
-      setError("Article title is required.");
+    if (isEditMode && !hasUnsavedChanges) {
       return;
     }
 
-    if (!draft.body.trim()) {
-      setError("Article body is required.");
+    if (currentValidationError) {
+      setError(currentValidationError);
       return;
     }
 
     setIsSaving(true);
 
     try {
-      const response = await fetch("/api/articles/staff", {
-        method: "POST",
+      const endpoint =
+        isEditMode && loadedArticleId
+          ? `/api/articles/staff?id=${loadedArticleId}`
+          : "/api/articles/staff";
+      const method = isEditMode ? "PATCH" : "POST";
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -232,29 +567,59 @@ export default function StaffArticleManagmentPage() {
         }),
       });
 
-      const payload = (await response.json()) as CreateArticleApiResponse;
+      const payload = (await response.json()) as ArticleMutationApiResponse;
       if (!response.ok || payload.success === false) {
         const message =
           typeof payload.error === "string"
             ? payload.error
-            : `Failed to create article (HTTP ${response.status}).`;
+            : `Failed to ${isEditMode ? "save article" : "create article"} (HTTP ${response.status}).`;
         throw new Error(message);
       }
 
-      const createdId = payload.data?.id;
-      const successMessage = Number.isInteger(createdId)
-        ? `Article #${createdId} created successfully.`
-        : "Article created successfully.";
+      const parsedSaved =
+        payload.data != null ? parseArticleDetails(payload.data) : null;
 
-      setDraft(INITIAL_DRAFT);
+      if (isEditMode) {
+        const nextDraft: ArticleDraft = parsedSaved
+          ? {
+              type: parsedSaved.type,
+              title: parsedSaved.title,
+              body: parsedSaved.body,
+            }
+          : {
+              ...draft,
+              title: draft.title.trim(),
+              body: draft.body.trim(),
+            };
+        setDraft(nextDraft);
+        originalRef.current = nextDraft;
+        if (parsedSaved) {
+          setLoadedArticleId(parsedSaved.id);
+          setSuccess(`Article #${parsedSaved.id} saved successfully.`);
+        } else {
+          setSuccess("Article changes saved.");
+        }
+      } else {
+        const createdTitle =
+          (typeof payload.data?.title === "string" && payload.data.title.trim()) ||
+          draft.title.trim();
+        const successMessage = createdTitle
+          ? `"${createdTitle}" created successfully.`
+          : "Article created successfully.";
+        setDraft(INITIAL_DRAFT);
+        originalRef.current = INITIAL_DRAFT;
+        setLoadedArticleId(null);
+        setSuccess(successMessage);
+      }
       setActiveBodyFormat("none");
       setIsClearConfirmationOpen(false);
-      setSuccess(successMessage);
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Failed to create article.",
+          : isEditMode
+            ? "Failed to save article changes."
+            : "Failed to create article.",
       );
     } finally {
       setIsSaving(false);
@@ -376,31 +741,45 @@ export default function StaffArticleManagmentPage() {
 
       <div className="staffGrid">
         <div className="staffCard col12">
-          <div
-            className="article-managment__mode-row"
-            role="group"
-            aria-label="Editor view mode"
-          >
+          <div className="article-managment__panel-header">
+            <div
+              className="article-managment__mode-row"
+              role="group"
+              aria-label="Editor view mode"
+            >
+              <button
+                type="button"
+                className={`staff-dev-pill ${viewMode === "edit" ? "staff-dev-pill--ready" : ""}`}
+                onClick={() => setViewMode("edit")}
+              >
+                Edit only
+              </button>
+              <button
+                type="button"
+                className={`staff-dev-pill ${viewMode === "split" ? "staff-dev-pill--ready" : ""}`}
+                onClick={() => setViewMode("split")}
+              >
+                Edit + Preview
+              </button>
+              <button
+                type="button"
+                className={`staff-dev-pill ${viewMode === "preview" ? "staff-dev-pill--ready" : ""}`}
+                onClick={() => setViewMode("preview")}
+              >
+                Preview only
+              </button>
+            </div>
             <button
               type="button"
-              className={`staff-dev-pill ${viewMode === "edit" ? "staff-dev-pill--ready" : ""}`}
-              onClick={() => setViewMode("edit")}
+              className="staff-dev-pill"
+              onClick={() => void openBrowseArticlesPopup()}
+              disabled={
+                isSaving ||
+                isInsertingImageKey !== null ||
+                isLoadingArticleId != null
+              }
             >
-              Edit only
-            </button>
-            <button
-              type="button"
-              className={`staff-dev-pill ${viewMode === "split" ? "staff-dev-pill--ready" : ""}`}
-              onClick={() => setViewMode("split")}
-            >
-              Edit + Preview
-            </button>
-            <button
-              type="button"
-              className={`staff-dev-pill ${viewMode === "preview" ? "staff-dev-pill--ready" : ""}`}
-              onClick={() => setViewMode("preview")}
-            >
-              Preview only
+              Load Article
             </button>
           </div>
 
@@ -411,7 +790,9 @@ export default function StaffArticleManagmentPage() {
               <form className="ticket-create-form" onSubmit={handleSubmit}>
                 <div className="ticket-create-grid">
                   <label className="ticket-create-field article-managment__field--full">
-                    <span className="ticket-create-label">Article Type</span>
+                    <span className={fieldLabelClass(isFieldDirty("type"))}>
+                      Article Type
+                    </span>
                     <select
                       className="ticket-create-input"
                       value={draft.type}
@@ -429,8 +810,12 @@ export default function StaffArticleManagmentPage() {
 
                   <label className="ticket-create-field article-managment__field--full">
                     <div className="account-management__notes-label-row">
-                      <span className="ticket-create-label">Title</span>
-                      <span className="ticket-create-label account-management__notes-count">
+                      <span className={fieldLabelClass(isFieldDirty("title"))}>
+                        Title
+                      </span>
+                      <span
+                        className={`${fieldLabelClass(isFieldDirty("title"))} account-management__notes-count`}
+                      >
                         {draft.title.length}/{ARTICLE_TITLE_MAX_LENGTH}
                       </span>
                     </div>
@@ -452,12 +837,14 @@ export default function StaffArticleManagmentPage() {
                   <div className="ticket-create-field article-managment__field--full">
                     <div className="account-management__notes-label-row">
                       <label
-                        className="ticket-create-label"
+                        className={fieldLabelClass(isFieldDirty("body"))}
                         htmlFor="article-body-input"
                       >
                         Body
                       </label>
-                      <span className="ticket-create-label account-management__notes-count">
+                      <span
+                        className={`${fieldLabelClass(isFieldDirty("body"))} account-management__notes-count`}
+                      >
                         {draft.body.length}/{ARTICLE_BODY_MAX_LENGTH}
                       </span>
                     </div>
@@ -546,10 +933,27 @@ export default function StaffArticleManagmentPage() {
                   </button>
                   <button
                     type="submit"
-                    className="staff-dev-pill staff-dev-pill--ready"
-                    disabled={isSaving}
+                    className={`staff-dev-pill${
+                      isEditMode
+                        ? hasUnsavedChanges
+                          ? " staff-dev-pill--ready"
+                          : ""
+                        : " staff-dev-pill--ready"
+                    }`}
+                    disabled={isSaving || (isEditMode && !hasUnsavedChanges)}
+                    title={
+                      isEditMode
+                        ? hasUnsavedChanges
+                          ? "Save changes"
+                          : "No new changes to save"
+                        : "Create article"
+                    }
                   >
-                    {isSaving ? "Saving..." : "Create Article"}
+                    {isSaving
+                      ? "Saving..."
+                      : isEditMode
+                        ? "Save Changes"
+                        : "Create Article"}
                   </button>
                 </div>
               </form>
@@ -657,6 +1061,202 @@ export default function StaffArticleManagmentPage() {
                 onClick={handleClear}
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isBrowseArticlesPopupOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Browse Articles"
+          className="item-category-modal"
+          onPointerDown={browseArticlesBackdropHandlers.onPointerDown}
+          onClick={browseArticlesBackdropHandlers.onClick}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Browse Articles</div>
+
+            <div className="item-category-form item-browse-images-form">
+              <div className="item-browse-images-toolbar article-managment__browse-articles-toolbar">
+                <form
+                  className="item-browse-images-search-form"
+                  onSubmit={handleBrowseArticlesSearchSubmit}
+                >
+                  <div className="item-search-page__search-bar">
+                    <div className="item-search-page__search-input-wrap">
+                      <input
+                        type="text"
+                        className="item-search-page__search-input item-browse-images-search"
+                        value={browseArticlesSearchInput}
+                        onChange={(event) =>
+                          setBrowseArticlesSearchInput(event.target.value)
+                        }
+                        placeholder="Search by Article Title"
+                        disabled={
+                          isLoadingBrowseArticles || isLoadingArticleId != null
+                        }
+                      />
+                      {(browseArticlesSearchInput ||
+                        browseArticlesSearchQuery) && (
+                        <button
+                          type="button"
+                          className="item-search-page__search-clear"
+                          onClick={handleClearBrowseArticlesSearch}
+                          aria-label="Clear search"
+                          disabled={
+                            isLoadingBrowseArticles ||
+                            isLoadingArticleId != null
+                          }
+                        >
+                          x
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      className="item-search-page__search-submit"
+                      aria-label="Search articles"
+                      disabled={
+                        isLoadingBrowseArticles || isLoadingArticleId != null
+                      }
+                    >
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="11" cy="11" r="7" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+
+                <select
+                  className="item-search-page__select article-managment__browse-articles-select"
+                  value={browseArticlesTypeFilter}
+                  onChange={handleBrowseArticlesTypeFilterChange}
+                  disabled={
+                    isLoadingBrowseArticles || isLoadingArticleId != null
+                  }
+                  aria-label="Filter by article type"
+                >
+                  <option value="all">All Types</option>
+                  <option value="info">Info</option>
+                  <option value="news">News</option>
+                </select>
+
+                <button
+                  type="button"
+                  className="staff-dev-pill"
+                  onClick={() =>
+                    void loadBrowseArticles(
+                      browseArticlesSearchQuery,
+                      browseArticlesTypeFilter,
+                    )
+                  }
+                  disabled={
+                    isLoadingBrowseArticles || isLoadingArticleId != null
+                  }
+                >
+                  {isLoadingBrowseArticles ? "Loading..." : "Refresh"}
+                </button>
+              </div>
+
+              {browseArticlesError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {browseArticlesError}
+                </div>
+              ) : null}
+
+              {!browseArticlesError && isLoadingBrowseArticles ? (
+                <div className="item-browse-images-state">
+                  Loading articles...
+                </div>
+              ) : null}
+
+              {!browseArticlesError &&
+              !isLoadingBrowseArticles &&
+              sortedBrowseArticles.length === 0 ? (
+                <div className="item-browse-images-state">
+                  {browseArticlesSearchQuery ||
+                  browseArticlesTypeFilter !== "all"
+                    ? "No matching articles found."
+                    : "No articles found."}
+                </div>
+              ) : null}
+
+              {!browseArticlesError &&
+              !isLoadingBrowseArticles &&
+              sortedBrowseArticles.length > 0 ? (
+                <div className="item-browse-images-grid article-managment__browse-articles-grid">
+                  {sortedBrowseArticles.map((entry) => {
+                    const isLoadingThis = isLoadingArticleId === entry.id;
+                    const updatedLabel = entry.modifiedAt
+                      ? new Date(entry.modifiedAt).toLocaleString("en-US", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })
+                      : "Unknown";
+                    const typeLabel = entry.type === "info" ? "Info" : "News";
+                    const isLoadedArticle = loadedArticleId === entry.id;
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className={`item-browse-images-card article-managment__browse-articles-card${isLoadedArticle ? " article-managment__browse-articles-card--active" : ""}`}
+                      >
+                        <div className="item-browse-images-meta">
+                          <div
+                            className="item-browse-images-key article-managment__browse-articles-title"
+                            title={entry.title}
+                          >
+                            {entry.title}
+                          </div>
+                          <div className="item-browse-images-usage">
+                            #{entry.id} · {typeLabel} · {entry.author}
+                          </div>
+                          <div className="item-browse-images-usage">
+                            Updated {updatedLabel}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className={`staff-dev-pill${isLoadedArticle ? " staff-dev-pill--ready" : ""}`}
+                          onClick={() => void handleLoadArticle(entry.id)}
+                          disabled={isLoadingArticleId != null}
+                        >
+                          {isLoadingThis
+                            ? "Loading..."
+                            : isLoadedArticle
+                              ? "Reload"
+                              : "Load"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeBrowseArticlesPopup}
+                disabled={isLoadingArticleId != null}
+              >
+                Close
               </button>
             </div>
           </div>
