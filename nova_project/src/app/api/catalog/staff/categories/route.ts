@@ -120,6 +120,78 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action");
+  if (action === "hierarchy") {
+    try {
+      const hierarchy = await prisma.category3.findMany({
+        orderBy: {
+          name: "asc",
+        },
+        select: {
+          name: true,
+          category2s: {
+            orderBy: {
+              name: "asc",
+            },
+            select: {
+              name: true,
+              category1s: {
+                orderBy: {
+                  name: "asc",
+                },
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const categories: string[] = [];
+      const subcategories: Array<{ name: string; parentCategory3: string }> =
+        [];
+      const types: Array<{
+        name: string;
+        parentCategory3: string;
+        parentCategory2: string;
+      }> = [];
+
+      for (const category of hierarchy) {
+        categories.push(category.name);
+
+        for (const subcategory of category.category2s) {
+          subcategories.push({
+            name: subcategory.name,
+            parentCategory3: category.name,
+          });
+
+          for (const type of subcategory.category1s) {
+            types.push({
+              name: type.name,
+              parentCategory3: category.name,
+              parentCategory2: subcategory.name,
+            });
+          }
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          categories,
+          subcategories,
+          types,
+        },
+      });
+    } catch (error) {
+      return errorResponse(
+        "Failed to load category hierarchy.",
+        error instanceof Error ? error.message : "Unknown server error.",
+        500,
+      );
+    }
+  }
+
   if (action !== "dependencies") {
     return errorResponse("Unsupported GET request.", undefined, 405);
   }

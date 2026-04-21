@@ -328,7 +328,15 @@ export default function StaffAccountManagementPage() {
     return () => {
       isMounted = false;
     };
-  }, [offset, pageSize, roleFilter, searchQuery, sortBy, sortOrder, refreshNonce]);
+  }, [
+    offset,
+    pageSize,
+    roleFilter,
+    searchQuery,
+    sortBy,
+    sortOrder,
+    refreshNonce,
+  ]);
 
   const totalPages = useMemo(() => {
     if (totalAccounts <= 0) return 1;

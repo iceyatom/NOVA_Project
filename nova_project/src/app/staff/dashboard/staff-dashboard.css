@@ -805,6 +805,80 @@
   flex-wrap: wrap;
 }
 
+.category-mgmt-search-controls {
+  margin-bottom: 1rem;
+}
+
+.category-mgmt-search-bar {
+  align-items: flex-start;
+}
+
+.category-mgmt-search-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.category-mgmt-search-suggestions {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 0.62rem;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.category-mgmt-search-suggestion-empty {
+  padding: 0.66rem 0.72rem;
+  font-size: 0.86rem;
+  color: #64748b;
+}
+
+.category-mgmt-search-suggestion-btn {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  text-align: left;
+  padding: 0.62rem 0.72rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.category-mgmt-search-suggestion-btn:last-child {
+  border-bottom: none;
+}
+
+.category-mgmt-search-suggestion-btn:hover {
+  background: #f8fafc;
+}
+
+.category-mgmt-search-suggestion-btn--selected {
+  background: #ecfdf5;
+}
+
+.category-mgmt-search-suggestion-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.category-mgmt-search-suggestion-meta {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.category-mgmt-search-message {
+  margin-top: 0.5rem;
+  color: #b45309;
+}
+
 /* =========
    Ticket Create
    ========= */
