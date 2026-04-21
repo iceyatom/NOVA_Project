@@ -93,6 +93,16 @@ export default function SidebarNav() {
           },
         ]}
       />
+
+      <Section
+        title="Content"
+        items={[
+          {
+            label: "Article Managment",
+            href: "/staff/article_managment",
+          },
+        ]}
+      />
     </nav>
   );
 }

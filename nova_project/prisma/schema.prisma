@@ -221,3 +221,12 @@ model Session {
 
   @@index([accountId])
 }
+
+model Article {
+  id         Int      @id @default(autoincrement())
+  title      String
+  body       String   @db.Text
+  author     String
+  createdAt  DateTime @default(now())
+  modifiedAt DateTime @updatedAt
+}

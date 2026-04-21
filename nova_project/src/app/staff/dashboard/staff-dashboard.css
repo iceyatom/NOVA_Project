@@ -852,6 +852,14 @@
   resize: vertical;
 }
 
+.article-managment__field--full {
+  grid-column: span 12;
+}
+
+.article-managment__body {
+  min-height: 320px;
+}
+
 .ticket-lines-panel {
   border: 1px solid #e5e7eb;
   border-radius: 0.8rem;
