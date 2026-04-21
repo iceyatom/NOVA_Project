@@ -1,6 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import Image from "next/image";
+import { useMemo, useRef, useState } from "react";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
+import useImageLibraryBrowser, {
+  type BrowseImageLibraryEntry,
+} from "@/app/hooks/useImageLibraryBrowser";
 
 const ARTICLE_TITLE_MAX_LENGTH = 140;
 const ARTICLE_BODY_MAX_LENGTH = 10000;
@@ -20,7 +25,8 @@ const INITIAL_DRAFT: ArticleDraft = {
 type PreviewBlock =
   | { kind: "title"; content: string }
   | { kind: "subtitle"; content: string }
-  | { kind: "paragraph"; content: string };
+  | { kind: "paragraph"; content: string }
+  | { kind: "image"; src: string; alt: string };
 
 type BodyFormatMode = "title" | "subtitle" | "normal";
 type ActiveBodyFormatMode = BodyFormatMode | "mixed" | "none";
@@ -106,6 +112,16 @@ function parsePreviewBlocks(body: string): PreviewBlock[] {
     .filter((entry) => entry.length > 0);
 
   return blocks.map((block) => {
+    const imageMatch = block.match(/^!\[(.*?)\]\((https?:\/\/[^\s)]+)\)$/);
+    if (imageMatch) {
+      const [, alt, src] = imageMatch;
+      return {
+        kind: "image",
+        src,
+        alt: alt.trim() || "Inserted article image",
+      };
+    }
+
     if (block.startsWith("## ")) {
       return {
         kind: "subtitle",
@@ -132,18 +148,87 @@ export default function StaffArticleManagmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<EditorViewMode>("split");
+  const [isClearConfirmationOpen, setIsClearConfirmationOpen] =
+    useState<boolean>(false);
   const [activeBodyFormat, setActiveBodyFormat] =
     useState<ActiveBodyFormatMode>("none");
+  const [isInsertingImageKey, setIsInsertingImageKey] = useState<string | null>(
+    null,
+  );
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    isBrowseImagesPopupOpen,
+    browseImages,
+    browseItemSearchInput,
+    setBrowseItemSearchInput,
+    browseItemSearchQuery,
+    isLoadingBrowseImages,
+    browseImagesError,
+    openBrowseImagesPopup,
+    closeBrowseImagesPopup: closeBrowseImagesPopupBase,
+    loadBrowseImages,
+    handleBrowseItemSearchSubmit,
+    handleClearBrowseItemSearch,
+  } = useImageLibraryBrowser({
+    catalogItemId: null,
+    isBrowseCloseBlocked: isInsertingImageKey !== null,
+  });
 
   const previewTitle = draft.title.trim() || "Untitled Article";
   const previewBlocks = parsePreviewBlocks(draft.body);
+  const hasUnsavedChanges =
+    draft.title !== INITIAL_DRAFT.title || draft.body !== INITIAL_DRAFT.body;
+  const sortedBrowseImages = useMemo(
+    () =>
+      [...browseImages].sort((a, b) => {
+        const aTimestamp = a.lastLinkedAt
+          ? Date.parse(a.lastLinkedAt) || 0
+          : 0;
+        const bTimestamp = b.lastLinkedAt
+          ? Date.parse(b.lastLinkedAt) || 0
+          : 0;
+
+        if (bTimestamp !== aTimestamp) {
+          return bTimestamp - aTimestamp;
+        }
+
+        if (b.usageCount !== a.usageCount) {
+          return b.usageCount - a.usageCount;
+        }
+
+        return a.s3Key.localeCompare(b.s3Key);
+      }),
+    [browseImages],
+  );
+
+  const browseImagesBackdropHandlers = useBackdropPointerClose<HTMLDivElement>(
+    () => {
+      if (isInsertingImageKey !== null) {
+        return;
+      }
+      closeBrowseImagesPopupBase();
+    },
+  );
+  const clearConfirmationBackdropHandlers =
+    useBackdropPointerClose<HTMLDivElement>(() => {
+      setIsClearConfirmationOpen(false);
+    });
 
   function handleClear() {
     setDraft(INITIAL_DRAFT);
     setError(null);
     setSuccess(null);
     setActiveBodyFormat("none");
+    setIsClearConfirmationOpen(false);
+  }
+
+  function requestClear() {
+    if (!hasUnsavedChanges) {
+      handleClear();
+      return;
+    }
+
+    setIsClearConfirmationOpen(true);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -208,6 +293,66 @@ export default function StaffArticleManagmentPage() {
     });
   }
 
+  function buildImageMarkdown(entry: BrowseImageLibraryEntry): string {
+    const keyLeaf = entry.s3Key.split("/").at(-1)?.trim() || "image";
+    return `![${keyLeaf}](${entry.url})`;
+  }
+
+  function insertImageMarkdownAtSelection(entry: BrowseImageLibraryEntry) {
+    const textarea = bodyTextareaRef.current;
+    const currentBody = draft.body;
+    const selectionStart = textarea ? textarea.selectionStart : currentBody.length;
+    const selectionEnd = textarea ? textarea.selectionEnd : currentBody.length;
+    const before = currentBody.slice(0, selectionStart);
+    const after = currentBody.slice(selectionEnd);
+
+    const marker = buildImageMarkdown(entry);
+    const leadingSpacer =
+      before.length === 0
+        ? ""
+        : before.endsWith("\n\n")
+          ? ""
+          : before.endsWith("\n")
+            ? "\n"
+            : "\n\n";
+    const trailingSpacer =
+      after.length === 0
+        ? ""
+        : after.startsWith("\n\n")
+          ? ""
+          : after.startsWith("\n")
+            ? "\n"
+            : "\n\n";
+
+    const insertion = `${leadingSpacer}${marker}${trailingSpacer}`;
+    const nextBody = `${before}${insertion}${after}`;
+    const nextCaretPosition = before.length + insertion.length;
+
+    setDraft((prev) => ({ ...prev, body: nextBody }));
+    setActiveBodyFormat("none");
+
+    requestAnimationFrame(() => {
+      if (!textarea) {
+        return;
+      }
+
+      textarea.focus();
+      textarea.setSelectionRange(nextCaretPosition, nextCaretPosition);
+    });
+  }
+
+  async function handleInsertBrowseImage(entry: BrowseImageLibraryEntry) {
+    setIsInsertingImageKey(entry.s3Key);
+    try {
+      insertImageMarkdownAtSelection(entry);
+      setError(null);
+      setSuccess("Image inserted into article body.");
+      closeBrowseImagesPopupBase();
+    } finally {
+      setIsInsertingImageKey(null);
+    }
+  }
+
   return (
     <div>
       <div className="staffTitle">Article Managment</div>
@@ -264,14 +409,30 @@ export default function StaffArticleManagmentPage() {
                     />
                   </label>
 
-                  <label className="ticket-create-field article-managment__field--full">
+                  <div className="ticket-create-field article-managment__field--full">
                     <div className="account-management__notes-label-row">
-                      <span className="ticket-create-label">Body</span>
+                      <label
+                        className="ticket-create-label"
+                        htmlFor="article-body-input"
+                      >
+                        Body
+                      </label>
                       <span className="ticket-create-label account-management__notes-count">
                         {draft.body.length}/{ARTICLE_BODY_MAX_LENGTH}
                       </span>
                     </div>
                     <div className="article-managment__format-row">
+                  <button
+                    type="button"
+                    className="staff-dev-pill article-managment__insert-image-btn"
+                    onClick={(event) => {
+                      event.currentTarget.blur();
+                      void openBrowseImagesPopup();
+                    }}
+                    disabled={isInsertingImageKey !== null}
+                  >
+                    Insert Image
+                  </button>
                       <button
                         type="button"
                         className={`staff-dev-pill ${
@@ -307,6 +468,7 @@ export default function StaffArticleManagmentPage() {
                       </button>
                     </div>
                     <textarea
+                      id="article-body-input"
                       ref={bodyTextareaRef}
                       className="ticket-create-textarea article-managment__body"
                       rows={14}
@@ -320,7 +482,7 @@ export default function StaffArticleManagmentPage() {
                       onSelect={syncActiveBodyFormatFromSelection}
                       placeholder="Write article content here..."
                     />
-                  </label>
+                  </div>
                 </div>
 
                 {error ? <div className="ticket-create-status error">{error}</div> : null}
@@ -329,7 +491,11 @@ export default function StaffArticleManagmentPage() {
                 ) : null}
 
                 <div className="item-create-actions">
-                  <button type="button" className="staff-dev-pill" onClick={handleClear}>
+                  <button
+                    type="button"
+                    className="staff-dev-pill"
+                    onClick={requestClear}
+                  >
                     Clear
                   </button>
                   <button type="submit" className="staff-dev-pill staff-dev-pill--ready">
@@ -346,6 +512,24 @@ export default function StaffArticleManagmentPage() {
                     <h1>{previewTitle}</h1>
                     {previewBlocks.length > 0 ? (
                       previewBlocks.map((block, index) => {
+                        if (block.kind === "image") {
+                          return (
+                            <figure
+                              key={`preview-image-${index}`}
+                              className="article-managment__preview-image-block"
+                            >
+                              <Image
+                                src={block.src}
+                                alt={block.alt}
+                                width={1400}
+                                height={900}
+                                className="article-managment__preview-image"
+                                sizes="(max-width: 900px) 100vw, 72ch"
+                              />
+                            </figure>
+                          );
+                        }
+
                         if (block.kind === "title") {
                           return (
                             <h2 key={`preview-title-${index}`}>{block.content}</h2>
@@ -376,6 +560,217 @@ export default function StaffArticleManagmentPage() {
           </div>
         </div>
       </div>
+
+      {isClearConfirmationOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm Clear Article Draft"
+          className="item-category-modal"
+          onPointerDown={clearConfirmationBackdropHandlers.onPointerDown}
+          onClick={clearConfirmationBackdropHandlers.onClick}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-confirm-modal__content"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Confirm Clear</div>
+            <p className="category-mgmt-confirm-modal__message">
+              Are you sure you want to clear this article draft?
+            </p>
+            <div className="category-mgmt-delete-warning">
+              <p>
+                This clears the current title and body and cannot be undone.
+              </p>
+            </div>
+            <div className="item-category-form__actions category-mgmt-confirm-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={() => {
+                  setIsClearConfirmationOpen(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="staff-dev-pill staff-dev-pill--danger"
+                onClick={handleClear}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isBrowseImagesPopupOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Browse Images"
+          className="item-category-modal"
+          onPointerDown={browseImagesBackdropHandlers.onPointerDown}
+          onClick={browseImagesBackdropHandlers.onClick}
+        >
+          <div
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="item-category-modal__title">Browse Images</div>
+
+            <div className="item-category-form item-browse-images-form">
+              <div className="item-browse-images-toolbar">
+                <form
+                  className="item-browse-images-search-form"
+                  onSubmit={handleBrowseItemSearchSubmit}
+                >
+                  <div className="item-search-page__search-bar">
+                    <div className="item-search-page__search-input-wrap">
+                      <input
+                        type="text"
+                        className="item-search-page__search-input item-browse-images-search"
+                        value={browseItemSearchInput}
+                        onChange={(event) =>
+                          setBrowseItemSearchInput(event.target.value)
+                        }
+                        placeholder="Search by SKU or Name"
+                        disabled={
+                          isLoadingBrowseImages || isInsertingImageKey !== null
+                        }
+                      />
+                      {(browseItemSearchInput || browseItemSearchQuery) && (
+                        <button
+                          type="button"
+                          className="item-search-page__search-clear"
+                          onClick={handleClearBrowseItemSearch}
+                          aria-label="Clear search"
+                          disabled={
+                            isLoadingBrowseImages || isInsertingImageKey !== null
+                          }
+                        >
+                          x
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      className="item-search-page__search-submit"
+                      aria-label="Search image library"
+                      disabled={
+                        isLoadingBrowseImages || isInsertingImageKey !== null
+                      }
+                    >
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="11" cy="11" r="7" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+
+                <button
+                  type="button"
+                  className="staff-dev-pill"
+                  onClick={() => void loadBrowseImages()}
+                  disabled={
+                    isLoadingBrowseImages || isInsertingImageKey !== null
+                  }
+                >
+                  {isLoadingBrowseImages ? "Loading..." : "Refresh"}
+                </button>
+              </div>
+
+              {browseImagesError ? (
+                <div className="item-category-form__status item-category-form__status--error">
+                  {browseImagesError}
+                </div>
+              ) : null}
+
+              {!browseImagesError && isLoadingBrowseImages ? (
+                <div className="item-browse-images-state">
+                  Loading image library...
+                </div>
+              ) : null}
+
+              {!browseImagesError &&
+              !isLoadingBrowseImages &&
+              sortedBrowseImages.length === 0 ? (
+                <div className="item-browse-images-state">
+                  {browseItemSearchQuery
+                    ? "No images found for matching catalog items."
+                    : "No linked images found."}
+                </div>
+              ) : null}
+
+              {!browseImagesError &&
+              !isLoadingBrowseImages &&
+              sortedBrowseImages.length > 0 ? (
+                <div className="item-browse-images-grid">
+                  {sortedBrowseImages.map((entry) => {
+                    const isInsertingThisImage =
+                      isInsertingImageKey === entry.s3Key;
+
+                    return (
+                      <div key={entry.s3Key} className="item-browse-images-card">
+                        <div className="item-browse-images-preview">
+                          <Image
+                            src={entry.url}
+                            alt={`Image ${entry.s3Key}`}
+                            width={600}
+                            height={450}
+                            className="item-browse-images-preview-img"
+                          />
+                        </div>
+                        <div className="item-browse-images-meta">
+                          <div
+                            className="item-browse-images-key"
+                            title={entry.s3Key}
+                          >
+                            {entry.s3Key}
+                          </div>
+                          <div className="item-browse-images-usage">
+                            Used by {entry.usageCount} item
+                            {entry.usageCount === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="staff-dev-pill"
+                          onClick={() => void handleInsertBrowseImage(entry)}
+                          disabled={isInsertingImageKey !== null}
+                        >
+                          {isInsertingThisImage ? "Inserting..." : "Insert"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+              <button
+                type="button"
+                className="staff-dev-pill"
+                onClick={closeBrowseImagesPopupBase}
+                disabled={isInsertingImageKey !== null}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

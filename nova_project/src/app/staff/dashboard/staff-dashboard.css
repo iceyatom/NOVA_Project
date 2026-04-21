@@ -866,6 +866,13 @@
   gap: 0.5rem;
 }
 
+.article-managment__insert-image-btn:focus,
+.article-managment__insert-image-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+  transform: none;
+}
+
 .article-managment__mode-row {
   display: flex;
   flex-wrap: wrap;
@@ -937,6 +944,21 @@
   line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.article-managment__preview-image-block {
+  margin: 1rem 0 1.2rem;
+  display: block;
+}
+
+.article-managment__preview-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: 0.65rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
 .article-managment__preview-placeholder {
