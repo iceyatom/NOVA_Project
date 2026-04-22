@@ -84,30 +84,50 @@ const highlightData: HighlightContent[] =
       );
 
 export default async function HomePage() {
-  const newsArticles = await prisma.article.findMany({
-    where: {
-      type: "NEWS",
-    },
-    select: {
-      id: true,
-      title: true,
-      body: true,
-      createdAt: true,
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-  });
+  const [newsArticlesResult, infoArticlesResult] = await Promise.allSettled([
+    prisma.article.findMany({
+      where: {
+        type: "NEWS",
+      },
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    }),
+    prisma.article.findMany({
+      where: {
+        type: "INFO",
+      },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+  ]);
 
-  const infoArticles = await prisma.article.findMany({
-    where: {
-      type: "INFO",
-    },
-    select: {
-      id: true,
-      title: true,
-      createdAt: true,
-    },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-  });
+  if (newsArticlesResult.status === "rejected") {
+    console.error(
+      "Home page failed to load NEWS articles from database:",
+      newsArticlesResult.reason,
+    );
+  }
+
+  if (infoArticlesResult.status === "rejected") {
+    console.error(
+      "Home page failed to load INFO articles from database:",
+      infoArticlesResult.reason,
+    );
+  }
+
+  const newsArticles =
+    newsArticlesResult.status === "fulfilled" ? newsArticlesResult.value : [];
+  const infoArticles =
+    infoArticlesResult.status === "fulfilled" ? infoArticlesResult.value : [];
 
   const leftLinks = infoArticles.map((article) => {
     const titleSlug = slugify(article.title);
