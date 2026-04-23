@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Unified error message for all invalid/expired/wrong-code cases — prevents account enumeration
+  // Unified error message for all invalid/expired/wrong-code cases.
   const invalid = () =>
     NextResponse.json(
       { ok: false, error: "Invalid or expired verification code." },
@@ -36,6 +36,75 @@ export async function POST(req: NextRequest) {
     );
 
   try {
+    const pendingSignup = await prisma.pendingSignup.findUnique({
+      where: { email },
+      select: {
+        email: true,
+        passwordHash: true,
+        role: true,
+        displayName: true,
+        phone: true,
+        codeHash: true,
+        expiresAt: true,
+      },
+    });
+
+    if (pendingSignup) {
+      if (pendingSignup.expiresAt < new Date()) {
+        return invalid();
+      }
+
+      const codeOk = await verifyVerificationCode(code, pendingSignup.codeHash);
+      if (!codeOk) {
+        return invalid();
+      }
+
+      await prisma.$transaction(async (tx) => {
+        const existing = await tx.account.findUnique({
+          where: { email },
+          select: { id: true, status: true },
+        });
+
+        if (existing && existing.status.toLowerCase() === "active") {
+          await tx.pendingSignup.delete({ where: { email } });
+          return;
+        }
+
+        if (existing) {
+          await tx.account.update({
+            where: { id: existing.id },
+            data: {
+              passwordHash: pendingSignup.passwordHash,
+              role: pendingSignup.role,
+              displayName: pendingSignup.displayName,
+              phone: pendingSignup.phone,
+              status: "active",
+              deletedAt: null,
+            },
+          });
+          await tx.pendingVerification.deleteMany({
+            where: { accountId: existing.id },
+          });
+        } else {
+          await tx.account.create({
+            data: {
+              email: pendingSignup.email,
+              passwordHash: pendingSignup.passwordHash,
+              role: pendingSignup.role,
+              displayName: pendingSignup.displayName,
+              phone: pendingSignup.phone,
+              status: "active",
+            },
+          });
+        }
+
+        await tx.pendingSignup.delete({ where: { email } });
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Legacy fallback for pending accounts created before PendingSignup existed.
     const account = await prisma.account.findUnique({
       where: { email },
       include: { pendingVerification: true },
@@ -61,7 +130,6 @@ export async function POST(req: NextRequest) {
       return invalid();
     }
 
-    // Activate the account and remove the verification record atomically
     await prisma.$transaction([
       prisma.account.update({
         where: { id: account.id },

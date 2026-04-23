@@ -1732,8 +1732,9 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const q = parseCatalogQuery(request);
+  const catalogItemId = q.id;
 
-  if (!q.id) {
+  if (catalogItemId === null) {
     return errorResponse(
       "A valid id query parameter is required.",
       undefined,
@@ -1770,38 +1771,55 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const catalogItem = await prisma.catalogItem.findUnique({
-      where: { id: q.id },
-      select: {
-        id: true,
-        images: {
-          select: {
-            s3Key: true,
+    const deletionResult = await prisma.$transaction(async (tx) => {
+      const catalogItem = await tx.catalogItem.findUnique({
+        where: { id: catalogItemId },
+        select: {
+          id: true,
+          images: {
+            select: {
+              s3Key: true,
+            },
           },
         },
-      },
+      });
+
+      if (!catalogItem) {
+        return null;
+      }
+
+      const uniqueImageKeys = Array.from(
+        new Set(
+          catalogItem.images
+            .map((image) => image.s3Key.trim())
+            .filter((key) => key.length > 0),
+        ),
+      );
+
+      // Explicitly remove this item's image-link rows before deleting the item.
+      // This keeps link cleanup correct even if DB-level cascade behavior changes.
+      await tx.catalogItemImage.deleteMany({
+        where: { catalogItemId },
+      });
+
+      await tx.catalogItem.delete({
+        where: { id: catalogItemId },
+      });
+
+      return {
+        deletedImageCount: catalogItem.images.length,
+        uniqueImageKeys,
+      };
     });
 
-    if (!catalogItem) {
+    if (!deletionResult) {
       return errorResponse("Catalog item not found.", undefined, 404);
     }
-
-    const uniqueImageKeys = Array.from(
-      new Set(
-        catalogItem.images
-          .map((image) => image.s3Key.trim())
-          .filter((key) => key.length > 0),
-      ),
-    );
-
-    await prisma.catalogItem.delete({
-      where: { id: q.id },
-    });
 
     const imageCleanupErrors: string[] = [];
 
     if (payload.deleteImagesFromStorage) {
-      for (const imageKey of uniqueImageKeys) {
+      for (const imageKey of deletionResult.uniqueImageKeys) {
         const remainingReferences = await prisma.catalogItemImage.count({
           where: { s3Key: imageKey },
         });
@@ -1830,7 +1848,7 @@ export async function DELETE(request: NextRequest) {
           success: true,
           data: {
             id: q.id,
-            deletedImageCount: catalogItem.images.length,
+            deletedImageCount: deletionResult.deletedImageCount,
             storageCleanupErrors: imageCleanupErrors,
           },
         },

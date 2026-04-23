@@ -162,6 +162,23 @@ model PendingVerification {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
+model PendingSignup {
+  id                Int      @id @default(autoincrement())
+  email             String   @unique
+  passwordHash      String
+  role              String
+  displayName       String?
+  phone             String?
+  codeHash          String
+  expiresAt         DateTime
+  resendAvailableAt DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@index([resendAvailableAt])
+}
+
 model Ticket {
   id                 Int          @id @default(autoincrement())
   createdByAccountId Int
