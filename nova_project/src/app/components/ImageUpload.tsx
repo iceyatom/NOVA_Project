@@ -14,6 +14,7 @@ type Props = {
   maxSizeBytes?: number;
   onError?: (error: string) => void;
   autoUpload?: boolean;
+  showManualUploadButton?: boolean;
 };
 
 type PresignedUrlResponse = {
@@ -35,6 +36,7 @@ export default function ImageUpload({
   onError,
   maxSizeBytes = 10 * 1024 * 1024,
   autoUpload = true,
+  showManualUploadButton = true,
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -609,7 +611,7 @@ export default function ImageUpload({
                 gap: "12px",
               }}
             >
-              {!autoUpload && uploadStatus === "idle" && (
+              {!autoUpload && showManualUploadButton && uploadStatus === "idle" && (
                 <button
                   type="button"
                   onClick={() => void handleUpload()}
