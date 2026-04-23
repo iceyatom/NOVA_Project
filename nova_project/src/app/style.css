@@ -1786,6 +1786,7 @@ body {
   overflow: hidden;
   background: #f3f4f6;
   aspect-ratio: 4 / 3;
+  position: relative;
   display: grid;
   place-items: center;
 }
@@ -1806,6 +1807,9 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: center;
+  display: block;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .product-image-lightbox {
@@ -1831,6 +1835,10 @@ body {
   width: auto;
   height: auto;
   object-fit: contain;
+  object-position: center;
+  display: block;
+  margin-top: auto;
+  margin-bottom: auto;
   border-radius: 12px;
   background: #fff;
 }
@@ -1880,6 +1888,7 @@ body {
   padding: 0;
   width: 72px;
   height: 56px;
+  position: relative;
   overflow: hidden;
   cursor: pointer;
   flex: 0 0 auto;

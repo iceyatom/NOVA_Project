@@ -68,8 +68,7 @@ export default function CatalogImageGallery({
           className="product-image-img"
           src={safeImages[selectedIndex]}
           alt={`Image of ${title}`}
-          width={640}
-          height={428}
+          fill
           sizes="(max-width: 900px) 100vw, 50vw"
           quality={100}
           unoptimized
@@ -101,8 +100,8 @@ export default function CatalogImageGallery({
                 className="product-carousel-thumb-img"
                 src={img}
                 alt={`Image ${i + 1} of ${title}`}
-                width={160}
-                height={120}
+                fill
+                sizes="72px"
                 quality={100}
                 unoptimized
               />
