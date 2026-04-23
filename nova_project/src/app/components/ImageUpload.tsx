@@ -611,24 +611,26 @@ export default function ImageUpload({
                 gap: "12px",
               }}
             >
-              {!autoUpload && showManualUploadButton && uploadStatus === "idle" && (
-                <button
-                  type="button"
-                  onClick={() => void handleUpload()}
-                  style={{
-                    padding: "12px 18px",
-                    borderRadius: "999px",
-                    border: "1px solid rgba(107, 148, 119, 0.72)",
-                    background: "#1e7f5a",
-                    color: "#ffffff",
-                    font: "inherit",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Upload to S3
-                </button>
-              )}
+              {!autoUpload &&
+                showManualUploadButton &&
+                uploadStatus === "idle" && (
+                  <button
+                    type="button"
+                    onClick={() => void handleUpload()}
+                    style={{
+                      padding: "12px 18px",
+                      borderRadius: "999px",
+                      border: "1px solid rgba(107, 148, 119, 0.72)",
+                      background: "#1e7f5a",
+                      color: "#ffffff",
+                      font: "inherit",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Upload to S3
+                  </button>
+                )}
 
               {uploadStatus === "error" && (
                 <button

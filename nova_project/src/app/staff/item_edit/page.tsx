@@ -482,7 +482,10 @@ function getPendingLocalUploadIds(images: ItemImage[]): string[] {
 }
 
 function createPendingUploadId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
 
@@ -1392,7 +1395,9 @@ function StaffItemEditPageContent() {
           const pendingUpload =
             pendingLocalUploadsRef.current.get(pendingUploadId) ?? null;
           if (!pendingUpload) {
-            throw new Error("One or more selected images are no longer available.");
+            throw new Error(
+              "One or more selected images are no longer available.",
+            );
           }
 
           const uploadResult = await uploadFileToS3(pendingUpload.file);
@@ -2735,24 +2740,25 @@ function StaffItemEditPageContent() {
                           previewUrl,
                         });
 
-                        setForm((prev) =>
-                          ({
-                            ...prev,
-                            images: [
-                              ...(prev.images.length === 1 &&
-                              prev.images[0]?.url === "/FillerImage.webp"
-                                ? []
-                                : prev.images),
-                              {
-                                id: null,
-                                s3Key: null,
-                                sortOrder: null,
-                                url: previewUrl,
-                                createdAt: null,
-                                pendingUploadId,
-                              },
-                            ],
-                          }) satisfies ItemForm,
+                        setForm(
+                          (prev) =>
+                            ({
+                              ...prev,
+                              images: [
+                                ...(prev.images.length === 1 &&
+                                prev.images[0]?.url === "/FillerImage.webp"
+                                  ? []
+                                  : prev.images),
+                                {
+                                  id: null,
+                                  s3Key: null,
+                                  sortOrder: null,
+                                  url: previewUrl,
+                                  createdAt: null,
+                                  pendingUploadId,
+                                },
+                              ],
+                            }) satisfies ItemForm,
                         );
                         setSuccessMessage(
                           "Image selected. It will upload to S3 and link when you save changes.",
