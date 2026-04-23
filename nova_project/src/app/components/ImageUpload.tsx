@@ -14,6 +14,7 @@ type Props = {
   maxSizeBytes?: number;
   onError?: (error: string) => void;
   autoUpload?: boolean;
+  showManualUploadButton?: boolean;
 };
 
 type PresignedUrlResponse = {
@@ -35,6 +36,7 @@ export default function ImageUpload({
   onError,
   maxSizeBytes = 10 * 1024 * 1024,
   autoUpload = true,
+  showManualUploadButton = true,
 }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -609,24 +611,26 @@ export default function ImageUpload({
                 gap: "12px",
               }}
             >
-              {!autoUpload && uploadStatus === "idle" && (
-                <button
-                  type="button"
-                  onClick={() => void handleUpload()}
-                  style={{
-                    padding: "12px 18px",
-                    borderRadius: "999px",
-                    border: "1px solid rgba(107, 148, 119, 0.72)",
-                    background: "#1e7f5a",
-                    color: "#ffffff",
-                    font: "inherit",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Upload to S3
-                </button>
-              )}
+              {!autoUpload &&
+                showManualUploadButton &&
+                uploadStatus === "idle" && (
+                  <button
+                    type="button"
+                    onClick={() => void handleUpload()}
+                    style={{
+                      padding: "12px 18px",
+                      borderRadius: "999px",
+                      border: "1px solid rgba(107, 148, 119, 0.72)",
+                      background: "#1e7f5a",
+                      color: "#ffffff",
+                      font: "inherit",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Upload to S3
+                  </button>
+                )}
 
               {uploadStatus === "error" && (
                 <button

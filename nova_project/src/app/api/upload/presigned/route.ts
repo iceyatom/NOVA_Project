@@ -109,7 +109,6 @@ export async function POST(request: NextRequest) {
     const { presignedUrl, fileUrl, fileKey } = await generatePresignedUrl(
       body.fileName,
       body.fileType,
-      customMaxSize, // Server-side validation placeholder (S3 doesn't enforce size)
     );
 
     // Return success response

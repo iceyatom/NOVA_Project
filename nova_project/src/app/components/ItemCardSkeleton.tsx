@@ -1,19 +1,4 @@
 "use client";
-import Image from "next/image";
-
-type Item = {
-  id: number;
-  itemName: string;
-  category1: string;
-  category2: string;
-  category3: string;
-  description: string;
-  unitCost: number;
-  unitType: string;
-  quantity: number;
-  imageUrl: string;
-  stock: number;
-};
 
 export default function ItemCardSkeleton() {
   // Styles
@@ -89,14 +74,6 @@ export default function ItemCardSkeleton() {
     backgroundColor: "#EEEEEE",
     borderRadius: "4px",
     width: "25%",
-  };
-
-  const unitStyle = {
-    fontSize: "12px",
-    color: "#aaaaaa",
-    marginTop: "4px",
-    backgroundColor: "#EEEEEE",
-    borderRadius: "4px",
   };
 
   const stockStyle = {

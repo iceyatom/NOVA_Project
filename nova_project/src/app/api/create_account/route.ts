@@ -9,6 +9,8 @@ import {
 import { sendVerificationEmail } from "@/lib/email/emailService";
 
 export const runtime = "nodejs";
+const RESEND_COOLDOWN_MINUTES = 5;
+const VERIFY_CODE_EXPIRY_MINUTES = 15;
 
 function normalizePhone(value: unknown): string {
   return typeof value === "string" ? value.replace(/\D/g, "") : "";
@@ -34,12 +36,32 @@ function getPhoneError(value: string): string | null {
   return null;
 }
 
+function isStrongPassword(value: string): boolean {
+  return (
+    value.length >= 8 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value)
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password, displayName, phone, role } = await req.json();
-    if (!email || !password) {
+    const normalizedPassword = typeof password === "string" ? password : "";
+
+    if (!email || !normalizedPassword) {
       return NextResponse.json(
         { error: "Email and password are required." },
+        { status: 400 },
+      );
+    }
+    if (!isStrongPassword(normalizedPassword)) {
+      return NextResponse.json(
+        {
+          error:
+            "Password must be at least 8 characters and include uppercase, lowercase, and a number.",
+        },
         { status: 400 },
       );
     }
@@ -51,9 +73,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: phoneError }, { status: 400 });
     }
 
-    // Reject if an active (verified) account already exists with this email
+    // Reject if a verified account already exists with this email.
     const existing = await prisma.account.findUnique({
       where: { email: normalizedEmail },
+      select: { status: true },
     });
     if (existing && existing.status === "active") {
       return NextResponse.json(
@@ -62,56 +85,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(normalizedPassword, 10);
 
-    // Only allow STAFF or CUSTOMER via public form, never ADMIN
+    // Only allow STAFF or CUSTOMER via public form, never ADMIN.
     let safeRole = "CUSTOMER";
     if (role === "STAFF") safeRole = "STAFF";
 
-    //temporarily allow admin for testing, but should be removed in production
-    if (role === "ADMIN") safeRole = "ADMIN"; // Remove this line in production to prevent public admin creation
+    // Temporarily allow admin for testing.
+    if (role === "ADMIN") safeRole = "ADMIN";
 
-    // Create or update the account in pending state
-    let account;
-    if (existing && existing.status !== "active") {
-      // Re-registration while still pending — update credentials
-      account = await prisma.account.update({
-        where: { id: existing.id },
-        data: {
-          passwordHash,
-          role: safeRole,
-          displayName: displayName || null,
-          phone: normalizedPhone,
-        },
-      });
-    } else {
-      account = await prisma.account.create({
-        data: {
-          email: normalizedEmail,
-          passwordHash,
-          role: safeRole,
-          status: "pending",
-          displayName: displayName || null,
-          phone: normalizedPhone,
-        },
-      });
-    }
-
-    // Generate and store a hashed verification code
     const code = generateVerificationCode();
     const codeHash = await hashVerificationCode(code);
-    const expiresAt = getExpiryDate(15);
+    const expiresAt = getExpiryDate(VERIFY_CODE_EXPIRY_MINUTES);
+    const resendAvailableAt = getExpiryDate(RESEND_COOLDOWN_MINUTES);
 
-    await prisma.pendingVerification.upsert({
-      where: { accountId: account.id },
-      update: { codeHash, expiresAt },
-      create: { accountId: account.id, codeHash, expiresAt },
+    await prisma.pendingSignup.upsert({
+      where: { email: normalizedEmail },
+      update: {
+        passwordHash,
+        role: safeRole,
+        displayName: displayName || null,
+        phone: normalizedPhone,
+        codeHash,
+        expiresAt,
+        resendAvailableAt,
+      },
+      create: {
+        email: normalizedEmail,
+        passwordHash,
+        role: safeRole,
+        displayName: displayName || null,
+        phone: normalizedPhone,
+        codeHash,
+        expiresAt,
+        resendAvailableAt,
+      },
     });
 
-    // Send the verification email
     await sendVerificationEmail(normalizedEmail, displayName || "there", code);
 
-    return NextResponse.json({ success: true, email: normalizedEmail });
+    return NextResponse.json({
+      success: true,
+      email: normalizedEmail,
+      resendAvailableAt: resendAvailableAt.toISOString(),
+    });
   } catch (error) {
     console.error("Account creation failed:", error);
     return NextResponse.json(

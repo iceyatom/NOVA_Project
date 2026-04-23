@@ -27,6 +27,7 @@ type ItemImage = {
   sortOrder: number | null;
   url: string;
   createdAt: string | null;
+  pendingUploadId?: string | null;
 };
 
 type ItemClassification = {
@@ -75,6 +76,19 @@ type LinkImageApiResponse = {
   alreadyLinked?: unknown;
   error?: unknown;
   details?: unknown;
+};
+
+type PresignedUrlResponse = {
+  success?: boolean;
+  presignedUrl?: string;
+  fileUrl?: string;
+  fileKey?: string;
+  error?: string;
+};
+
+type PendingLocalUpload = {
+  file: File;
+  previewUrl: string;
 };
 
 type PendingReferenceDelete = {
@@ -126,6 +140,7 @@ function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
           sortOrder: getNullableNumber(image.sortOrder),
           url,
           createdAt: getNullableString(image.createdAt),
+          pendingUploadId: null,
         };
       })
       .filter((entry): entry is ItemImage => entry !== null);
@@ -150,6 +165,7 @@ function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
         sortOrder: null,
         url,
         createdAt: null,
+        pendingUploadId: null,
       }));
     }
   }
@@ -168,6 +184,7 @@ function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
         sortOrder: null,
         url,
         createdAt: null,
+        pendingUploadId: null,
       }));
     }
   }
@@ -179,6 +196,7 @@ function parseCatalogImages(raw: Record<string, unknown>): ItemImage[] {
       sortOrder: null,
       url: "/FillerImage.webp",
       createdAt: null,
+      pendingUploadId: null,
     },
   ];
 }
@@ -373,6 +391,7 @@ function withFallbackImage(images: ItemImage[]): ItemImage[] {
           sortOrder: null,
           url: "/FillerImage.webp",
           createdAt: null,
+          pendingUploadId: null,
         },
       ];
 }
@@ -414,9 +433,121 @@ function mergeLinkedImageIntoForm(
         sortOrder: linkedImage.sortOrder,
         url,
         createdAt: linkedImage.createdAt,
+        pendingUploadId: null,
       },
     ],
   };
+}
+
+function getPendingImageKeys(images: ItemImage[]): string[] {
+  const seen = new Set<string>();
+  const pendingKeys: string[] = [];
+
+  for (const image of images) {
+    if (image.id != null) {
+      continue;
+    }
+
+    const key = image.s3Key?.trim() ?? "";
+    if (!key || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    pendingKeys.push(key);
+  }
+
+  return pendingKeys;
+}
+
+function getPendingLocalUploadIds(images: ItemImage[]): string[] {
+  const seen = new Set<string>();
+  const pendingIds: string[] = [];
+
+  for (const image of images) {
+    if (image.id != null || image.s3Key?.trim()) {
+      continue;
+    }
+
+    const pendingUploadId = image.pendingUploadId?.trim() ?? "";
+    if (!pendingUploadId || seen.has(pendingUploadId)) {
+      continue;
+    }
+
+    seen.add(pendingUploadId);
+    pendingIds.push(pendingUploadId);
+  }
+
+  return pendingIds;
+}
+
+function createPendingUploadId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `pending-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function buildOrderedImageIdsForPersist(
+  desiredImages: ItemImage[],
+  refreshedImages: ItemImage[],
+): number[] {
+  const idsByKey = new Map<string, number[]>();
+  const remainingIds: number[] = [];
+
+  for (const image of refreshedImages) {
+    if (image.id == null) {
+      continue;
+    }
+
+    remainingIds.push(image.id);
+
+    const key = image.s3Key?.trim() ?? "";
+    if (!key) {
+      continue;
+    }
+
+    const existing = idsByKey.get(key);
+    if (existing) {
+      existing.push(image.id);
+    } else {
+      idsByKey.set(key, [image.id]);
+    }
+  }
+
+  const orderedIds: number[] = [];
+  const usedIds = new Set<number>();
+
+  for (const image of desiredImages) {
+    const key = image.s3Key?.trim() ?? "";
+    if (!key) {
+      continue;
+    }
+
+    const idQueue = idsByKey.get(key);
+    const imageId = idQueue?.shift();
+    if (imageId == null || usedIds.has(imageId)) {
+      continue;
+    }
+
+    orderedIds.push(imageId);
+    usedIds.add(imageId);
+  }
+
+  for (const imageId of remainingIds) {
+    if (usedIds.has(imageId)) {
+      continue;
+    }
+
+    orderedIds.push(imageId);
+    usedIds.add(imageId);
+  }
+
+  return orderedIds;
 }
 
 function sanitizeMoneyInput(value: string): string {
@@ -629,6 +760,7 @@ function StaffItemEditPageContent() {
           sortOrder: null,
           url: "/FillerImage.webp",
           createdAt: null,
+          pendingUploadId: null,
         },
       ],
       quantityInStock: 0,
@@ -719,6 +851,9 @@ function StaffItemEditPageContent() {
   ] = useState(1);
   const imageThumbRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const imageDragOverIndexRef = useRef<number | null>(null);
+  const pendingLocalUploadsRef = useRef<Map<string, PendingLocalUpload>>(
+    new Map(),
+  );
 
   const originalRef = useRef<ItemForm>(form);
 
@@ -726,7 +861,21 @@ function StaffItemEditPageContent() {
     () => !sameNonImageForm(form, originalRef.current),
     [form],
   );
-  const isDirty = hasNonImageChanges || isImageOrderDirty;
+  const pendingImageKeysToLink = useMemo(
+    () => getPendingImageKeys(form.images),
+    [form.images],
+  );
+  const pendingLocalUploadIds = useMemo(
+    () => getPendingLocalUploadIds(form.images),
+    [form.images],
+  );
+  const hasPendingImageLinks = pendingImageKeysToLink.length > 0;
+  const hasPendingLocalUploads = pendingLocalUploadIds.length > 0;
+  const isDirty =
+    hasNonImageChanges ||
+    isImageOrderDirty ||
+    hasPendingImageLinks ||
+    hasPendingLocalUploads;
   const normalizedForm = useMemo(() => normalizeForCompare(form), [form]);
   const normalizedOriginal = normalizeForCompare(originalRef.current);
   const isFieldDirty = (field: keyof NormalizedItemForm) =>
@@ -1143,7 +1292,11 @@ function StaffItemEditPageContent() {
     }
 
     const shouldSaveItemFields = hasNonImageChanges;
+    const shouldUploadLocalImages = pendingLocalUploadIds.length > 0;
+    const shouldSaveImageLinks =
+      pendingImageKeysToLink.length > 0 || shouldUploadLocalImages;
     const shouldSaveImageOrder = isImageOrderDirty;
+    const desiredImageOrder = form.images.map((image) => ({ ...image }));
 
     let payload: Record<string, unknown> | null = null;
 
@@ -1227,47 +1380,143 @@ function StaffItemEditPageContent() {
         }
       }
 
-      if (shouldSaveImageOrder) {
-        const orderedImageIds = form.images
-          .map((image) => image.id)
-          .filter((imageId): imageId is number => imageId != null);
+      const keysToLink = new Set<string>(pendingImageKeysToLink);
 
-        if (
-          orderedImageIds.length > 1 &&
-          orderedImageIds.length === form.images.length
-        ) {
-          await persistImageOrder(orderedImageIds);
-        } else if (form.images.length > 1) {
+      if (shouldUploadLocalImages) {
+        const uploadedByPendingId = new Map<
+          string,
+          {
+            fileKey: string;
+            fileUrl: string;
+          }
+        >();
+
+        for (const pendingUploadId of pendingLocalUploadIds) {
+          const pendingUpload =
+            pendingLocalUploadsRef.current.get(pendingUploadId) ?? null;
+          if (!pendingUpload) {
+            throw new Error(
+              "One or more selected images are no longer available.",
+            );
+          }
+
+          const uploadResult = await uploadFileToS3(pendingUpload.file);
+          uploadedByPendingId.set(pendingUploadId, uploadResult);
+          keysToLink.add(uploadResult.fileKey);
+        }
+
+        if (uploadedByPendingId.size > 0) {
+          setForm((prev) => ({
+            ...prev,
+            images: prev.images.map((image) => {
+              const pendingUploadId = image.pendingUploadId?.trim() ?? "";
+              if (!pendingUploadId) {
+                return image;
+              }
+
+              const uploaded = uploadedByPendingId.get(pendingUploadId);
+              if (!uploaded) {
+                return image;
+              }
+
+              return {
+                ...image,
+                s3Key: uploaded.fileKey,
+                url: uploaded.fileUrl,
+                pendingUploadId: null,
+              };
+            }),
+          }));
+
+          for (const image of desiredImageOrder) {
+            const pendingUploadId = image.pendingUploadId?.trim() ?? "";
+            if (!pendingUploadId) {
+              continue;
+            }
+
+            const uploaded = uploadedByPendingId.get(pendingUploadId);
+            if (!uploaded) {
+              continue;
+            }
+
+            image.s3Key = uploaded.fileKey;
+            image.url = uploaded.fileUrl;
+            image.pendingUploadId = null;
+            revokePendingLocalUpload(pendingUploadId);
+          }
+        }
+      }
+
+      if (keysToLink.size > 0) {
+        const failedKeys: string[] = [];
+
+        for (const fileKey of keysToLink) {
+          try {
+            await linkUploadedImage(fileKey);
+          } catch {
+            failedKeys.push(fileKey);
+          }
+        }
+
+        if (failedKeys.length > 0) {
           throw new Error(
-            "Unable to save image order because one or more image links are missing IDs.",
+            `Failed to link ${failedKeys.length} pending image${failedKeys.length === 1 ? "" : "s"}.`,
           );
         }
       }
 
-      const refreshedResponse = await fetch(`/api/catalog?id=${id}`, {
-        cache: "no-store",
-      });
+      async function fetchRefreshedItem(): Promise<Item> {
+        const refreshedResponse = await fetch(`/api/catalog?id=${id}`, {
+          cache: "no-store",
+        });
 
-      if (!refreshedResponse.ok) {
-        throw new Error(
-          `Failed to reload item after save (HTTP ${refreshedResponse.status}).`,
-        );
+        if (!refreshedResponse.ok) {
+          throw new Error(
+            `Failed to reload item after save (HTTP ${refreshedResponse.status}).`,
+          );
+        }
+
+        const refreshedPayload =
+          (await refreshedResponse.json()) as CatalogApiResponse;
+
+        if (!refreshedPayload?.success) {
+          throw new Error("Failed to reload saved item.");
+        }
+
+        const parsed = parseCatalogItem(refreshedPayload.data);
+        if (!parsed) {
+          throw new Error("Failed to parse refreshed item data.");
+        }
+
+        return parsed;
       }
 
-      const refreshedPayload =
-        (await refreshedResponse.json()) as CatalogApiResponse;
+      let refreshedItem = await fetchRefreshedItem();
 
-      if (!refreshedPayload?.success) {
-        throw new Error("Failed to reload saved item.");
-      }
+      if (shouldSaveImageOrder) {
+        const linkedImageCount = refreshedItem.images.filter(
+          (image) => image.id != null,
+        ).length;
 
-      const refreshedItem = parseCatalogItem(refreshedPayload.data);
+        if (linkedImageCount > 1) {
+          const orderedImageIds = buildOrderedImageIdsForPersist(
+            desiredImageOrder,
+            refreshedItem.images,
+          );
 
-      if (!refreshedItem) {
-        throw new Error("Failed to parse refreshed item data.");
+          if (orderedImageIds.length !== linkedImageCount) {
+            throw new Error(
+              "Unable to save image order because one or more image links are missing IDs.",
+            );
+          }
+
+          await persistImageOrder(orderedImageIds);
+          refreshedItem = await fetchRefreshedItem();
+        }
       }
 
       const nextForm = toForm(refreshedItem);
+      clearPendingLocalUploads();
       setForm(nextForm);
       setNextClassificationDraftId(
         getNextClassificationDraftId(nextForm.classifications),
@@ -1279,11 +1528,19 @@ function StaffItemEditPageContent() {
       originalRef.current = structuredClone(nextForm);
       setIsImageOrderDirty(false);
       setSuccessMessage(
-        shouldSaveItemFields && shouldSaveImageOrder
-          ? "Item edits and image order saved."
-          : shouldSaveImageOrder
-            ? "Image order saved."
-            : "Item edit changes saved.",
+        shouldSaveItemFields && shouldSaveImageLinks && shouldSaveImageOrder
+          ? "Item edits, image links, and image order saved."
+          : shouldSaveItemFields && shouldSaveImageLinks
+            ? "Item edits and image links saved."
+            : shouldSaveItemFields && shouldSaveImageOrder
+              ? "Item edits and image order saved."
+              : shouldSaveImageLinks && shouldSaveImageOrder
+                ? "Image links and image order saved."
+                : shouldSaveImageLinks
+                  ? "Image links saved."
+                  : shouldSaveImageOrder
+                    ? "Image order saved."
+                    : "Item edit changes saved.",
       );
     } catch (error) {
       const message =
@@ -1300,6 +1557,7 @@ function StaffItemEditPageContent() {
       return;
     }
 
+    clearPendingLocalUploads();
     const snapshot = structuredClone(originalRef.current);
     setForm(snapshot);
     setNextClassificationDraftId(
@@ -1317,6 +1575,35 @@ function StaffItemEditPageContent() {
   function resetSuccessMessage() {
     setSuccessMessage(null);
   }
+
+  function revokePendingLocalUpload(pendingUploadId: string) {
+    const pendingUpload = pendingLocalUploadsRef.current.get(pendingUploadId);
+    if (pendingUpload?.previewUrl) {
+      URL.revokeObjectURL(pendingUpload.previewUrl);
+    }
+    pendingLocalUploadsRef.current.delete(pendingUploadId);
+  }
+
+  function clearPendingLocalUploads() {
+    for (const pendingUpload of pendingLocalUploadsRef.current.values()) {
+      if (pendingUpload.previewUrl) {
+        URL.revokeObjectURL(pendingUpload.previewUrl);
+      }
+    }
+    pendingLocalUploadsRef.current.clear();
+  }
+
+  useEffect(() => {
+    const pendingUploadsRef = pendingLocalUploadsRef;
+    return () => {
+      for (const pendingUpload of pendingUploadsRef.current.values()) {
+        if (pendingUpload.previewUrl) {
+          URL.revokeObjectURL(pendingUpload.previewUrl);
+        }
+      }
+      pendingUploadsRef.current.clear();
+    };
+  }, []);
 
   function getImageIndexAtPoint(
     clientX: number,
@@ -1679,6 +1966,53 @@ function StaffItemEditPageContent() {
         ),
       );
     }
+  }
+
+  async function uploadFileToS3(file: File): Promise<{
+    fileUrl: string;
+    fileKey: string;
+  }> {
+    const presignedResponse = await fetch("/api/upload/presigned", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+      }),
+    });
+
+    const presignedData =
+      (await presignedResponse.json()) as PresignedUrlResponse;
+
+    if (!presignedResponse.ok || presignedData?.success !== true) {
+      throw new Error(
+        presignedData?.error || "Failed to get presigned upload URL.",
+      );
+    }
+
+    const presignedUrl = presignedData.presignedUrl?.trim() ?? "";
+    const fileUrl = presignedData.fileUrl?.trim() ?? "";
+    const fileKey = presignedData.fileKey?.trim() ?? "";
+
+    if (!presignedUrl || !fileUrl || !fileKey) {
+      throw new Error("Presigned upload response was missing required fields.");
+    }
+
+    const uploadResponse = await fetch(presignedUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error("Failed to upload file to S3.");
+    }
+
+    return { fileUrl, fileKey };
   }
 
   async function linkUploadedImage(fileKey: string) {
@@ -2396,32 +2730,42 @@ function StaffItemEditPageContent() {
                   <div style={{ width: "100%" }}>
                     <ImageUpload
                       uploadButtonText="Upload Image"
-                      onUploadSuccess={async (fileUrl, fileKey) => {
-                        try {
-                          const linkedImage = await linkUploadedImage(fileKey);
+                      autoUpload={false}
+                      showManualUploadButton={false}
+                      onFileSelected={(file) => {
+                        const pendingUploadId = createPendingUploadId();
+                        const previewUrl = URL.createObjectURL(file);
+                        pendingLocalUploadsRef.current.set(pendingUploadId, {
+                          file,
+                          previewUrl,
+                        });
 
-                          setForm((prev) =>
-                            mergeLinkedImageIntoForm(
-                              prev,
-                              linkedImage,
-                              fileUrl,
-                            ),
-                          );
-                          setSuccessMessage(
-                            linkedImage.alreadyLinked
-                              ? "This image was already linked to this item."
-                              : "Image uploaded and linked successfully.",
-                          );
-                          setSaveError(null);
-                        } catch (error) {
-                          setSaveError(
-                            error instanceof Error
-                              ? error.message
-                              : "Failed to link uploaded image.",
-                          );
-                        }
+                        setForm(
+                          (prev) =>
+                            ({
+                              ...prev,
+                              images: [
+                                ...(prev.images.length === 1 &&
+                                prev.images[0]?.url === "/FillerImage.webp"
+                                  ? []
+                                  : prev.images),
+                                {
+                                  id: null,
+                                  s3Key: null,
+                                  sortOrder: null,
+                                  url: previewUrl,
+                                  createdAt: null,
+                                  pendingUploadId,
+                                },
+                              ],
+                            }) satisfies ItemForm,
+                        );
+                        setSuccessMessage(
+                          "Image selected. It will upload to S3 and link when you save changes.",
+                        );
+                        setSaveError(null);
                       }}
-                      onUploadError={(message) => {
+                      onError={(message) => {
                         setSaveError(message);
                       }}
                     />

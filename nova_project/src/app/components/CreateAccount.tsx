@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type Errors = {
@@ -12,6 +12,22 @@ type Errors = {
 };
 
 type Step = "form" | "verify" | "success";
+const RESEND_COOLDOWN_SECONDS = 5 * 60;
+
+function parseIsoToMs(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function formatCountdown(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (safeSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
 
 export default function CreateAccountPage() {
   const [displayName, setDisplayName] = useState("");
@@ -33,6 +49,24 @@ export default function CreateAccountPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
+  const [resendLockedUntil, setResendLockedUntil] = useState<number | null>(
+    null,
+  );
+  const [nowMs, setNowMs] = useState(Date.now());
+
+  useEffect(() => {
+    if (step !== "verify") return;
+    const interval = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [step]);
+
+  const resendRemainingSeconds =
+    resendLockedUntil !== null
+      ? Math.max(0, Math.ceil((resendLockedUntil - nowMs) / 1000))
+      : 0;
+  const isResendLocked = resendRemainingSeconds > 0;
 
   const getPhoneError = (value: string): string | undefined => {
     const digitsOnly = value.replace(/\D/g, "");
@@ -61,6 +95,15 @@ export default function CreateAccountPage() {
     return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
   };
 
+  const isStrongPassword = (value: string) => {
+    return (
+      value.length >= 8 &&
+      /[A-Z]/.test(value) &&
+      /[a-z]/.test(value) &&
+      /\d/.test(value)
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -83,6 +126,9 @@ export default function CreateAccountPage() {
 
     if (!password) {
       next.password = "Password is required.";
+    } else if (!isStrongPassword(password)) {
+      next.password =
+        "Password must be at least 8 characters and include uppercase, lowercase, and a number.";
     }
 
     if (!confirmPassword) {
@@ -110,6 +156,11 @@ export default function CreateAccountPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setVerifiedEmail(data.email ?? email.trim().toLowerCase());
+        const serverLock = parseIsoToMs(data.resendAvailableAt);
+        setResendLockedUntil(
+          serverLock ?? Date.now() + RESEND_COOLDOWN_SECONDS * 1000,
+        );
+        setResendMessage(null);
         setStep("verify");
       } else if (res.status === 409) {
         setErrors((p) => ({ ...p, email: data.error }));
@@ -151,17 +202,41 @@ export default function CreateAccountPage() {
   };
 
   const handleResend = async () => {
+    if (isResending || isResendLocked) return;
+
     setResendMessage(null);
     setIsResending(true);
     try {
-      await fetch("/api/resend-verification", {
+      const res = await fetch("/api/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: verifiedEmail }),
       });
-      setResendMessage("A new code has been sent to your email.");
-      setVerifyCode("");
-      setVerifyError(null);
+      const data = await res.json();
+
+      if (res.ok) {
+        const serverLock = parseIsoToMs(data.resendAvailableAt);
+        setResendLockedUntil(
+          serverLock ?? Date.now() + RESEND_COOLDOWN_SECONDS * 1000,
+        );
+        setResendMessage("A new code has been sent to your email.");
+        setVerifyCode("");
+        setVerifyError(null);
+      } else {
+        const serverLock = parseIsoToMs(data.resendAvailableAt);
+        if (serverLock) {
+          setResendLockedUntil(serverLock);
+          const seconds = Math.max(
+            1,
+            Math.ceil((serverLock - Date.now()) / 1000),
+          );
+          setResendMessage(
+            `Please wait ${formatCountdown(seconds)} before requesting another code.`,
+          );
+        } else {
+          setResendMessage(data.error ?? "Could not resend. Please try again.");
+        }
+      }
     } catch {
       setResendMessage("Could not resend. Please try again.");
     } finally {
@@ -203,7 +278,7 @@ export default function CreateAccountPage() {
               type="submit"
               disabled={isVerifying}
             >
-              {isVerifying ? "Verifying…" : "Verify account"}
+              {isVerifying ? "Verifying..." : "Verify account"}
             </button>
           </form>
 
@@ -213,12 +288,23 @@ export default function CreateAccountPage() {
               className="authLink"
               type="button"
               onClick={handleResend}
-              disabled={isResending}
+              disabled={isResending || isResendLocked}
               style={{ background: "none", border: "none", cursor: "pointer" }}
             >
-              {isResending ? "Sending…" : "Resend code"}
+              {isResending
+                ? "Sending..."
+                : isResendLocked
+                  ? `Resend in ${formatCountdown(resendRemainingSeconds)}`
+                  : "Resend code"}
             </button>
           </div>
+
+          {isResendLocked && (
+            <p className="authLinksText" style={{ marginTop: "0.5rem" }}>
+              You can request another code in{" "}
+              <strong>{formatCountdown(resendRemainingSeconds)}</strong>.
+            </p>
+          )}
 
           {resendMessage && (
             <p className="authLinksText" style={{ marginTop: "0.5rem" }}>
@@ -239,7 +325,7 @@ export default function CreateAccountPage() {
             Your email has been verified and your account is now active.
           </p>
           <Link className="authLink" href="/login">
-            Sign in →
+            Sign in -&gt;
           </Link>
         </section>
       </div>
@@ -405,7 +491,7 @@ export default function CreateAccountPage() {
           </label>
 
           <button className="loginButton" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating account…" : "Create account"}
+            {isSubmitting ? "Creating account..." : "Create account"}
           </button>
         </form>
 

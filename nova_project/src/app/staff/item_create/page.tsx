@@ -25,6 +25,7 @@ type ItemImage = {
   s3Key: string | null;
   url: string;
   createdAt: string | null;
+  pendingUploadId?: string | null;
 };
 
 type ImagePointerDragState = {
@@ -89,6 +90,7 @@ const INITIAL_FORM: CreateItemForm = {
       s3Key: null,
       url: "/FillerImage.webp",
       createdAt: null,
+      pendingUploadId: null,
     },
   ],
 };
@@ -155,6 +157,7 @@ function withFallbackImage(images: ItemImage[]): ItemImage[] {
           s3Key: null,
           url: "/FillerImage.webp",
           createdAt: null,
+          pendingUploadId: null,
         },
       ];
 }
@@ -168,6 +171,38 @@ function getNextClassificationDraftId(
       0,
     ) + 1
   );
+}
+
+function getPendingLocalUploadIds(images: ItemImage[]): string[] {
+  const seen = new Set<string>();
+  const pendingIds: string[] = [];
+
+  for (const image of images) {
+    if (image.id != null || image.s3Key?.trim()) {
+      continue;
+    }
+
+    const pendingUploadId = image.pendingUploadId?.trim() ?? "";
+    if (!pendingUploadId || seen.has(pendingUploadId)) {
+      continue;
+    }
+
+    seen.add(pendingUploadId);
+    pendingIds.push(pendingUploadId);
+  }
+
+  return pendingIds;
+}
+
+function createPendingUploadId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `pending-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 type CreateApiResponse = {
@@ -189,6 +224,19 @@ type LinkImageApiResponse = {
   };
   error?: unknown;
   details?: unknown;
+};
+
+type PresignedUrlResponse = {
+  success?: boolean;
+  presignedUrl?: string;
+  fileUrl?: string;
+  fileKey?: string;
+  error?: string;
+};
+
+type PendingLocalUpload = {
+  file: File;
+  previewUrl: string;
 };
 
 function StaffItemCreatePageContent() {
@@ -227,6 +275,9 @@ function StaffItemCreatePageContent() {
   );
   const imageThumbRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const imageDragOverIndexRef = useRef<number | null>(null);
+  const pendingLocalUploadsRef = useRef<Map<string, PendingLocalUpload>>(
+    new Map(),
+  );
   const {
     isBrowseImagesPopupOpen,
     browseImages,
@@ -602,7 +653,37 @@ function StaffItemCreatePageContent() {
     return fields;
   }
 
+  function revokePendingLocalUpload(pendingUploadId: string) {
+    const pendingUpload = pendingLocalUploadsRef.current.get(pendingUploadId);
+    if (pendingUpload?.previewUrl) {
+      URL.revokeObjectURL(pendingUpload.previewUrl);
+    }
+    pendingLocalUploadsRef.current.delete(pendingUploadId);
+  }
+
+  function clearPendingLocalUploads() {
+    for (const pendingUpload of pendingLocalUploadsRef.current.values()) {
+      if (pendingUpload.previewUrl) {
+        URL.revokeObjectURL(pendingUpload.previewUrl);
+      }
+    }
+    pendingLocalUploadsRef.current.clear();
+  }
+
+  useEffect(() => {
+    const pendingUploadsRef = pendingLocalUploadsRef;
+    return () => {
+      for (const pendingUpload of pendingUploadsRef.current.values()) {
+        if (pendingUpload.previewUrl) {
+          URL.revokeObjectURL(pendingUpload.previewUrl);
+        }
+      }
+      pendingUploadsRef.current.clear();
+    };
+  }, []);
+
   function resetForm() {
+    clearPendingLocalUploads();
     const nextForm: CreateItemForm = {
       ...INITIAL_FORM,
       classifications: INITIAL_FORM.classifications.map((classification) => ({
@@ -678,6 +759,53 @@ function StaffItemCreatePageContent() {
         ),
       );
     }
+  }
+
+  async function uploadFileToS3(file: File): Promise<{
+    fileUrl: string;
+    fileKey: string;
+  }> {
+    const presignedResponse = await fetch("/api/upload/presigned", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+      }),
+    });
+
+    const presignedData =
+      (await presignedResponse.json()) as PresignedUrlResponse;
+
+    if (!presignedResponse.ok || presignedData?.success !== true) {
+      throw new Error(
+        presignedData?.error || "Failed to get presigned upload URL.",
+      );
+    }
+
+    const presignedUrl = presignedData.presignedUrl?.trim() ?? "";
+    const fileUrl = presignedData.fileUrl?.trim() ?? "";
+    const fileKey = presignedData.fileKey?.trim() ?? "";
+
+    if (!presignedUrl || !fileUrl || !fileKey) {
+      throw new Error("Presigned upload response was missing required fields.");
+    }
+
+    const uploadResponse = await fetch(presignedUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error("Failed to upload file to S3.");
+    }
+
+    return { fileUrl, fileKey };
   }
 
   async function linkUploadedImage(catalogItemId: number, fileKey: string) {
@@ -900,6 +1028,7 @@ function StaffItemCreatePageContent() {
             s3Key: key,
             url: entry.url,
             createdAt: entry.lastLinkedAt,
+            pendingUploadId: null,
           },
         ],
       };
@@ -954,11 +1083,10 @@ function StaffItemCreatePageContent() {
     setIsZeroValueConfirmationOpen(false);
     setZeroValueFields([]);
 
-    const imageKeysToLink = form.images
-      .filter(
-        (image) => image.url !== "/FillerImage.webp" && !!image.s3Key?.trim(),
-      )
-      .map((image) => image.s3Key!.trim());
+    const pendingLocalUploadIds = getPendingLocalUploadIds(form.images);
+    const hasSelectedImages =
+      pendingLocalUploadIds.length > 0 ||
+      form.images.some((image) => image.url !== "/FillerImage.webp");
 
     const startedClassifications = form.classifications
       .map((classification) => ({
@@ -1019,25 +1147,77 @@ function StaffItemCreatePageContent() {
       const createdId =
         typeof result?.data?.id === "number" ? result.data.id : null;
 
-      if (createdId !== null && imageKeysToLink.length > 0) {
-        const failedKeys: string[] = [];
+      if (createdId !== null) {
+        const keysToLink: string[] = [];
+        const seenKeys = new Set<string>();
+        let failedUploadCount = 0;
+        let failedLinkCount = 0;
 
-        for (const fileKey of imageKeysToLink) {
+        for (const image of form.images) {
+          if (image.url === "/FillerImage.webp") {
+            continue;
+          }
+
+          const existingKey = image.s3Key?.trim() ?? "";
+          if (existingKey) {
+            if (!seenKeys.has(existingKey)) {
+              seenKeys.add(existingKey);
+              keysToLink.push(existingKey);
+            }
+            continue;
+          }
+
+          const pendingUploadId = image.pendingUploadId?.trim() ?? "";
+          if (!pendingUploadId) {
+            continue;
+          }
+
+          const pendingUpload =
+            pendingLocalUploadsRef.current.get(pendingUploadId) ?? null;
+          if (!pendingUpload) {
+            failedUploadCount += 1;
+            continue;
+          }
+
           try {
-            await linkUploadedImage(createdId, fileKey);
+            const uploadResult = await uploadFileToS3(pendingUpload.file);
+            if (!seenKeys.has(uploadResult.fileKey)) {
+              seenKeys.add(uploadResult.fileKey);
+              keysToLink.push(uploadResult.fileKey);
+            }
+            revokePendingLocalUpload(pendingUploadId);
           } catch {
-            failedKeys.push(fileKey);
+            failedUploadCount += 1;
           }
         }
 
-        if (failedKeys.length > 0) {
+        for (const fileKey of keysToLink) {
+          try {
+            await linkUploadedImage(createdId, fileKey);
+          } catch {
+            failedLinkCount += 1;
+          }
+        }
+
+        if (failedUploadCount > 0 || failedLinkCount > 0) {
+          const uploadPart =
+            failedUploadCount > 0
+              ? `${failedUploadCount} image upload${failedUploadCount === 1 ? "" : "s"}`
+              : null;
+          const linkPart =
+            failedLinkCount > 0
+              ? `${failedLinkCount} image link${failedLinkCount === 1 ? "" : "s"}`
+              : null;
+          const failureSummary = [uploadPart, linkPart]
+            .filter((part): part is string => part !== null)
+            .join(" and ");
           setError(
-            `Item created (ID: ${createdId}), but ${failedKeys.length} image link${failedKeys.length === 1 ? "" : "s"} failed.`,
+            `Item created (ID: ${createdId}), but ${failureSummary} failed.`,
           );
         }
-      } else if (createdId === null && imageKeysToLink.length > 0) {
+      } else if (createdId === null && hasSelectedImages) {
         setError(
-          "Item was created, but images were not linked because no item ID was returned.",
+          "Item was created, but selected images were not uploaded or linked because no item ID was returned.",
         );
       }
 
@@ -1053,6 +1233,7 @@ function StaffItemCreatePageContent() {
         })),
         images: INITIAL_FORM.images.map((image) => ({ ...image })),
       };
+      clearPendingLocalUploads();
       setForm(resetFormState);
       setSubcategoryOptionsByClassificationId({});
       setTypeOptionsByClassificationId({});
@@ -1404,7 +1585,16 @@ function StaffItemCreatePageContent() {
                 <div style={{ width: "100%" }}>
                   <ImageUpload
                     uploadButtonText="Upload Image"
-                    onUploadSuccess={async (fileUrl, fileKey) => {
+                    autoUpload={false}
+                    showManualUploadButton={false}
+                    onFileSelected={(file) => {
+                      const pendingUploadId = createPendingUploadId();
+                      const previewUrl = URL.createObjectURL(file);
+                      pendingLocalUploadsRef.current.set(pendingUploadId, {
+                        file,
+                        previewUrl,
+                      });
+
                       setForm((prev) => {
                         const nextImages =
                           prev.images.length === 1 &&
@@ -1418,20 +1608,21 @@ function StaffItemCreatePageContent() {
                             ...nextImages,
                             {
                               id: null,
-                              s3Key: fileKey,
-                              url: fileUrl,
+                              s3Key: null,
+                              url: previewUrl,
                               createdAt: null,
+                              pendingUploadId,
                             },
                           ],
                         };
                       });
 
                       setSuccessMessage(
-                        "Image uploaded successfully. It will be linked when the item is created.",
+                        "Image selected. It will upload to S3 and link when the item is created.",
                       );
                       setError(null);
                     }}
-                    onUploadError={(message) => {
+                    onError={(message) => {
                       setError(message);
                     }}
                   />
@@ -1530,9 +1721,6 @@ function StaffItemCreatePageContent() {
               >
                 {isSaving ? "Creating..." : "Create Item"}
               </button>
-              <Link href={backToItemSearchHref} className="staff-dev-pill">
-                Back to Item Search
-              </Link>
             </div>
           </form>
         </div>
