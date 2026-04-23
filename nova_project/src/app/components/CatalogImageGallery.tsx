@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import useBackdropPointerClose from "@/app/hooks/useBackdropPointerClose";
 
 type CatalogImageGalleryProps = {
   images: string[];
@@ -14,6 +15,34 @@ export default function CatalogImageGallery({
 }: CatalogImageGalleryProps) {
   const safeImages = images.length > 0 ? images : ["/FillerImage.webp"];
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const closePreview = () => {
+    setIsPreviewOpen(false);
+  };
+
+  const backdropCloseHandlers =
+    useBackdropPointerClose<HTMLDivElement>(closePreview);
+
+  useEffect(() => {
+    if (!isPreviewOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closePreview();
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isPreviewOpen]);
 
   const goPrevious = () => {
     setSelectedIndex((current) =>
@@ -29,7 +58,12 @@ export default function CatalogImageGallery({
 
   return (
     <>
-      <div className="product-image">
+      <button
+        className="product-image product-image-button"
+        type="button"
+        onClick={() => setIsPreviewOpen(true)}
+        aria-label={`View full image of ${title}`}
+      >
         <Image
           className="product-image-img"
           src={safeImages[selectedIndex]}
@@ -41,7 +75,7 @@ export default function CatalogImageGallery({
           unoptimized
           priority
         />
-      </div>
+      </button>
 
       <div className="product-carousel">
         <button
@@ -85,6 +119,37 @@ export default function CatalogImageGallery({
           &gt;
         </button>
       </div>
+
+      {isPreviewOpen ? (
+        <div
+          className="product-image-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Enlarged image of ${title}`}
+          {...backdropCloseHandlers}
+        >
+          <button
+            type="button"
+            className="product-image-lightbox-close"
+            onClick={closePreview}
+            aria-label="Close image preview"
+          >
+            &times;
+          </button>
+          <div className="product-image-lightbox-content">
+            <Image
+              className="product-image-lightbox-img"
+              src={safeImages[selectedIndex]}
+              alt={`Image of ${title}`}
+              width={1600}
+              height={1200}
+              sizes="100vw"
+              quality={100}
+              unoptimized
+            />
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
