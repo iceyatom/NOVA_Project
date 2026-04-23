@@ -156,12 +156,6 @@ function getNumber(value: unknown, key: string): number | null {
   return coerceNumber(value[key]);
 }
 
-function getArray(value: unknown, key: string): unknown[] | null {
-  if (!isRecord(value)) return null;
-  const v = value[key];
-  return Array.isArray(v) ? (v as unknown[]) : null;
-}
-
 function withNoCache(resp: NextResponse) {
   resp.headers.set(
     "Cache-Control",

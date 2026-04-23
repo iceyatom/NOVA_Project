@@ -88,7 +88,6 @@ export function generateFileKey(fileName: string): string {
 export async function generatePresignedUrl(
   fileName: string,
   fileType: string,
-  _maxFileSize?: number, // Reserved for future server-side validation
 ): Promise<{
   presignedUrl: string;
   fileUrl: string;
