@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { hasPrismaConfig as hasConfiguredPrisma, prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth/staffAccess";
 
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ function getLambdaBaseUrl(): string {
 }
 
 function hasPrismaConfig(): boolean {
-  return Boolean((process.env.DATABASE_URL ?? "").trim());
+  return hasConfiguredPrisma();
 }
 
 function hasLambdaConfig(): boolean {

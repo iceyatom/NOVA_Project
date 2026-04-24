@@ -1,7 +1,8 @@
 // app/api/health/route.ts
 import { NextResponse } from "next/server";
-import { getPrisma } from "@/lib/prisma";
+import { getPrisma, hasPrismaConfig } from "@/lib/prisma";
 import { S3Client, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { getAwsCredentials } from "@/lib/awsCredentials";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,12 +58,15 @@ async function checkDb() {
 }
 
 async function checkS3() {
-  if (!process.env.AWS_REGION || !process.env.S3_BUCKET) {
+  if (!process.env.AWS_REGION || !process.env.S3_BUCKET_NAME) {
     return { ok: true, skipped: true };
   }
   try {
-    const s3 = new S3Client({ region: process.env.AWS_REGION });
-    await s3.send(new HeadBucketCommand({ Bucket: process.env.S3_BUCKET }));
+    const s3 = new S3Client({
+      region: process.env.AWS_REGION,
+      credentials: getAwsCredentials(),
+    });
+    await s3.send(new HeadBucketCommand({ Bucket: process.env.S3_BUCKET_NAME }));
     return { ok: true };
   } catch (e) {
     const err = e as Partial<Error> & { code?: string };
@@ -115,6 +119,6 @@ export async function GET() {
   );
   res.headers.set("Pragma", "no-cache");
   res.headers.set("Expires", "0");
-  console.log("ENV check DATABASE_URL present:", !!process.env.DATABASE_URL);
+  console.log("ENV check Prisma config present:", hasPrismaConfig());
   return res;
 }
