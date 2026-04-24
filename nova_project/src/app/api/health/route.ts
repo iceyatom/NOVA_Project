@@ -1,6 +1,6 @@
 // app/api/health/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { S3Client, HeadBucketCommand } from "@aws-sdk/client-s3";
 
 export const runtime = "nodejs";
@@ -24,6 +24,7 @@ type S3Result =
 type TimeoutResult = { ok: false; code: string; message: string };
 
 async function checkDb() {
+  const prisma = await getPrisma();
   try {
     const [ping] = await prisma.$queryRaw<{ ok: number | string | bigint }[]>`
       SELECT 1 AS ok

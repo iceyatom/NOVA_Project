@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/app/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const prisma = await getPrisma();
   try {
     const result = await prisma.$queryRaw`SELECT NOW() as now`;
     return NextResponse.json({ ok: true, time: result });

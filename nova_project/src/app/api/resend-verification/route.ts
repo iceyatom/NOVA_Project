@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import {
   generateVerificationCode,
   hashVerificationCode,
@@ -13,6 +13,7 @@ const RESEND_COOLDOWN_MINUTES = 5;
 const VERIFY_CODE_EXPIRY_MINUTES = 15;
 
 export async function POST(req: NextRequest) {
+  const prisma = await getPrisma();
   let email: string;
 
   try {
