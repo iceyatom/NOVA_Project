@@ -5,10 +5,39 @@ import { awsCredentialsProvider } from "@vercel/oidc-aws-credentials-provider";
 declare global {
   var __prisma__: PrismaClient | undefined;
   var __prismaPromise__: Promise<PrismaClient> | undefined;
+  var __productionPrisma__: PrismaClient | undefined;
+  var __productionPrismaPromise__: Promise<PrismaClient> | undefined;
+  var __productionPrismaExpiresAt__: number | undefined;
 }
 
 function isProductionRuntime(): boolean {
   return process.env.NODE_ENV === "production";
+}
+
+const PRODUCTION_CLIENT_TTL_MS = 10 * 60 * 1000;
+
+function getDatabaseHost(): string {
+  const rawHost = process.env.DB_HOST?.trim() ?? "";
+  if (!rawHost) {
+    throw new Error("DB_HOST is required.");
+  }
+
+  if (/^https?:\/\//i.test(rawHost) || /^mysql:\/\//i.test(rawHost)) {
+    return new URL(rawHost).hostname;
+  }
+
+  return rawHost.split("/")[0].split(":")[0];
+}
+
+function getDatabasePort(): number {
+  const rawPort = process.env.DB_PORT?.trim() || "3306";
+  const port = Number(rawPort);
+
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    throw new Error("DB_PORT must be a valid TCP port.");
+  }
+
+  return port;
 }
 
 export function hasRdsProxyOidcConfig(): boolean {
@@ -30,10 +59,12 @@ export function hasPrismaConfig(): boolean {
 }
 
 async function createRdsProxyPrismaClient(): Promise<PrismaClient> {
-  const port = Number(process.env.DB_PORT ?? 3306);
+  const hostname = getDatabaseHost();
+  const port = getDatabasePort();
+  const dbName = encodeURIComponent(process.env.DB_NAME!);
   const signer = new Signer({
     region: process.env.AWS_REGION!,
-    hostname: process.env.DB_HOST!,
+    hostname,
     port,
     username: process.env.DB_USER!,
     credentials: awsCredentialsProvider({
@@ -44,9 +75,9 @@ async function createRdsProxyPrismaClient(): Promise<PrismaClient> {
   const token = await signer.getAuthToken();
   const databaseUrl = `mysql://${encodeURIComponent(
     process.env.DB_USER!,
-  )}:${encodeURIComponent(token)}@${process.env.DB_HOST}:${port}/${
-    process.env.DB_NAME
-  }?sslaccept=accept_invalid_certs`;
+  )}:${encodeURIComponent(
+    token,
+  )}@${hostname}:${port}/${dbName}?sslaccept=accept_invalid_certs&connection_limit=1`;
 
   return new PrismaClient({
     datasources: { db: { url: databaseUrl } },
@@ -73,7 +104,39 @@ export async function getPrisma(): Promise<PrismaClient> {
       );
     }
 
-    return createRdsProxyPrismaClient();
+    const now = Date.now();
+    if (
+      global.__productionPrisma__ &&
+      global.__productionPrismaExpiresAt__ &&
+      global.__productionPrismaExpiresAt__ > now
+    ) {
+      return global.__productionPrisma__;
+    }
+
+    if (
+      global.__productionPrisma__ &&
+      global.__productionPrismaExpiresAt__ &&
+      global.__productionPrismaExpiresAt__ <= now
+    ) {
+      void global.__productionPrisma__.$disconnect();
+      global.__productionPrisma__ = undefined;
+      global.__productionPrismaPromise__ = undefined;
+      global.__productionPrismaExpiresAt__ = undefined;
+    }
+
+    if (!global.__productionPrismaPromise__) {
+      global.__productionPrismaPromise__ = createRdsProxyPrismaClient().catch(
+        (error) => {
+          global.__productionPrismaPromise__ = undefined;
+          throw error;
+        },
+      );
+    }
+
+    const client = await global.__productionPrismaPromise__;
+    global.__productionPrisma__ = client;
+    global.__productionPrismaExpiresAt__ = now + PRODUCTION_CLIENT_TTL_MS;
+    return client;
   }
 
   if (global.__prisma__) {
