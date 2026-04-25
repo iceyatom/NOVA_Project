@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasPrismaConfig as hasConfiguredPrisma, prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { requireStaffSession } from "@/lib/auth/staffAccess";
 
 export const runtime = "nodejs";
@@ -59,7 +59,7 @@ function getLambdaBaseUrl(): string {
 }
 
 function hasPrismaConfig(): boolean {
-  return hasConfiguredPrisma();
+  return Boolean((process.env.DATABASE_URL ?? "").trim());
 }
 
 function hasLambdaConfig(): boolean {
@@ -544,9 +544,7 @@ export async function GET(request: NextRequest) {
 
   if (mode === "prisma") {
     if (!hasPrismaConfig()) {
-      return errorResponse(
-        "Database configuration is missing for prisma mode.",
-      );
+      return errorResponse("DATABASE_URL is not set for prisma mode.");
     }
 
     try {
@@ -620,6 +618,6 @@ export async function GET(request: NextRequest) {
 
   return errorResponse(
     "No staff catalog data source is configured.",
-    "Set Prisma database configuration or CATALOG_LAMBDA_BASE_URL.",
+    "Set DATABASE_URL or CATALOG_LAMBDA_BASE_URL.",
   );
 }

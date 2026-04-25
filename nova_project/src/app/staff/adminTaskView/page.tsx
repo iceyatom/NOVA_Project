@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { EmployeeTask, TaskStatus } from "@/app/components/AdminTaskCard";
 import AdminTaskViewClient, {
   EmployeeTaskGroup,

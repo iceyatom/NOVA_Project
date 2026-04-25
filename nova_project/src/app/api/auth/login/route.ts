@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasPrismaConfig as hasConfiguredPrisma, prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/passwordHash";
 import { randomBytes } from "crypto";
 
@@ -19,7 +19,7 @@ type ParsedLoginBody = {
 };
 
 function hasPrismaConfig(): boolean {
-  return hasConfiguredPrisma();
+  return Boolean((process.env.DATABASE_URL ?? "").trim());
 }
 
 function withNoCache(response: NextResponse): NextResponse {
@@ -99,7 +99,7 @@ async function parseLoginBody(request: Request): Promise<ParsedLoginBody> {
 
 export async function POST(request: Request) {
   if (!hasPrismaConfig()) {
-    console.error("[auth/login] database configuration is missing");
+    console.error("[auth/login] DATABASE_URL is not configured");
     return errorResponse("Authentication database is not configured.", 500);
   }
 

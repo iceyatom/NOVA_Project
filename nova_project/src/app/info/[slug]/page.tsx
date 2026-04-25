@@ -1,10 +1,9 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { parseArticleBodyBlocks } from "@/app/lib/articleContent";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
 
 function extractArticleId(slug: string): number | null {
   const match = slug.match(/^(\d+)/);

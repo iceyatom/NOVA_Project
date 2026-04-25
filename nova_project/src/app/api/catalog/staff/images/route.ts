@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { requireStaffSession } from "@/lib/auth/staffAccess";
-import { getAwsCredentials } from "@/lib/awsCredentials";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION,
-  credentials: getAwsCredentials(),
+  credentials:
+    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        }
+      : undefined,
 });
 
 function getImageUrlFromKey(key: string) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/passwordHash";
 
 export const runtime = "nodejs";

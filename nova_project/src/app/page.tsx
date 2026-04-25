@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import type { HighlightContent } from "@/content/siteContent";
 import { homeContent } from "@/content/siteContent";
 
@@ -72,7 +72,6 @@ const missionCta = mission.cta ?? {
 };
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
 
 const highlightData: HighlightContent[] =
   highlights.length > 0
