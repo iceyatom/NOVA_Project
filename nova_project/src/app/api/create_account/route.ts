@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import {
   generateVerificationCode,
@@ -46,6 +46,7 @@ function isStrongPassword(value: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  const prisma = await getPrisma();
   try {
     const { email, password, displayName, phone, role } = await req.json();
     const normalizedPassword = typeof password === "string" ? password : "";

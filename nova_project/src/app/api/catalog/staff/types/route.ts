@@ -1,6 +1,9 @@
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireStaffSession } from "@/lib/auth/staffAccess";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const auth = await requireStaffSession(["ADMIN", "STAFF"]);
