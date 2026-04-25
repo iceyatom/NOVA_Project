@@ -22,10 +22,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.932.0",
-    "@aws-sdk/rds-signer": "^3.1036.0",
     "@aws-sdk/s3-request-presigner": "^3.1014.0",
     "@prisma/client": "^6.19.0",
-    "@vercel/oidc-aws-credentials-provider": "^3.0.8",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^1.8.0",

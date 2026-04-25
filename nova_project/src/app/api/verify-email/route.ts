@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyVerificationCode } from "@/lib/auth/verificationCode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const prisma = await getPrisma();
   let email: string;
   let code: string;
 

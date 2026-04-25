@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { hasPrismaConfig as hasConfiguredPrisma, prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { deleteFileFromS3 } from "@/lib/s3";
 
 export const runtime = "nodejs";
@@ -68,7 +68,7 @@ function getLambdaBaseUrl(): string {
 }
 
 function hasPrismaConfig(): boolean {
-  return hasConfiguredPrisma();
+  return Boolean((process.env.DATABASE_URL ?? "").trim());
 }
 
 function hasLambdaConfig(): boolean {
@@ -1401,7 +1401,7 @@ export async function GET(request: NextRequest) {
   if (mode === "prisma") {
     if (!hasPrismaConfig()) {
       return errorResponse(
-        "CATALOG_DATA_SOURCE=prisma but database configuration is missing.",
+        "CATALOG_DATA_SOURCE=prisma but DATABASE_URL is not set.",
         undefined,
         500,
         q.limit,
@@ -1551,14 +1551,14 @@ export async function POST(request: NextRequest) {
   if (mode === "lambda") {
     return errorResponse(
       "Catalog creates are only supported with Prisma data source.",
-      "Set CATALOG_DATA_SOURCE to prisma or auto with Prisma database configuration.",
+      "Set CATALOG_DATA_SOURCE to prisma or auto with DATABASE_URL configured.",
       501,
     );
   }
 
   if (!hasPrismaConfig()) {
     return errorResponse(
-      "Database configuration is required to create catalog items.",
+      "DATABASE_URL is required to create catalog items.",
       undefined,
       500,
     );
@@ -1647,14 +1647,14 @@ export async function PATCH(request: NextRequest) {
   if (mode === "lambda") {
     return errorResponse(
       "Catalog updates are only supported with Prisma data source.",
-      "Set CATALOG_DATA_SOURCE to prisma or auto with Prisma database configuration.",
+      "Set CATALOG_DATA_SOURCE to prisma or auto with DATABASE_URL configured.",
       501,
     );
   }
 
   if (!hasPrismaConfig()) {
     return errorResponse(
-      "Database configuration is required to update catalog items.",
+      "DATABASE_URL is required to update catalog items.",
       undefined,
       500,
     );
@@ -1757,14 +1757,14 @@ export async function DELETE(request: NextRequest) {
   if (mode === "lambda") {
     return errorResponse(
       "Catalog deletes are only supported with Prisma data source.",
-      "Set CATALOG_DATA_SOURCE to prisma or auto with Prisma database configuration.",
+      "Set CATALOG_DATA_SOURCE to prisma or auto with DATABASE_URL configured.",
       501,
     );
   }
 
   if (!hasPrismaConfig()) {
     return errorResponse(
-      "Database configuration is required to delete catalog items.",
+      "DATABASE_URL is required to delete catalog items.",
       undefined,
       500,
     );
