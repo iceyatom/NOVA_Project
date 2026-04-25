@@ -4,6 +4,10 @@
 // Both dev and production use a standard MySQL connection URL.
 // In production we build it from DB_HOST/DB_USER/DB_PASSWORD/DB_NAME env vars.
 // In development we use DATABASE_URL from .env (local Docker MySQL).
+//
+// The PrismaClient is instantiated LAZILY on first access. This is critical
+// for Next.js / Vercel: env vars are not always available during build-time
+// page-data collection, so eagerly throwing here would break the build.
 
 import { PrismaClient } from "@prisma/client";
 
@@ -28,14 +32,11 @@ function buildProdDatabaseUrl(): string {
     );
   }
 
-  // Strip any protocol prefix the user may have accidentally included.
   const cleanHost =
     /^https?:\/\//i.test(host) || /^mysql:\/\//i.test(host)
       ? new URL(host).hostname
       : host.split("/")[0].split(":")[0];
 
-  // SSL with relaxed cert validation: traffic is encrypted, but we don't ship
-  // the RDS CA bundle on Vercel. For a class project this is fine.
   return (
     `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}` +
     `@${cleanHost}:${port}/${encodeURIComponent(name)}` +
@@ -55,15 +56,40 @@ function createClient(): PrismaClient {
   });
 }
 
-export const prisma: PrismaClient = global.__db__ ?? createClient();
-
-if (process.env.NODE_ENV !== "production") {
-  global.__db__ = prisma;
+// Lazy singleton. The actual PrismaClient is only created when something
+// touches `prisma.somemethod(...)` — never at import time.
+function getOrCreateClient(): PrismaClient {
+  if (global.__db__) return global.__db__;
+  const client = createClient();
+  if (process.env.NODE_ENV !== "production") {
+    global.__db__ = client;
+  } else {
+    // In production we still want to cache across requests within the same
+    // serverless instance, so reuse the same global slot.
+    global.__db__ = client;
+  }
+  return client;
 }
 
-// Kept for backwards compat with the diagnostic /api/health/db route.
+// Public API — drop-in replacement for `import { prisma } from "@/lib/db"`.
+// Every property/method access goes through the proxy, which lazily
+// instantiates the underlying PrismaClient on first use.
+type AnyFn = (...args: unknown[]) => unknown;
+
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getOrCreateClient();
+    const value = (client as unknown as Record<string | symbol, unknown>)[prop];
+    if (typeof value === "function") {
+      return (value as AnyFn).bind(client);
+    }
+    return value;
+  },
+}) as PrismaClient;
+
+// Backwards-compat helper used by the diagnostic /api/health/db route.
 export async function getPrisma(): Promise<PrismaClient> {
-  return prisma;
+  return getOrCreateClient();
 }
 
 export function hasProdConfig(): boolean {
