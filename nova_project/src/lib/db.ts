@@ -168,27 +168,9 @@ export async function getPrisma(): Promise<PrismaClient> {
 // Drop-in replacement for the old `prisma` export from this file.
 // Every existing `import { prisma } from "@/lib/db"` continues to work with
 // zero changes to any other file.
-//
-// In development this resolves synchronously on first use (same as before).
-// In production it resolves via the OIDC flow above.
 
 type AnyFn = (...args: unknown[]) => unknown;
 
-function lazyMethod(getClient: () => Promise<PrismaClient>, prop: string): AnyFn {
-  return (...args: unknown[]) =>
-    getClient().then((client) => {
-      const target = (client as unknown as Record<string, unknown>)[prop] as Record<string, AnyFn>;
-      return target;
-    }).then((target) => {
-      // prop is a model (e.g. "catalogItem") — return the method on it
-      return target;
-    });
-}
-
-// Simpler proxy: just await getPrisma() for every access.
-// This is slightly less optimized than the elaborate lazy-proxy pattern but
-// is much easier to read and debug, and the overhead is negligible because
-// getPrisma() returns immediately from cache on the hot path.
 export const prisma = new Proxy({} as PrismaClient, {
   get(_target, prop) {
     if (prop === "$transaction") {
@@ -204,8 +186,8 @@ export const prisma = new Proxy({} as PrismaClient, {
     if (prop.startsWith("$")) {
       return (...args: unknown[]) =>
         getPrisma().then((client) => {
-          const fn = (client as unknown as Record<string, AnyFn>)[prop];
-          return fn.apply(client, args);
+          const fn = (client as unknown as Record<string, AnyFn>)[prop].bind(client);
+          return fn(...args);
         });
     }
 
@@ -216,7 +198,8 @@ export const prisma = new Proxy({} as PrismaClient, {
         return (...args: unknown[]) =>
           getPrisma().then((client) => {
             const model = (client as unknown as Record<string, Record<string, AnyFn>>)[prop];
-            return model[method].apply(model, args);
+            const fn = model[method].bind(model);
+            return fn(...args);
           });
       },
     });
