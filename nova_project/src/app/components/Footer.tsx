@@ -40,14 +40,14 @@ export default function Footer() {
             <h3 className="footer-title">Products</h3>
             <ul className="footer-list">
               <li>
-                <a className="footer-link" href="#">
-                  Shop Now
-                </a>
+                <Link className="footer-link" href="/catalog">
+                  Catalog
+                </Link>
               </li>
               <li>
-                <a className="footer-link" href="#">
-                  Catalog
-                </a>
+                <Link className="footer-link" href="/about">
+                  About
+                </Link>
               </li>
               <li>
                 <Link className="footer-link" href="/" onClick={onHomeClick}>
