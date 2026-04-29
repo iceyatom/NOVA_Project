@@ -584,7 +584,6 @@ function applyNA(f: ItemForm): ItemForm {
     images: withFallbackImage(f.images),
 
     price: f.price.trim(),
-    quantityInStock: f.quantityInStock.trim(),
     reorderLevel: f.reorderLevel.trim(),
     unitCost: f.unitCost.trim(),
   };
@@ -633,7 +632,6 @@ function normalizeForCompare(f: ItemForm) {
     })),
     description: normalizeOptional(f.description),
     images: normalizeImagesForCompare(f.images),
-    quantityInStock: Math.max(0, Math.trunc(num(f.quantityInStock))),
     unitOfMeasure: normalizeOptional(f.unitOfMeasure),
     storageLocation: normalizeOptional(f.storageLocation),
     storageConditions: normalizeOptional(f.storageConditions),
@@ -671,10 +669,6 @@ function validateForm(f: ItemForm): string | null {
   if (!f.price.trim()) return "Price is required.";
   if (!isValidMoney(f.price)) {
     return "Price must be a non-negative number with up to 2 decimals.";
-  }
-
-  if (!/^\d+$/.test(f.quantityInStock.trim())) {
-    return "Quantity in stock must be a whole number.";
   }
 
   if (!/^\d+$/.test(f.reorderLevel.trim())) {
@@ -1331,10 +1325,6 @@ function StaffItemEditPageContent() {
         category1: primaryClassification?.category1 ?? null,
         classifications: startedClassifications,
         description: prepared.description,
-        quantityInStock: Math.max(
-          0,
-          Math.trunc(Number(prepared.quantityInStock)),
-        ),
         unitOfMeasure: prepared.unitOfMeasure,
         storageLocation: prepared.storageLocation,
         storageConditions: prepared.storageConditions,
@@ -2469,22 +2459,11 @@ function StaffItemEditPageContent() {
                 </label>
 
                 <label className="item-edit-field">
-                  <div>
-                    <span
-                      className={fieldNameClass(
-                        isFieldDirty("quantityInStock"),
-                      )}
-                    >
-                      Quantity In Stock *
-                    </span>
-                    <input
-                      className="item-search-page__search-input"
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={form.quantityInStock}
-                      onChange={update("quantityInStock")}
-                    />
+                  <span className="item-edit-field-name">
+                    Quantity In Stock
+                  </span>
+                  <div className="account-management__readonly-value">
+                    {form.quantityInStock}
                   </div>
                 </label>
 

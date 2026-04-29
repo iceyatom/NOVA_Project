@@ -1004,7 +1004,7 @@ type CatalogUpdateInput = {
   category3: string | null;
   classifications: CatalogClassificationInput[];
   description: string | null;
-  quantityInStock: number;
+  quantityInStock: number | undefined;
   unitOfMeasure: string | null;
   storageLocation: string | null;
   storageConditions: string | null;
@@ -1133,7 +1133,10 @@ function normalizeClassifications(
   );
 }
 
-function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
+function parseCatalogUpdatePayload(
+  raw: unknown,
+  options: { allowMissingQuantityInStock?: boolean } = {},
+): CatalogUpdateInput {
   if (!isRecord(raw)) {
     throw new Error("Request body must be a JSON object.");
   }
@@ -1156,10 +1159,10 @@ function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
       legacyClassification,
     ),
     description: normalizeOptionalString(raw.description, "description"),
-    quantityInStock: normalizeNonNegativeInteger(
-      raw.quantityInStock,
-      "quantityInStock",
-    ),
+    quantityInStock:
+      raw.quantityInStock === undefined && options.allowMissingQuantityInStock
+        ? undefined
+        : normalizeNonNegativeInteger(raw.quantityInStock, "quantityInStock"),
     unitOfMeasure: normalizeOptionalString(raw.unitOfMeasure, "unitOfMeasure"),
     storageLocation: normalizeOptionalString(
       raw.storageLocation,
@@ -1540,6 +1543,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as unknown;
     payload = parseCatalogUpdatePayload(body);
+    if (payload.quantityInStock === undefined) {
+      throw new Error("quantityInStock is required.");
+    }
   } catch (error: unknown) {
     const msg =
       error instanceof Error ? error.message : "Invalid JSON request body.";
@@ -1565,6 +1571,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const createQuantityInStock = payload.quantityInStock;
     const createData = await buildCatalogMutationData(payload);
     const createdItem = await prisma.catalogItem.create({
       data: {
@@ -1575,7 +1582,7 @@ export async function POST(request: NextRequest) {
         category2: createData.category2,
         category3: createData.category3,
         description: createData.description,
-        quantityInStock: createData.quantityInStock,
+        quantityInStock: createQuantityInStock,
         unitOfMeasure: createData.unitOfMeasure,
         storageLocation: createData.storageLocation,
         storageConditions: createData.storageConditions,
@@ -1635,7 +1642,9 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = (await request.json()) as unknown;
-    payload = parseCatalogUpdatePayload(body);
+    payload = parseCatalogUpdatePayload(body, {
+      allowMissingQuantityInStock: true,
+    });
   } catch (error: unknown) {
     const msg =
       error instanceof Error ? error.message : "Invalid JSON request body.";
@@ -1672,7 +1681,9 @@ export async function PATCH(request: NextRequest) {
         category2: updateData.category2,
         category3: updateData.category3,
         description: updateData.description,
-        quantityInStock: updateData.quantityInStock,
+        ...(updateData.quantityInStock !== undefined
+          ? { quantityInStock: updateData.quantityInStock }
+          : {}),
         unitOfMeasure: updateData.unitOfMeasure,
         storageLocation: updateData.storageLocation,
         storageConditions: updateData.storageConditions,
