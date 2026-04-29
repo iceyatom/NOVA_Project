@@ -67,7 +67,7 @@ export const homeContent: HomeContent = {
         "Niles Biological is one of the world's largest suppliers of owl pellets, partnering with collectors across new habitats to study ecosystem changes.",
       image: "/Owl.webp",
       imageAlt: "Close-up of an owl pellet featured by Niles Biological.",
-      href: "https://www.nilesbio.com/cat452.html",
+      href: "/catalog?q=Owl%20Pellets",
       ctaLabel: "Shop Owl Pellets",
     },
     {
@@ -89,7 +89,7 @@ export const homeContent: HomeContent = {
       image: "/Delivery.webp",
       imageAlt:
         "Laboratory glassware and live culture containers prepared for shipment.",
-      href: "https://www.nilesbio.com/cat8.html",
+      href: "/contact",
       ctaLabel: "Plan Live Shipments",
     },
   ],
