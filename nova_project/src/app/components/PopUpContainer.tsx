@@ -6,9 +6,15 @@ interface PopupData {
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
+  containerClassName?: string;
 }
 
-const PopUpContainer: React.FC<PopupData> = ({ isOpen, onClose, children }) => {
+const PopUpContainer: React.FC<PopupData> = ({
+  isOpen,
+  onClose,
+  children,
+  containerClassName = "",
+}) => {
   const backdropCloseHandlers =
     useBackdropPointerClose<HTMLDivElement>(onClose);
 
@@ -16,7 +22,10 @@ const PopUpContainer: React.FC<PopupData> = ({ isOpen, onClose, children }) => {
 
   return (
     <div className="popup-backdrop" {...backdropCloseHandlers}>
-      <div className="popup-container" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`popup-container${containerClassName ? ` ${containerClassName}` : ""}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button className="close-button" onClick={onClose}>
           &times;
         </button>

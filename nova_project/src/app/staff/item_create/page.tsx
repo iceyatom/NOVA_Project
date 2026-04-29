@@ -52,7 +52,6 @@ type CreateItemForm = {
   price: string;
   classifications: CreateItemClassificationDraft[];
   description: string;
-  quantityInStock: string;
   unitOfMeasure: string;
   storageLocation: string;
   storageConditions: string;
@@ -76,7 +75,6 @@ const INITIAL_FORM: CreateItemForm = {
     },
   ],
   description: "",
-  quantityInStock: "0",
   unitOfMeasure: "",
   storageLocation: "",
   storageConditions: "",
@@ -584,10 +582,6 @@ function StaffItemCreatePageContent() {
       return "Price must be a non-negative number with up to 2 decimals.";
     }
 
-    if (!/^\d+$/.test(form.quantityInStock.trim())) {
-      return "Quantity in stock must be a whole number.";
-    }
-
     if (!/^\d+$/.test(form.reorderLevel.trim())) {
       return "Reorder level must be a whole number.";
     }
@@ -646,7 +640,6 @@ function StaffItemCreatePageContent() {
     const fields: string[] = [];
 
     if (Number(form.price) === 0) fields.push("Price");
-    if (Number(form.quantityInStock) === 0) fields.push("Quantity In Stock");
     if (Number(form.reorderLevel) === 0) fields.push("Reorder Level");
     if (Number(form.unitCost) === 0) fields.push("Unit Cost");
 
@@ -1111,7 +1104,7 @@ function StaffItemCreatePageContent() {
       category1: primaryClassification?.category1 ?? null,
       classifications: startedClassifications,
       description: asNullableString(form.description),
-      quantityInStock: asPositiveIntegerOrZero(form.quantityInStock),
+      quantityInStock: 0,
       unitOfMeasure: asNullableString(form.unitOfMeasure),
       storageLocation: asNullableString(form.storageLocation),
       storageConditions: asNullableString(form.storageConditions),
@@ -1375,15 +1368,8 @@ function StaffItemCreatePageContent() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">Quantity In Stock *</span>
-                <input
-                  className="item-search-page__search-input"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.quantityInStock}
-                  onChange={update("quantityInStock")}
-                />
+                <span className="item-create-label">Quantity In Stock</span>
+                <div className="account-management__readonly-value">0</div>
               </label>
 
               <label className="item-create-field">

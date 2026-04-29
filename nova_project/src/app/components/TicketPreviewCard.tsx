@@ -126,20 +126,23 @@ export default function TicketPreviewCard({
 
           {ticket.lines.map((line) => (
             <div key={line.id} className="ticketPreviewItemRow">
-              <div className="ticketPreviewItemDetails">
+              <div className="ticketPreviewItemDetails" data-label="Item">
                 <span className="ticketPreviewItemName">{line.itemName}</span>
                 {line.sku ? (
                   <span className="ticketPreviewItemSku">SKU: {line.sku}</span>
                 ) : null}
               </div>
 
-              <span className="ticketPreviewItemRate">
+              <span className="ticketPreviewItemRate" data-label="Price Rate">
                 {line.priceRate === null
                   ? "N/A"
                   : formatCurrency(line.priceRate)}
               </span>
 
-              <span className="ticketPreviewItemLineTotal">
+              <span
+                className="ticketPreviewItemLineTotal"
+                data-label="Line Total"
+              >
                 {line.priceRate === null
                   ? "N/A"
                   : formatCurrency(Math.abs(line.countDelta) * line.priceRate)}
@@ -151,6 +154,7 @@ export default function TicketPreviewCard({
                     ? "ticketPreviewItemCount--positive"
                     : "ticketPreviewItemCount--negative"
                 }`}
+                data-label="Count"
               >
                 {formatSignedQuantity(line.countDelta)}
               </span>

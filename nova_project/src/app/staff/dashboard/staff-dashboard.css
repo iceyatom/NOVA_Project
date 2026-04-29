@@ -471,6 +471,12 @@
   max-width: 700px;
 }
 
+.staffAnnouncementCreateModal {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .staffAlertDetailHeader {
   display: flex;
   align-items: flex-start;
@@ -621,11 +627,13 @@
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .category-mgmt-table {
   width: 100%;
+  min-width: 24rem;
   border-collapse: collapse;
 }
 
@@ -879,6 +887,21 @@
   color: #b45309;
 }
 
+@media (max-width: 1300px) {
+  .category-mgmt-panel {
+    grid-column: span 12;
+    min-height: auto;
+  }
+
+  .category-mgmt-table-wrap {
+    overflow-x: auto;
+  }
+
+  .category-mgmt-table {
+    min-width: 24rem;
+  }
+}
+
 /* =========
    Ticket Create
    ========= */
@@ -1053,6 +1076,12 @@
   flex-wrap: wrap;
 }
 
+.article-managment__browse-articles-modal {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .article-managment__browse-articles-select {
   min-width: 9.75rem;
 }
@@ -1089,6 +1118,51 @@
 
   .article-managment__browse-articles-select {
     width: 100%;
+  }
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  .article-managment__browse-articles-modal {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+  }
+
+  .article-managment__browse-articles-modal .item-category-modal__title {
+    font-size: 1.1rem;
+  }
+
+  .article-managment__browse-articles-modal .item-category-form {
+    gap: 0.65rem;
+    margin-top: 0.65rem;
+  }
+
+  .article-managment__browse-articles-modal .item-search-page__search-input,
+  .article-managment__browse-articles-modal .item-search-page__select {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.92rem;
+  }
+
+  .article-managment__browse-articles-modal .staff-dev-pill {
+    padding: 0.55rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .article-managment__browse-articles-modal
+    .article-managment__browse-articles-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .article-managment__browse-articles-modal .item-browse-images-card {
+    padding: 0.6rem 0.7rem;
+  }
+
+  .article-managment__browse-articles-modal
+    .article-managment__browse-articles-title {
+    -webkit-line-clamp: 2;
+  }
+
+  .article-managment__browse-articles-modal .item-category-form__actions {
+    margin-top: 0;
   }
 }
 
@@ -1570,6 +1644,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
   overflow: hidden;
+  container: ticket-preview-items / inline-size;
 }
 
 .ticketPreviewItemsHeader,
@@ -1733,6 +1808,79 @@
   background: #f59e0b;
 }
 
+@container ticket-preview-items (max-width: 720px) {
+  .ticketPreviewItemsHeader,
+  .ticketPreviewItemRow {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .ticketPreviewItemsHeader {
+    display: none;
+  }
+
+  .ticketPreviewItemDetails,
+  .ticketPreviewItemRate,
+  .ticketPreviewItemLineTotal,
+  .ticketPreviewItemCount {
+    width: 100%;
+  }
+
+  .ticketPreviewItemDetails {
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.5rem;
+  }
+
+  .ticketPreviewItemDetails::before,
+  .ticketPreviewItemRate::before,
+  .ticketPreviewItemLineTotal::before,
+  .ticketPreviewItemCount::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .ticketPreviewItemDetails::before {
+    margin-bottom: 0.2rem;
+  }
+
+  .ticketPreviewItemRate,
+  .ticketPreviewItemLineTotal,
+  .ticketPreviewItemCount {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    white-space: normal;
+  }
+
+  .ticketPreviewItemCount {
+    grid-column: auto;
+    min-width: 0;
+    border-radius: 0.5rem;
+    text-align: right;
+  }
+
+  .ticketPreviewItemRate,
+  .ticketPreviewItemLineTotal {
+    grid-column: auto;
+  }
+
+  .ticketPreviewItemsTotalRow {
+    grid-template-columns: 1fr;
+  }
+
+  .ticketPreviewItemsTotalLabel,
+  .ticketPreviewItemsTotalValue {
+    grid-column: auto;
+  }
+}
+
 /* =========
    Responsive
    ========= */
@@ -1836,5 +1984,47 @@
   .staffNotificationPreviewDescription {
     font-size: 0.85rem;
     line-height: 1.35;
+  }
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  .staffAnnouncementCreateModal {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+  }
+
+  .staffAnnouncementCreateModal .item-category-modal__title {
+    font-size: 1.1rem;
+  }
+
+  .staffAnnouncementCreateModal .item-category-form {
+    gap: 0.65rem;
+    margin-top: 0.65rem;
+  }
+
+  .staffAnnouncementCreateModal .item-category-form__label {
+    font-size: 0.78rem;
+  }
+
+  .staffAnnouncementCreateModal .item-search-page__search-input,
+  .staffAnnouncementCreateModal .item-search-page__select {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.92rem;
+  }
+
+  .staffAnnouncementCreateModal .staffAudienceMultiSelect {
+    gap: 0.5rem;
+  }
+
+  .staffAnnouncementCreateModal .staffAudienceOption {
+    padding: 0.52rem 0.65rem;
+  }
+
+  .staffAnnouncementCreateModal .staffTaskCreateForm__textarea {
+    min-height: 4.5rem;
+  }
+
+  .staffAnnouncementCreateModal .item-category-form__actions {
+    margin-top: 0;
   }
 }
