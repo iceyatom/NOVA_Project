@@ -85,7 +85,8 @@ export default function Footer() {
       <div className="footer-bottom">
         <div className="container footer-bottom-inner">
           <small>
-            © {year} Niles Biological Inc. · <Link href="/privacy">Privacy</Link>
+            © {year} Niles Biological Inc. ·{" "}
+            <Link href="/privacy">Privacy</Link>
           </small>
         </div>
       </div>

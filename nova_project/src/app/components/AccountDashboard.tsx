@@ -503,7 +503,9 @@ export default function AccountDashboard() {
                       pattern="[0-9]*"
                       maxLength={10}
                       onChange={(e) => {
-                        setPhone(e.target.value.replace(/\D/g, "").slice(0, 10));
+                        setPhone(
+                          e.target.value.replace(/\D/g, "").slice(0, 10),
+                        );
                         setErrors((prev) => ({ ...prev, phone: undefined }));
                       }}
                     />

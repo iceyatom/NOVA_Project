@@ -80,15 +80,15 @@ export async function POST(request: Request) {
 
   const phoneError = getPhoneError(rawPhone);
   if (phoneError) {
-    return NextResponse.json(
-      { ok: false, error: phoneError },
-      { status: 400 },
-    );
+    return NextResponse.json({ ok: false, error: phoneError }, { status: 400 });
   }
 
   if (!isValidEmail(email)) {
     return NextResponse.json(
-      { ok: false, error: "Please enter a valid email address (e.g. user@example.com)." },
+      {
+        ok: false,
+        error: "Please enter a valid email address (e.g. user@example.com).",
+      },
       { status: 400 },
     );
   }
