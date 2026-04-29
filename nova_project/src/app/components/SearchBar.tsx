@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, FormEvent, KeyboardEvent } from "react";
+import { useEffect, useRef, useState, FormEvent } from "react";
 
 type Props = {
   title?: string;
@@ -8,8 +8,6 @@ type Props = {
   placeholder?: string;
   query?: string;
   onSearch?: (query: string) => void;
-  /** Debounce delay (ms) for live search while typing */
-  debounceMs?: number;
 };
 
 export default function SearchBar({
@@ -18,38 +16,16 @@ export default function SearchBar({
   placeholder = "Search by Keyword",
   query: queryProp = "",
   onSearch,
-  debounceMs = 250,
 }: Props) {
   const [query, setQuery] = useState(queryProp);
   const [submittedQuery, setSubmittedQuery] = useState(queryProp);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const canSubmit = query.trim().length > 0;
 
   // Keep local state in sync if parent updates query (e.g., via URL changes)
   useEffect(() => {
     setQuery(queryProp);
     setSubmittedQuery(queryProp);
   }, [queryProp]);
-
-  // Live search while typing (debounced). Clearing input restores full catalog.
-  useEffect(() => {
-    // Immediate reset when cleared
-    if (query.length === 0) {
-      setSubmittedQuery("");
-      onSearch?.("");
-      return;
-    }
-
-    const trimmed = query.trim();
-
-    const t = window.setTimeout(() => {
-      setSubmittedQuery(trimmed);
-      onSearch?.(trimmed);
-    }, debounceMs);
-
-    return () => window.clearTimeout(t);
-  }, [query, onSearch, debounceMs]);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -69,9 +45,13 @@ export default function SearchBar({
     }
   }
 
-  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    // If empty, prevent Enter from submitting a no-op
-    if (e.key === "Enter" && !canSubmit) e.preventDefault();
+  function handleInputChange(value: string) {
+    setQuery(value);
+
+    if (value.length === 0) {
+      setSubmittedQuery("");
+      onSearch?.("");
+    }
   }
 
   return (
@@ -107,14 +87,12 @@ export default function SearchBar({
                 placeholder={placeholder}
                 autoComplete="off"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={onKeyDown}
+                onChange={(e) => handleInputChange(e.target.value)}
                 className="hero-input"
               />
 
               <button
                 type="submit"
-                disabled={!canSubmit}
                 aria-label="Search"
                 className="hero-button"
                 title="Search"
