@@ -82,6 +82,31 @@ function parsePositiveInt(value: string | null): number | null {
   return parsed;
 }
 
+function normalizeLimit(requestedLimit: number | null): number {
+  if (requestedLimit === null) {
+    return DEFAULT_LIMIT;
+  }
+
+  return Array.from(ALLOWED_LIMITS).reduce((closest, option) => {
+    const currentDistance = Math.abs(option - requestedLimit);
+    const closestDistance = Math.abs(closest - requestedLimit);
+
+    if (currentDistance === closestDistance) {
+      return Math.min(closest, option);
+    }
+
+    return currentDistance < closestDistance ? option : closest;
+  }, DEFAULT_LIMIT);
+}
+
+function normalizeOffset(rawOffset: number | null, limit: number): number {
+  if (rawOffset === null || rawOffset <= 0) {
+    return 0;
+  }
+
+  return Math.floor(rawOffset / limit) * limit;
+}
+
 function parseNonNegativeNumber(value: string | null): number | null {
   if (!value) return null;
   const parsed = Number(value);
@@ -203,15 +228,12 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
   const id = parsePositiveInt(sp.get("id"));
 
   const requestedLimit = parsePositiveInt(sp.get("limit"));
-  const limit =
-    requestedLimit && ALLOWED_LIMITS.has(requestedLimit)
-      ? requestedLimit
-      : DEFAULT_LIMIT;
+  const limit = normalizeLimit(requestedLimit);
 
   const page = parsePositiveInt(sp.get("page"));
-  const offset =
-    parsePositiveInt(sp.get("offset")) ?? (page ? (page - 1) * limit : 0);
-  const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
+  const requestedOffset =
+    parsePositiveInt(sp.get("offset")) ?? (page ? (page - 1) * limit : null);
+  const offset = normalizeOffset(requestedOffset, limit);
 
   const q = sp.get("q")?.trim() ?? "";
 
@@ -233,7 +255,7 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
   return {
     id,
     limit,
-    offset: safeOffset,
+    offset,
     q,
     categories,
     priceRange,
