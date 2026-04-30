@@ -2648,6 +2648,7 @@ body:has(.loginPage) main {
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
   margin-bottom: 1.5rem;
+  container-type: inline-size;
 }
 
 .item-search-page__search {
@@ -2736,6 +2737,8 @@ body:has(.loginPage) main {
   padding: 0.5rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .item-search-page__actions {
@@ -2989,6 +2992,10 @@ body:has(.loginPage) main {
     align-items: stretch;
   }
 
+  .item-search-page__filter-button {
+    width: 100%;
+  }
+
   .item-search-page__actions {
     justify-content: flex-start;
   }
@@ -2997,6 +3004,18 @@ body:has(.loginPage) main {
     gap: 0.5rem;
   }
 
+  .item-search-page__select {
+    width: 100%;
+  }
+}
+
+@container (max-width: 700px) {
+  .item-search-page__filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .item-search-page__filter-button,
   .item-search-page__select {
     width: 100%;
   }
@@ -3137,6 +3156,12 @@ body:has(.loginPage) main {
   background: var(--brand-teal);
 }
 
+.accountManagementEditModal {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .account-management__select-col {
   width: 4.5rem;
   text-align: center;
@@ -3203,6 +3228,55 @@ body:has(.loginPage) main {
   word-break: break-all;
 }
 
+@media (max-height: 480px) and (orientation: landscape) {
+  .accountManagementEditModal {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+  }
+
+  .accountManagementEditModal .item-category-modal__title {
+    font-size: 1.1rem;
+  }
+
+  .accountManagementEditModal .item-category-form {
+    gap: 0.65rem;
+    margin-top: 0.65rem;
+  }
+
+  .accountManagementEditModal .item-category-form__label {
+    font-size: 0.78rem;
+  }
+
+  .accountManagementEditModal .item-search-page__search-input,
+  .accountManagementEditModal .item-search-page__select,
+  .accountManagementEditModal .account-management__readonly-value {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.92rem;
+  }
+
+  .accountManagementEditModal .staffTaskCreateForm__textarea {
+    min-height: 4.5rem;
+  }
+
+  .accountManagementEditModal .account-management__password-info-popup {
+    padding: 0.45rem 0.55rem;
+    font-size: 0.84rem;
+  }
+
+  .accountManagementEditModal .item-category-form__actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0;
+  }
+
+  .accountManagementEditModal .staff-dev-pill {
+    flex: 1 1 8rem;
+    justify-content: center;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.9rem;
+  }
+}
+
 .item-search-page__th-button {
   display: inline-block;
   margin: 0;
@@ -3228,6 +3302,7 @@ body:has(.loginPage) main {
   padding: 1rem;
   z-index: 100;
   font-size: 0.95rem;
+  text-align: left;
   transition: opacity 0.2s;
   .item-edit-label {
     font-size: 1.5rem;
@@ -3875,6 +3950,17 @@ body:has(.loginPage) main {
   color: #64748b;
 }
 
+.item-browse-images-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.item-browse-images-actions .staff-dev-pill {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
 .item-browse-image-details-modal {
   z-index: 1010;
 }
@@ -4277,6 +4363,7 @@ body:has(.loginPage) main {
   min-width: 180px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   z-index: 1000;
+  text-align: left;
 }
 
 .profile-dropdown-link {
@@ -4330,6 +4417,7 @@ body:has(.loginPage) main {
 
 .profile-popup-role {
   margin-top: 10px;
+  text-align: left;
 }
 
 .item-create-form {
@@ -4906,8 +4994,25 @@ body:has(.loginPage) main {
   gap: 10px;
 }
 
+.staffTaskMonitorActions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.staffTaskMonitorActions .staffActionButton {
+  flex: 0 1 auto;
+}
+
 .staffTaskCreateModal {
   max-width: 560px;
+}
+
+.staffTaskCreateTaskModal,
+.staffTaskEditTaskModal {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .staffBulkEditSummary {
@@ -4948,6 +5053,53 @@ body:has(.loginPage) main {
 .staffTaskCreateForm__textarea {
   min-height: 110px;
   resize: vertical;
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  .staffTaskCreateTaskModal,
+  .staffTaskEditTaskModal {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+  }
+
+  .staffTaskCreateTaskModal .item-category-modal__title,
+  .staffTaskEditTaskModal .item-category-modal__title {
+    font-size: 1.1rem;
+  }
+
+  .staffTaskCreateTaskModal .item-category-form,
+  .staffTaskEditTaskModal .item-category-form {
+    gap: 0.65rem;
+    margin-top: 0.65rem;
+  }
+
+  .staffTaskCreateTaskModal .item-category-form__label,
+  .staffTaskEditTaskModal .item-category-form__label {
+    font-size: 0.78rem;
+  }
+
+  .staffTaskCreateTaskModal .item-search-page__search-input,
+  .staffTaskCreateTaskModal .item-search-page__select,
+  .staffTaskEditTaskModal .item-search-page__search-input,
+  .staffTaskEditTaskModal .item-search-page__select {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.92rem;
+  }
+
+  .staffTaskCreateTaskModal .staffTaskCreateForm__row,
+  .staffTaskEditTaskModal .staffTaskCreateForm__row {
+    gap: 0.55rem;
+  }
+
+  .staffTaskCreateTaskModal .staffTaskCreateForm__textarea,
+  .staffTaskEditTaskModal .staffTaskCreateForm__textarea {
+    min-height: 4.5rem;
+  }
+
+  .staffTaskCreateTaskModal .item-category-form__actions,
+  .staffTaskEditTaskModal .item-category-form__actions {
+    margin-top: 0;
+  }
 }
 
 .staffTaskLegend {
@@ -5394,15 +5546,31 @@ body:has(.loginPage) main {
     justify-content: flex-end;
   }
 
+  .staffTaskMonitorActions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
   .staffEmployeeGroupHeader {
     flex-direction: column;
     align-items: stretch;
   }
 }
 
+@media (max-width: 900px) {
+  .staffTaskMonitorActions .staffActionButton {
+    flex: 1 1 10rem;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 700px) {
   .staffTaskCreateForm__row {
     grid-template-columns: 1fr;
+  }
+
+  .staffTaskMonitorActions .staffActionButton {
+    flex-basis: 100%;
   }
 }
 

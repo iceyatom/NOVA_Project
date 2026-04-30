@@ -113,6 +113,20 @@ function parseNumberParam(value: string | null, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizePageSizeParam(value: string | null): number {
+  const pageSize = parseNumberParam(value, DEFAULT_PAGE_SIZE);
+  return PAGE_SIZE_OPTIONS.reduce((closest, option) => {
+    const currentDistance = Math.abs(option - pageSize);
+    const closestDistance = Math.abs(closest - pageSize);
+
+    if (currentDistance === closestDistance) {
+      return Math.min(closest, option);
+    }
+
+    return currentDistance < closestDistance ? option : closest;
+  }, PAGE_SIZE_OPTIONS[0]);
+}
+
 function parsePriceParam(value: string | null): number | null {
   if (!value) {
     return null;
@@ -258,10 +272,7 @@ export default function CatalogPageClient() {
         : getLegacyPriceRange(legacyPriceBuckets);
 
     const page = Math.max(1, parseNumberParam(searchParams.get("page"), 1));
-    const pageSize = Math.max(
-      1,
-      parseNumberParam(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
-    );
+    const pageSize = normalizePageSizeParam(searchParams.get("pageSize"));
 
     return { query, categories, priceRange, page, pageSize };
   }, [searchParams]);
@@ -304,6 +315,24 @@ export default function CatalogPageClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  useEffect(() => {
+    const rawPage = searchParams.get("page");
+    const rawPageSize = searchParams.get("pageSize");
+
+    if (
+      (rawPage !== null && rawPage !== String(currentPage)) ||
+      (rawPageSize !== null && rawPageSize !== String(pageSize))
+    ) {
+      navigateWithSearchParams(
+        (params) => {
+          params.set("page", String(currentPage));
+          params.set("pageSize", String(pageSize));
+        },
+        { replace: true },
+      );
+    }
+  }, [currentPage, navigateWithSearchParams, pageSize, searchParams]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalCount / pageSize)),
@@ -486,11 +515,13 @@ export default function CatalogPageClient() {
   };
 
   const handlePageSizeChange = (size: number) => {
-    if (size === pageSize) {
+    const nextSize = normalizePageSizeParam(String(size));
+
+    if (nextSize === pageSize) {
       return;
     }
     navigateWithSearchParams((params) => {
-      params.set("pageSize", String(size));
+      params.set("pageSize", String(nextSize));
       params.set("page", "1");
     });
   };

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { deleteFileFromS3 } from "@/lib/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,6 +79,31 @@ function parsePositiveInt(value: string | null): number | null {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return parsed;
+}
+
+function normalizeLimit(requestedLimit: number | null): number {
+  if (requestedLimit === null) {
+    return DEFAULT_LIMIT;
+  }
+
+  return Array.from(ALLOWED_LIMITS).reduce((closest, option) => {
+    const currentDistance = Math.abs(option - requestedLimit);
+    const closestDistance = Math.abs(closest - requestedLimit);
+
+    if (currentDistance === closestDistance) {
+      return Math.min(closest, option);
+    }
+
+    return currentDistance < closestDistance ? option : closest;
+  }, DEFAULT_LIMIT);
+}
+
+function normalizeOffset(rawOffset: number | null, limit: number): number {
+  if (rawOffset === null || rawOffset <= 0) {
+    return 0;
+  }
+
+  return Math.floor(rawOffset / limit) * limit;
 }
 
 function parseNonNegativeNumber(value: string | null): number | null {
@@ -203,15 +227,12 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
   const id = parsePositiveInt(sp.get("id"));
 
   const requestedLimit = parsePositiveInt(sp.get("limit"));
-  const limit =
-    requestedLimit && ALLOWED_LIMITS.has(requestedLimit)
-      ? requestedLimit
-      : DEFAULT_LIMIT;
+  const limit = normalizeLimit(requestedLimit);
 
   const page = parsePositiveInt(sp.get("page"));
-  const offset =
-    parsePositiveInt(sp.get("offset")) ?? (page ? (page - 1) * limit : 0);
-  const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
+  const requestedOffset =
+    parsePositiveInt(sp.get("offset")) ?? (page ? (page - 1) * limit : null);
+  const offset = normalizeOffset(requestedOffset, limit);
 
   const q = sp.get("q")?.trim() ?? "";
 
@@ -233,7 +254,7 @@ function parseCatalogQuery(request: NextRequest): CatalogQuery {
   return {
     id,
     limit,
-    offset: safeOffset,
+    offset,
     q,
     categories,
     priceRange,
@@ -1004,7 +1025,7 @@ type CatalogUpdateInput = {
   category3: string | null;
   classifications: CatalogClassificationInput[];
   description: string | null;
-  quantityInStock: number;
+  quantityInStock: number | undefined;
   unitOfMeasure: string | null;
   storageLocation: string | null;
   storageConditions: string | null;
@@ -1133,7 +1154,10 @@ function normalizeClassifications(
   );
 }
 
-function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
+function parseCatalogUpdatePayload(
+  raw: unknown,
+  options: { allowMissingQuantityInStock?: boolean } = {},
+): CatalogUpdateInput {
   if (!isRecord(raw)) {
     throw new Error("Request body must be a JSON object.");
   }
@@ -1156,10 +1180,10 @@ function parseCatalogUpdatePayload(raw: unknown): CatalogUpdateInput {
       legacyClassification,
     ),
     description: normalizeOptionalString(raw.description, "description"),
-    quantityInStock: normalizeNonNegativeInteger(
-      raw.quantityInStock,
-      "quantityInStock",
-    ),
+    quantityInStock:
+      raw.quantityInStock === undefined && options.allowMissingQuantityInStock
+        ? undefined
+        : normalizeNonNegativeInteger(raw.quantityInStock, "quantityInStock"),
     unitOfMeasure: normalizeOptionalString(raw.unitOfMeasure, "unitOfMeasure"),
     storageLocation: normalizeOptionalString(
       raw.storageLocation,
@@ -1540,6 +1564,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as unknown;
     payload = parseCatalogUpdatePayload(body);
+    if (payload.quantityInStock === undefined) {
+      throw new Error("quantityInStock is required.");
+    }
   } catch (error: unknown) {
     const msg =
       error instanceof Error ? error.message : "Invalid JSON request body.";
@@ -1565,6 +1592,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const createQuantityInStock = payload.quantityInStock;
     const createData = await buildCatalogMutationData(payload);
     const createdItem = await prisma.catalogItem.create({
       data: {
@@ -1575,7 +1603,7 @@ export async function POST(request: NextRequest) {
         category2: createData.category2,
         category3: createData.category3,
         description: createData.description,
-        quantityInStock: createData.quantityInStock,
+        quantityInStock: createQuantityInStock,
         unitOfMeasure: createData.unitOfMeasure,
         storageLocation: createData.storageLocation,
         storageConditions: createData.storageConditions,
@@ -1635,7 +1663,9 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = (await request.json()) as unknown;
-    payload = parseCatalogUpdatePayload(body);
+    payload = parseCatalogUpdatePayload(body, {
+      allowMissingQuantityInStock: true,
+    });
   } catch (error: unknown) {
     const msg =
       error instanceof Error ? error.message : "Invalid JSON request body.";
@@ -1672,7 +1702,9 @@ export async function PATCH(request: NextRequest) {
         category2: updateData.category2,
         category3: updateData.category3,
         description: updateData.description,
-        quantityInStock: updateData.quantityInStock,
+        ...(updateData.quantityInStock !== undefined
+          ? { quantityInStock: updateData.quantityInStock }
+          : {}),
         unitOfMeasure: updateData.unitOfMeasure,
         storageLocation: updateData.storageLocation,
         storageConditions: updateData.storageConditions,
@@ -1796,8 +1828,18 @@ export async function DELETE(request: NextRequest) {
         ),
       );
 
+      await Promise.all(
+        uniqueImageKeys.map((s3Key) =>
+          tx.imageAssets.upsert({
+            where: { s3Key },
+            create: { s3Key },
+            update: {},
+          }),
+        ),
+      );
+
       // Explicitly remove this item's image-link rows before deleting the item.
-      // This keeps link cleanup correct even if DB-level cascade behavior changes.
+      // The underlying image assets remain in the library until deleted there.
       await tx.catalogItemImage.deleteMany({
         where: { catalogItemId },
       });
@@ -1816,32 +1858,6 @@ export async function DELETE(request: NextRequest) {
       return errorResponse("Catalog item not found.", undefined, 404);
     }
 
-    const imageCleanupErrors: string[] = [];
-
-    if (payload.deleteImagesFromStorage) {
-      for (const imageKey of deletionResult.uniqueImageKeys) {
-        const remainingReferences = await prisma.catalogItemImage.count({
-          where: { s3Key: imageKey },
-        });
-
-        if (remainingReferences > 0) {
-          continue;
-        }
-
-        try {
-          await deleteFileFromS3(imageKey);
-        } catch (error: unknown) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Unknown S3 cleanup error.";
-          imageCleanupErrors.push(
-            `Failed to delete image from storage (${imageKey}): ${message}`,
-          );
-        }
-      }
-    }
-
     return withNoCache(
       NextResponse.json(
         {
@@ -1849,7 +1865,8 @@ export async function DELETE(request: NextRequest) {
           data: {
             id: q.id,
             deletedImageCount: deletionResult.deletedImageCount,
-            storageCleanupErrors: imageCleanupErrors,
+            retainedImageKeys: deletionResult.uniqueImageKeys,
+            deleteImagesFromStorageIgnored: payload.deleteImagesFromStorage,
           },
         },
         { status: 200 },

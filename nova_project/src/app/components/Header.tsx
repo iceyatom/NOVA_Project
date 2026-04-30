@@ -10,9 +10,6 @@ import { useLoginStatus } from "../LoginStatusContext";
 export default function Header() {
   const [open, setOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  // Track if mouse is over either icon or popup
-  const hoverState = useRef({ icon: false, popup: false });
-  const closeTimer = useRef<NodeJS.Timeout | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const pathname = usePathname();
@@ -45,7 +42,7 @@ export default function Header() {
     pathname === href || (href !== "/" && pathname?.startsWith(href));
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       if (
         profileRef.current &&
         !profileRef.current.contains(event.target as Node)
@@ -54,10 +51,18 @@ export default function Header() {
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowProfile(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
@@ -146,22 +151,6 @@ export default function Header() {
             <div
               ref={profileRef}
               className="profile-icon-container"
-              tabIndex={0}
-              aria-label={loggedIn ? "Account" : "Not logged in"}
-              onMouseEnter={() => {
-                hoverState.current.icon = true;
-                setShowProfile(true);
-                if (closeTimer.current) clearTimeout(closeTimer.current);
-              }}
-              onMouseLeave={() => {
-                hoverState.current.icon = false;
-                closeTimer.current = setTimeout(() => {
-                  if (!hoverState.current.icon && !hoverState.current.popup)
-                    setShowProfile(false);
-                }, 120);
-              }}
-              onFocus={() => setShowProfile(true)}
-              onBlur={() => setShowProfile(false)}
               style={{
                 position: "relative",
                 display: "inline-flex",
@@ -170,47 +159,56 @@ export default function Header() {
                 height: "44px",
               }}
             >
-              <Image
-                src={loggedIn ? "/logo-frog.webp" : "/profile-icon.svg"}
-                alt={loggedIn ? "Account (logged in)" : "Not logged in"}
-                width={32}
-                height={32}
+              <button
+                type="button"
+                className="profile-icon-button"
+                aria-label={loggedIn ? "Open account menu" : "Open login menu"}
+                aria-haspopup="dialog"
+                aria-expanded={showProfile}
                 onClick={() => setShowProfile((prev) => !prev)}
                 style={
                   loggedIn
                     ? {
+                        background: "transparent",
+                        border: "0",
+                        padding: "0",
                         borderRadius: "50%",
-                        boxShadow: "0 0 0 3px #059669",
-                        border: "2px solid #059669",
                         cursor: "pointer",
                       }
                     : {
-                        filter: "grayscale(1) opacity(0.6)",
+                        background: "transparent",
+                        border: "0",
+                        padding: "0",
                         borderRadius: "50%",
                         cursor: "pointer",
                       }
                 }
-                aria-hidden="true"
-              />
+              >
+                <Image
+                  src={loggedIn ? "/logo-frog.webp" : "/profile-icon.svg"}
+                  alt=""
+                  width={32}
+                  height={32}
+                  style={
+                    loggedIn
+                      ? {
+                          borderRadius: "50%",
+                          boxShadow: "0 0 0 3px #059669",
+                          border: "2px solid #059669",
+                          display: "block",
+                        }
+                      : {
+                          filter: "grayscale(1) opacity(0.6)",
+                          borderRadius: "50%",
+                          display: "block",
+                        }
+                  }
+                  aria-hidden="true"
+                />
+              </button>
 
               {showProfile && (
-                <div
-                  className="profile-popup"
-                  role="dialog"
-                  aria-modal="false"
-                  onMouseEnter={() => {
-                    hoverState.current.popup = true;
-                    setShowProfile(true);
-                    if (closeTimer.current) clearTimeout(closeTimer.current);
-                  }}
-                  onMouseLeave={() => {
-                    hoverState.current.popup = false;
-                    closeTimer.current = setTimeout(() => {
-                      if (!hoverState.current.icon && !hoverState.current.popup)
-                        setShowProfile(false);
-                    }, 120);
-                  }}
-                >
+                <div className="profile-popup" role="dialog" aria-modal="false">
                   {loggedIn ? (
                     <div>
                       <div>
@@ -218,7 +216,11 @@ export default function Header() {
                       </div>
                       <div>{accountEmail || "No email"}</div>
                       <div className="profile-popup-actions">
-                        <Link className="profile-dropdown-link" href="/account">
+                        <Link
+                          className="profile-dropdown-link"
+                          href="/account"
+                          onClick={() => setShowProfile(false)}
+                        >
                           Account Dashboard
                         </Link>
                         {(normalizedRole === "STAFF" ||
@@ -226,6 +228,7 @@ export default function Header() {
                           <Link
                             className="profile-dropdown-link"
                             href="/staff/dashboard"
+                            onClick={() => setShowProfile(false)}
                           >
                             Staff Dashboard
                           </Link>

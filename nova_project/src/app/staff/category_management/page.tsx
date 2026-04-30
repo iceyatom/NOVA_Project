@@ -83,6 +83,16 @@ type SessionResponse = {
 };
 
 const PAGE_SIZE = 10;
+const CATEGORY_NAME_MAX_LENGTH = 120;
+const CATEGORY_TABLE_NAME_PREVIEW_MAX = 32;
+
+function formatCategoryTableName(name: string): string {
+  if (name.length <= CATEGORY_TABLE_NAME_PREVIEW_MAX) {
+    return name;
+  }
+
+  return `${name.slice(0, CATEGORY_TABLE_NAME_PREVIEW_MAX).trimEnd()}...`;
+}
 
 function parseStringArray(payload: unknown): string[] {
   if (!Array.isArray(payload)) {
@@ -1013,6 +1023,10 @@ export default function StaffCategoryManagementPage() {
         return "Category name is required.";
       }
 
+      if (trimmedName.length > CATEGORY_NAME_MAX_LENGTH) {
+        return `Category name must be ${CATEGORY_NAME_MAX_LENGTH} characters or fewer.`;
+      }
+
       if (
         editPopupContext.level === "category2" &&
         !editParentCategory3.trim()
@@ -1367,7 +1381,9 @@ export default function StaffCategoryManagementPage() {
                       key={name}
                       className={`category-mgmt-tr ${selectedCategory === name ? "category-mgmt-tr--selected" : ""}`}
                     >
-                      <td className="category-mgmt-td">{name}</td>
+                      <td className="category-mgmt-td" title={name}>
+                        {formatCategoryTableName(name)}
+                      </td>
                       <td className="category-mgmt-td">
                         <div className="category-mgmt-action">
                           <Link
@@ -1472,7 +1488,9 @@ export default function StaffCategoryManagementPage() {
                       key={`${selectedCategory}::${name}`}
                       className={`category-mgmt-tr ${selectedSubcategory === name ? "category-mgmt-tr--selected" : ""}`}
                     >
-                      <td className="category-mgmt-td">{name}</td>
+                      <td className="category-mgmt-td" title={name}>
+                        {formatCategoryTableName(name)}
+                      </td>
                       <td className="category-mgmt-td">
                         <div className="category-mgmt-action">
                           <Link
@@ -1575,7 +1593,9 @@ export default function StaffCategoryManagementPage() {
                       key={`${selectedCategory}::${selectedSubcategory}::${name}`}
                       className={`category-mgmt-tr ${selectedType === name ? "category-mgmt-tr--selected" : ""}`}
                     >
-                      <td className="category-mgmt-td">{name}</td>
+                      <td className="category-mgmt-td" title={name}>
+                        {formatCategoryTableName(name)}
+                      </td>
                       <td className="category-mgmt-td">
                         <div className="category-mgmt-action">
                           <Link
@@ -1677,6 +1697,14 @@ export default function StaffCategoryManagementPage() {
                   setShowSaveConfirmation(false);
                   return;
                 }
+                if (editName.trim().length > CATEGORY_NAME_MAX_LENGTH) {
+                  setEditPopupError(
+                    `Category name must be ${CATEGORY_NAME_MAX_LENGTH} characters or fewer.`,
+                  );
+                  setEditPopupSuccess(null);
+                  setShowSaveConfirmation(false);
+                  return;
+                }
                 if (
                   editPopupContext.level === "category2" &&
                   !editParentCategory3.trim()
@@ -1708,17 +1736,25 @@ export default function StaffCategoryManagementPage() {
               noValidate
             >
               <label className="item-category-form__field">
-                <span
-                  className={`item-category-form__label ${isNameDirty ? "category-mgmt-edit-modal__label--dirty" : ""}`}
-                >
-                  Name
-                </span>
+                <div className="account-management__notes-label-row">
+                  <span
+                    className={`item-category-form__label ${isNameDirty ? "category-mgmt-edit-modal__label--dirty" : ""}`}
+                  >
+                    Name
+                  </span>
+                  <span
+                    className={`item-category-form__label account-management__notes-count ${isNameDirty ? "category-mgmt-edit-modal__label--dirty" : ""}`}
+                  >
+                    {editName.length}/{CATEGORY_NAME_MAX_LENGTH}
+                  </span>
+                </div>
                 <input
                   className="item-search-page__search-input"
                   type="text"
                   value={editName}
                   onChange={(event) => setEditName(event.target.value)}
                   placeholder="Enter a unique name"
+                  maxLength={CATEGORY_NAME_MAX_LENGTH}
                 />
               </label>
 

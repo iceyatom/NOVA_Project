@@ -49,14 +49,32 @@ model CatalogItemImage {
   id            Int      @id @default(autoincrement())
   catalogItemId Int
   s3Key         String
+  imageAssetId  Int?
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
 
-  catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  catalogItem CatalogItem  @relation(fields: [catalogItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  imageAsset  ImageAssets? @relation(fields: [imageAssetId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([catalogItemId])
   @@index([catalogItemId, sortOrder])
+  @@index([imageAssetId])
   @@index([s3Key])
+}
+
+model ImageAssets {
+  id          Int      @id @default(autoincrement())
+  s3Key       String   @unique
+  fileName    String?
+  contentType String?
+  sizeBytes   Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  catalogImages CatalogItemImage[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model Category3 {

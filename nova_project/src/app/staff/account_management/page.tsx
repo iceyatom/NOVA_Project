@@ -1522,7 +1522,7 @@ export default function StaffAccountManagementPage() {
           onClick={editModalBackdropHandlers.onClick}
         >
           <div
-            className="item-category-modal__content category-mgmt-edit-modal__content"
+            className="item-category-modal__content category-mgmt-edit-modal__content accountManagementEditModal"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="item-category-modal__title">Edit Account</div>

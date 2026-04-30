@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { deleteFileFromS3 } from "@/lib/s3";
 import { requireStaffSession } from "@/lib/auth/staffAccess";
-
-const s3 = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials:
-    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-      ? {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        }
-      : undefined,
-});
 
 function getImageUrlFromKey(key: string) {
   if (/^https?:\/\//i.test(key)) {
@@ -32,6 +21,121 @@ function getImageUrlFromKey(key: string) {
   }
 
   return `https://${bucket}.s3.${region}.amazonaws.com/${normalizedKey}`;
+}
+
+function normalizeS3Key(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().replace(/^\/+/, "");
+  return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeOptionalString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeOptionalPositiveInt(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return undefined;
+  }
+
+  return Math.trunc(value);
+}
+
+async function upsertImageAsset(args: {
+  s3Key: string;
+  fileName?: string;
+  contentType?: string;
+  sizeBytes?: number;
+}) {
+  const updateData = {
+    ...(args.fileName !== undefined ? { fileName: args.fileName } : {}),
+    ...(args.contentType !== undefined
+      ? { contentType: args.contentType }
+      : {}),
+    ...(args.sizeBytes !== undefined ? { sizeBytes: args.sizeBytes } : {}),
+  };
+
+  return prisma.imageAssets.upsert({
+    where: { s3Key: args.s3Key },
+    create: {
+      s3Key: args.s3Key,
+      fileName: args.fileName,
+      contentType: args.contentType,
+      sizeBytes: args.sizeBytes,
+    },
+    update: updateData,
+  });
+}
+
+async function ensureAssetsForKeys(keys: string[]) {
+  const uniqueKeys = Array.from(
+    new Set(keys.map((key) => key.trim()).filter(Boolean)),
+  );
+
+  if (uniqueKeys.length === 0) {
+    return;
+  }
+
+  await prisma.$transaction(
+    uniqueKeys.map((s3Key) =>
+      prisma.imageAssets.upsert({
+        where: { s3Key },
+        create: { s3Key },
+        update: {},
+      }),
+    ),
+  );
+}
+
+async function buildImageLibraryEntry(
+  key: string,
+  options: {
+    asset?: {
+      id: number;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null;
+    usageCount?: number;
+    lastLinkedAt?: Date | null;
+    linkedToCatalogItem?: boolean;
+  } = {},
+) {
+  const asset =
+    options.asset ??
+    (await prisma.imageAssets.findUnique({
+      where: { s3Key: key },
+      select: {
+        id: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }));
+
+  const usageCount =
+    options.usageCount ??
+    (await prisma.catalogItemImage.count({
+      where: { s3Key: key },
+    }));
+
+  return {
+    assetId: asset?.id ?? null,
+    s3Key: key,
+    url: getImageUrlFromKey(key),
+    usageCount,
+    lastLinkedAt: options.lastLinkedAt ?? null,
+    linkedToCatalogItem: options.linkedToCatalogItem === true,
+    canDelete: usageCount === 0 && asset != null,
+    createdAt: asset?.createdAt ?? null,
+    updatedAt: asset?.updatedAt ?? null,
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -93,13 +197,27 @@ export async function GET(request: NextRequest) {
       const linkedCatalogItemIds = new Set(
         references.map((reference) => reference.catalogItemId),
       );
+      const asset = await prisma.imageAssets.findUnique({
+        where: { s3Key: normalizedS3Key },
+        select: {
+          id: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      const usageCount = references.length;
 
       return NextResponse.json(
         {
           success: true,
           data: {
+            assetId: asset?.id ?? null,
             s3Key: normalizedS3Key,
             url: getImageUrlFromKey(normalizedS3Key),
+            usageCount,
+            canDelete: usageCount === 0 && asset != null,
+            createdAt: asset?.createdAt ?? null,
+            updatedAt: asset?.updatedAt ?? null,
             references: references.map((reference) => ({
               imageId: reference.id,
               catalogItemId: reference.catalogItemId,
@@ -119,9 +237,10 @@ export async function GET(request: NextRequest) {
     }
 
     let matchedCatalogItemIds: number[] | null = null;
+    const normalizedQuery = itemQuery.replace(/\s+/g, " ");
 
-    if (itemQuery) {
-      const queryTokens = itemQuery.split(/\s+/).filter(Boolean);
+    if (normalizedQuery) {
+      const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
       const andWhere =
         queryTokens.length > 0
           ? queryTokens.map((token) => ({
@@ -148,28 +267,25 @@ export async function GET(request: NextRequest) {
       });
 
       matchedCatalogItemIds = matchedItems.map((item) => item.id);
-      if (matchedCatalogItemIds.length === 0) {
-        return NextResponse.json(
-          {
-            success: true,
-            data: [],
-          },
-          { status: 200 },
-        );
-      }
     }
 
-    const groupedImages = await prisma.catalogItemImage.groupBy({
+    const groupedLinkedImages = await prisma.catalogItemImage.groupBy({
       by: ["s3Key"],
       where: {
         s3Key: { not: "" },
-        ...(matchedCatalogItemIds
+        ...(matchedCatalogItemIds && matchedCatalogItemIds.length > 0
           ? {
               catalogItemId: {
                 in: matchedCatalogItemIds,
               },
             }
-          : {}),
+          : normalizedQuery
+            ? {
+                s3Key: {
+                  contains: normalizedQuery,
+                },
+              }
+            : {}),
       },
       _count: {
         s3Key: true,
@@ -182,10 +298,49 @@ export async function GET(request: NextRequest) {
           createdAt: "desc",
         },
       },
-      take: limit,
+      take: Math.min(300, limit * 2),
     });
 
-    const keys = groupedImages.map((entry) => entry.s3Key);
+    const linkedKeys = groupedLinkedImages
+      .map((entry) => entry.s3Key.trim())
+      .filter(Boolean);
+    const assets = await prisma.imageAssets.findMany({
+      where: normalizedQuery
+        ? {
+            OR: [
+              {
+                s3Key: {
+                  contains: normalizedQuery,
+                },
+              },
+              ...(linkedKeys.length > 0
+                ? [
+                    {
+                      s3Key: {
+                        in: linkedKeys,
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          }
+        : undefined,
+      select: {
+        id: true,
+        s3Key: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      take: Math.min(300, limit * 2),
+    });
+
+    const keys = Array.from(
+      new Set([
+        ...assets.map((asset) => asset.s3Key.trim()).filter(Boolean),
+        ...linkedKeys,
+      ]),
+    );
     const globalImageStats =
       keys.length > 0
         ? await prisma.catalogItemImage.groupBy({
@@ -205,6 +360,9 @@ export async function GET(request: NextRequest) {
         : [];
     const globalStatsByKey = new Map(
       globalImageStats.map((entry) => [entry.s3Key, entry] as const),
+    );
+    const assetsByKey = new Map(
+      assets.map((asset) => [asset.s3Key, asset] as const),
     );
 
     let linkedKeySet = new Set<string>();
@@ -229,21 +387,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = groupedImages
-      .map((entry) => {
-        const key = entry.s3Key.trim();
-        if (!key) return null;
-        const globalStats = globalStatsByKey.get(entry.s3Key);
+    const data = keys
+      .map((key) => {
+        const asset = assetsByKey.get(key) ?? null;
+        const globalStats = globalStatsByKey.get(key);
+        const usageCount = globalStats?._count.s3Key ?? 0;
 
         return {
+          assetId: asset?.id ?? null,
           s3Key: key,
           url: getImageUrlFromKey(key),
-          usageCount: globalStats?._count.s3Key ?? entry._count.s3Key,
-          lastLinkedAt: globalStats?._max.createdAt ?? entry._max.createdAt,
+          usageCount,
+          lastLinkedAt: globalStats?._max.createdAt ?? null,
           linkedToCatalogItem: linkedKeySet.has(key),
+          canDelete: usageCount === 0 && asset != null,
+          createdAt: asset?.createdAt ?? null,
+          updatedAt: asset?.updatedAt ?? null,
         };
       })
-      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+      .sort((a, b) => {
+        const aTime = Date.parse(
+          String(a.lastLinkedAt ?? a.updatedAt ?? a.createdAt ?? ""),
+        );
+        const bTime = Date.parse(
+          String(b.lastLinkedAt ?? b.updatedAt ?? b.createdAt ?? ""),
+        );
+
+        if ((bTime || 0) !== (aTime || 0)) {
+          return (bTime || 0) - (aTime || 0);
+        }
+
+        return a.s3Key.localeCompare(b.s3Key);
+      })
+      .slice(0, limit);
 
     return NextResponse.json(
       {
@@ -270,20 +446,37 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { catalogItemId, fileKey } = body;
-    const normalizedFileKey =
-      typeof fileKey === "string" ? fileKey.trim() : null;
+    const { catalogItemId, fileKey, fileName, contentType, sizeBytes } = body;
+    const normalizedFileKey = normalizeS3Key(fileKey);
 
-    if (typeof catalogItemId !== "number") {
+    if (!normalizedFileKey) {
       return NextResponse.json(
-        { success: false, error: "catalogItemId must be a number" },
+        { success: false, error: "fileKey must be a non-empty string" },
         { status: 400 },
       );
     }
 
-    if (!normalizedFileKey) {
+    const asset = await upsertImageAsset({
+      s3Key: normalizedFileKey,
+      fileName: normalizeOptionalString(fileName),
+      contentType: normalizeOptionalString(contentType),
+      sizeBytes: normalizeOptionalPositiveInt(sizeBytes),
+    });
+
+    if (catalogItemId == null) {
+      const entry = await buildImageLibraryEntry(normalizedFileKey, {
+        asset,
+      });
+
       return NextResponse.json(
-        { success: false, error: "fileKey must be a string" },
+        { success: true, data: entry, alreadyLinked: false },
+        { status: 201 },
+      );
+    }
+
+    if (typeof catalogItemId !== "number" || !Number.isInteger(catalogItemId)) {
+      return NextResponse.json(
+        { success: false, error: "catalogItemId must be an integer number" },
         { status: 400 },
       );
     }
@@ -308,8 +501,22 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingImage) {
+      if (existingImage.imageAssetId == null) {
+        await prisma.catalogItemImage.update({
+          where: { id: existingImage.id },
+          data: { imageAssetId: asset.id },
+        });
+      }
+
       return NextResponse.json(
-        { success: true, data: existingImage, alreadyLinked: true },
+        {
+          success: true,
+          data: {
+            ...existingImage,
+            imageAssetId: asset.id,
+          },
+          alreadyLinked: true,
+        },
         { status: 200 },
       );
     }
@@ -327,6 +534,7 @@ export async function POST(request: NextRequest) {
       data: {
         catalogItemId,
         s3Key: normalizedFileKey,
+        imageAssetId: asset.id,
         sortOrder: (maxSortOrder._max.sortOrder ?? -1) + 1,
       },
     });
@@ -468,11 +676,68 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { imageId, deleteFromStorage } = body;
+    const { imageId, s3Key: rawS3Key, deleteAsset } = body;
 
-    if (typeof imageId !== "number") {
+    if (deleteAsset === true) {
+      const normalizedS3Key = normalizeS3Key(rawS3Key);
+      if (!normalizedS3Key) {
+        return NextResponse.json(
+          { success: false, error: "s3Key must be a non-empty string" },
+          { status: 400 },
+        );
+      }
+
+      const remainingReferences = await prisma.catalogItemImage.count({
+        where: { s3Key: normalizedS3Key },
+      });
+
+      if (remainingReferences > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Image asset cannot be deleted while catalog items still link to it.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const asset = await prisma.imageAssets.findUnique({
+        where: { s3Key: normalizedS3Key },
+        select: { id: true },
+      });
+
+      if (!asset) {
+        return NextResponse.json(
+          { success: false, error: "Image asset not found" },
+          { status: 404 },
+        );
+      }
+
+      await deleteFileFromS3(normalizedS3Key);
+      await prisma.imageAssets.delete({
+        where: { s3Key: normalizedS3Key },
+      });
+
       return NextResponse.json(
-        { success: false, error: "imageId must be a number" },
+        {
+          success: true,
+          data: {
+            s3Key: normalizedS3Key,
+            deletedFromStorage: true,
+            deletedAsset: true,
+          },
+        },
+        { status: 200 },
+      );
+    }
+
+    if (typeof imageId !== "number" || !Number.isInteger(imageId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "imageId must be an integer number for unlink requests",
+        },
         { status: 400 },
       );
     }
@@ -494,46 +759,25 @@ export async function DELETE(request: NextRequest) {
 
     const s3Key = imageRecord.s3Key;
 
+    await ensureAssetsForKeys([s3Key]);
+
     await prisma.catalogItemImage.delete({
       where: { id: imageId },
     });
 
-    let deletedFromStorage = false;
-
-    if (deleteFromStorage && s3Key) {
-      const remainingReferences = await prisma.catalogItemImage.count({
-        where: { s3Key },
-      });
-
-      if (remainingReferences === 0) {
-        const bucket = process.env.S3_BUCKET_NAME;
-        if (!bucket) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Image unlinked, but S3 bucket is not configured.",
-            },
-            { status: 500 },
-          );
-        }
-
-        await s3.send(
-          new DeleteObjectCommand({
-            Bucket: bucket,
-            Key: s3Key,
-          }),
-        );
-
-        deletedFromStorage = true;
-      }
-    }
+    const remainingReferences = await prisma.catalogItemImage.count({
+      where: { s3Key },
+    });
 
     return NextResponse.json(
       {
         success: true,
         data: {
           id: imageId,
-          deletedFromStorage,
+          s3Key,
+          remainingReferences,
+          deletedFromStorage: false,
+          deletedAsset: false,
         },
       },
       { status: 200 },

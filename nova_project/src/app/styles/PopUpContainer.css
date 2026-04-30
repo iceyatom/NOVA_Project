@@ -21,6 +21,12 @@
   max-width: 960px;
 }
 
+.employeeTaskViewPopup {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .popup-content .staffTaskCard,
 .popup-content .staffTaskCard:active {
   cursor: default !important;
@@ -34,4 +40,23 @@
   background: none;
   font-size: 1.5rem;
   cursor: pointer;
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  .employeeTaskViewPopup {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+  }
+
+  .employeeTaskViewPopup .staffTaskCard {
+    padding: 0.85rem;
+  }
+
+  .employeeTaskViewPopup .staffTaskCardHeader {
+    gap: 0.6rem;
+  }
+
+  .employeeTaskViewPopup .staffTaskBody {
+    padding-top: 0.65rem;
+  }
 }

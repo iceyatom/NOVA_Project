@@ -566,7 +566,7 @@ export default function StaffDashboardHome() {
           onClick={createAnnouncementModalBackdropHandlers.onClick}
         >
           <div
-            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal staffAnnouncementCreateModal"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="item-category-modal__title">

@@ -1083,7 +1083,7 @@ export default function AdminTaskViewClient({
           </div>
         </div>
 
-        <div className="staffTaskLegendActions">
+        <div className="staffTaskLegendActions staffTaskMonitorActions">
           {selectedTaskCount > 0 ? (
             <button
               type="button"
@@ -1453,7 +1453,7 @@ export default function AdminTaskViewClient({
           onClick={editTaskModalBackdropHandlers.onClick}
         >
           <div
-            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal staffTaskEditTaskModal"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="item-category-modal__title">Edit Task</div>
@@ -1698,7 +1698,7 @@ export default function AdminTaskViewClient({
           onClick={createTaskModalBackdropHandlers.onClick}
         >
           <div
-            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal staffTaskCreateTaskModal"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="item-category-modal__title">Create New Task</div>

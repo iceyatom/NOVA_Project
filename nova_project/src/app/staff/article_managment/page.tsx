@@ -299,6 +299,8 @@ export default function StaffArticleManagmentPage() {
     loadBrowseImages,
     handleBrowseItemSearchSubmit,
     handleClearBrowseItemSearch,
+    deleteImageAsset,
+    isDeletingImageAssetKey,
   } = useImageLibraryBrowser({
     catalogItemId: null,
     isBrowseCloseBlocked: isInsertingImageKey !== null,
@@ -322,8 +324,10 @@ export default function StaffArticleManagmentPage() {
   const sortedBrowseImages = useMemo(
     () =>
       [...browseImages].sort((a, b) => {
-        const aTimestamp = a.lastLinkedAt ? Date.parse(a.lastLinkedAt) || 0 : 0;
-        const bTimestamp = b.lastLinkedAt ? Date.parse(b.lastLinkedAt) || 0 : 0;
+        const aTimestamp =
+          Date.parse(a.lastLinkedAt ?? a.updatedAt ?? a.createdAt ?? "") || 0;
+        const bTimestamp =
+          Date.parse(b.lastLinkedAt ?? b.updatedAt ?? b.createdAt ?? "") || 0;
 
         if (bTimestamp !== aTimestamp) {
           return bTimestamp - aTimestamp;
@@ -354,7 +358,7 @@ export default function StaffArticleManagmentPage() {
 
   const browseImagesBackdropHandlers = useBackdropPointerClose<HTMLDivElement>(
     () => {
-      if (isInsertingImageKey !== null) {
+      if (isInsertingImageKey !== null || isDeletingImageAssetKey !== null) {
         return;
       }
       closeBrowseImagesPopupBase();
@@ -831,6 +835,25 @@ export default function StaffArticleManagmentPage() {
     }
   }
 
+  async function handleDeleteBrowseImage(entry: BrowseImageLibraryEntry) {
+    if (entry.usageCount > 0 || !entry.canDelete) {
+      setError("Only images with no linked catalog items can be deleted.");
+      return;
+    }
+
+    try {
+      await deleteImageAsset(entry.s3Key);
+      setError(null);
+      setSuccess("Image deleted from the library and S3 storage.");
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete image.",
+      );
+    }
+  }
+
   return (
     <div>
       <div className="staffTitle">Article Managment</div>
@@ -1252,7 +1275,7 @@ export default function StaffArticleManagmentPage() {
           onClick={browseArticlesBackdropHandlers.onClick}
         >
           <div
-            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal article-managment__browse-articles-modal"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="item-category-modal__title">Browse Articles</div>
@@ -1468,10 +1491,11 @@ export default function StaffArticleManagmentPage() {
                         onChange={(event) =>
                           setBrowseItemSearchInput(event.target.value)
                         }
-                        placeholder="Search by SKU or Name"
+                        placeholder="Search by SKU, name, or image key"
                         disabled={
                           isLoadingBrowseImages ||
                           isInsertingImageKey !== null ||
+                          isDeletingImageAssetKey !== null ||
                           isSaving ||
                           isDeletingArticle
                         }
@@ -1485,6 +1509,7 @@ export default function StaffArticleManagmentPage() {
                           disabled={
                             isLoadingBrowseImages ||
                             isInsertingImageKey !== null ||
+                            isDeletingImageAssetKey !== null ||
                             isSaving ||
                             isDeletingArticle
                           }
@@ -1500,6 +1525,7 @@ export default function StaffArticleManagmentPage() {
                       disabled={
                         isLoadingBrowseImages ||
                         isInsertingImageKey !== null ||
+                        isDeletingImageAssetKey !== null ||
                         isSaving ||
                         isDeletingArticle
                       }
@@ -1527,6 +1553,7 @@ export default function StaffArticleManagmentPage() {
                   disabled={
                     isLoadingBrowseImages ||
                     isInsertingImageKey !== null ||
+                    isDeletingImageAssetKey !== null ||
                     isSaving ||
                     isDeletingArticle
                   }
@@ -1552,8 +1579,8 @@ export default function StaffArticleManagmentPage() {
               sortedBrowseImages.length === 0 ? (
                 <div className="item-browse-images-state">
                   {browseItemSearchQuery
-                    ? "No images found for matching catalog items."
-                    : "No linked images found."}
+                    ? "No images found for that search."
+                    : "No stored images found."}
                 </div>
               ) : null}
 
@@ -1564,6 +1591,13 @@ export default function StaffArticleManagmentPage() {
                   {sortedBrowseImages.map((entry) => {
                     const isInsertingThisImage =
                       isInsertingImageKey === entry.s3Key;
+                    const isDeletingThisAsset =
+                      isDeletingImageAssetKey === entry.s3Key;
+                    const actionDisabled =
+                      isInsertingImageKey !== null ||
+                      isDeletingImageAssetKey !== null ||
+                      isSaving ||
+                      isDeletingArticle;
 
                     return (
                       <div
@@ -1587,22 +1621,33 @@ export default function StaffArticleManagmentPage() {
                             {entry.s3Key}
                           </div>
                           <div className="item-browse-images-usage">
-                            Used by {entry.usageCount} item
-                            {entry.usageCount === 1 ? "" : "s"}
+                            {entry.usageCount === 0
+                              ? "Stored image, not linked to any item"
+                              : `Used by ${entry.usageCount} item${entry.usageCount === 1 ? "" : "s"}`}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="staff-dev-pill"
-                          onClick={() => void handleInsertBrowseImage(entry)}
-                          disabled={
-                            isInsertingImageKey !== null ||
-                            isSaving ||
-                            isDeletingArticle
-                          }
-                        >
-                          {isInsertingThisImage ? "Inserting..." : "Insert"}
-                        </button>
+                        <div className="item-browse-images-actions">
+                          <button
+                            type="button"
+                            className="staff-dev-pill"
+                            onClick={() => void handleInsertBrowseImage(entry)}
+                            disabled={actionDisabled}
+                          >
+                            {isInsertingThisImage ? "Inserting..." : "Insert"}
+                          </button>
+                          {entry.canDelete ? (
+                            <button
+                              type="button"
+                              className="staff-dev-pill staff-dev-pill--danger"
+                              onClick={() =>
+                                void handleDeleteBrowseImage(entry)
+                              }
+                              disabled={actionDisabled}
+                            >
+                              {isDeletingThisAsset ? "Deleting..." : "Delete"}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     );
                   })}
@@ -1616,7 +1661,10 @@ export default function StaffArticleManagmentPage() {
                 className="staff-dev-pill"
                 onClick={closeBrowseImagesPopupBase}
                 disabled={
-                  isInsertingImageKey !== null || isSaving || isDeletingArticle
+                  isInsertingImageKey !== null ||
+                  isDeletingImageAssetKey !== null ||
+                  isSaving ||
+                  isDeletingArticle
                 }
               >
                 Close

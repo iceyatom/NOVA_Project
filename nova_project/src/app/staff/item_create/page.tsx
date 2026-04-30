@@ -52,7 +52,6 @@ type CreateItemForm = {
   price: string;
   classifications: CreateItemClassificationDraft[];
   description: string;
-  quantityInStock: string;
   unitOfMeasure: string;
   storageLocation: string;
   storageConditions: string;
@@ -76,7 +75,6 @@ const INITIAL_FORM: CreateItemForm = {
     },
   ],
   description: "",
-  quantityInStock: "0",
   unitOfMeasure: "",
   storageLocation: "",
   storageConditions: "",
@@ -297,6 +295,9 @@ function StaffItemCreatePageContent() {
     closeBrowseImageDetailsPopup,
     handleBrowseItemSearchSubmit,
     handleClearBrowseItemSearch,
+    createImageAsset,
+    deleteImageAsset,
+    isDeletingImageAssetKey,
   } = useImageLibraryBrowser({
     catalogItemId: null,
     isBrowseOpenBlocked: isSaving,
@@ -584,10 +585,6 @@ function StaffItemCreatePageContent() {
       return "Price must be a non-negative number with up to 2 decimals.";
     }
 
-    if (!/^\d+$/.test(form.quantityInStock.trim())) {
-      return "Quantity in stock must be a whole number.";
-    }
-
     if (!/^\d+$/.test(form.reorderLevel.trim())) {
       return "Reorder level must be a whole number.";
     }
@@ -646,7 +643,6 @@ function StaffItemCreatePageContent() {
     const fields: string[] = [];
 
     if (Number(form.price) === 0) fields.push("Price");
-    if (Number(form.quantityInStock) === 0) fields.push("Quantity In Stock");
     if (Number(form.reorderLevel) === 0) fields.push("Reorder Level");
     if (Number(form.unitCost) === 0) fields.push("Unit Cost");
 
@@ -804,6 +800,8 @@ function StaffItemCreatePageContent() {
     if (!uploadResponse.ok) {
       throw new Error("Failed to upload file to S3.");
     }
+
+    await createImageAsset(fileKey);
 
     return { fileUrl, fileKey };
   }
@@ -993,6 +991,10 @@ function StaffItemCreatePageContent() {
   }
 
   function closeBrowseImagesPopup() {
+    if (isDeletingImageAssetKey !== null) {
+      return;
+    }
+
     closeBrowseImagesPopupBase();
   }
 
@@ -1063,6 +1065,34 @@ function StaffItemCreatePageContent() {
     setSuccessMessage("Image removed from this draft.");
   }
 
+  async function deleteBrowseImageAsset(entry: {
+    s3Key: string;
+    usageCount: number;
+    canDelete: boolean;
+  }) {
+    if (selectedBrowseImageKeySet.has(entry.s3Key)) {
+      setError("Remove this image from the draft before deleting it.");
+      return;
+    }
+
+    if (entry.usageCount > 0 || !entry.canDelete) {
+      setError("Only images with no linked catalog items can be deleted.");
+      return;
+    }
+
+    try {
+      await deleteImageAsset(entry.s3Key);
+      setError(null);
+      setSuccessMessage("Image deleted from the library and S3 storage.");
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete image.",
+      );
+    }
+  }
+
   async function submitCreateItem(skipZeroValueConfirmation: boolean) {
     setError(null);
     setSuccessMessage(null);
@@ -1111,7 +1141,7 @@ function StaffItemCreatePageContent() {
       category1: primaryClassification?.category1 ?? null,
       classifications: startedClassifications,
       description: asNullableString(form.description),
-      quantityInStock: asPositiveIntegerOrZero(form.quantityInStock),
+      quantityInStock: 0,
       unitOfMeasure: asNullableString(form.unitOfMeasure),
       storageLocation: asNullableString(form.storageLocation),
       storageConditions: asNullableString(form.storageConditions),
@@ -1375,15 +1405,8 @@ function StaffItemCreatePageContent() {
               </label>
 
               <label className="item-create-field">
-                <span className="item-create-label">Quantity In Stock *</span>
-                <input
-                  className="item-search-page__search-input"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.quantityInStock}
-                  onChange={update("quantityInStock")}
-                />
+                <span className="item-create-label">Quantity In Stock</span>
+                <div className="account-management__readonly-value">0</div>
               </label>
 
               <label className="item-create-field">
@@ -1773,8 +1796,11 @@ function StaffItemCreatePageContent() {
                         onChange={(event) =>
                           setBrowseItemSearchInput(event.target.value)
                         }
-                        placeholder="Search by SKU or Name"
-                        disabled={isLoadingBrowseImages}
+                        placeholder="Search by SKU, name, or image key"
+                        disabled={
+                          isLoadingBrowseImages ||
+                          isDeletingImageAssetKey !== null
+                        }
                       />
                       {(browseItemSearchInput || browseItemSearchQuery) && (
                         <button
@@ -1782,7 +1808,10 @@ function StaffItemCreatePageContent() {
                           className="item-search-page__search-clear"
                           onClick={handleClearBrowseItemSearch}
                           aria-label="Clear search"
-                          disabled={isLoadingBrowseImages}
+                          disabled={
+                            isLoadingBrowseImages ||
+                            isDeletingImageAssetKey !== null
+                          }
                         >
                           x
                         </button>
@@ -1791,8 +1820,11 @@ function StaffItemCreatePageContent() {
                     <button
                       type="submit"
                       className="item-search-page__search-submit"
-                      aria-label="Search catalog items"
-                      disabled={isLoadingBrowseImages}
+                      aria-label="Search image library"
+                      disabled={
+                        isLoadingBrowseImages ||
+                        isDeletingImageAssetKey !== null
+                      }
                     >
                       <svg
                         aria-hidden="true"
@@ -1814,7 +1846,9 @@ function StaffItemCreatePageContent() {
                   type="button"
                   className="staff-dev-pill"
                   onClick={() => void loadBrowseImages()}
-                  disabled={isLoadingBrowseImages}
+                  disabled={
+                    isLoadingBrowseImages || isDeletingImageAssetKey !== null
+                  }
                 >
                   {isLoadingBrowseImages ? "Loading..." : "Refresh"}
                 </button>
@@ -1828,7 +1862,7 @@ function StaffItemCreatePageContent() {
 
               {!browseImagesError && isLoadingBrowseImages ? (
                 <div className="item-browse-images-state">
-                  Loading linked image library...
+                  Loading image library...
                 </div>
               ) : null}
 
@@ -1837,8 +1871,8 @@ function StaffItemCreatePageContent() {
               browseImages.length === 0 ? (
                 <div className="item-browse-images-state">
                   {browseItemSearchQuery
-                    ? "No images found for matching catalog items."
-                    : "No linked images found."}
+                    ? "No images found for that search."
+                    : "No stored images found."}
                 </div>
               ) : null}
 
@@ -1852,7 +1886,10 @@ function StaffItemCreatePageContent() {
                       form.images.some(
                         (image) => image.url.trim() === entry.url,
                       );
-                    const actionDisabled = isSaving;
+                    const isDeletingThisAsset =
+                      isDeletingImageAssetKey === entry.s3Key;
+                    const actionDisabled =
+                      isSaving || isDeletingImageAssetKey !== null;
 
                     return (
                       <div
@@ -1885,8 +1922,9 @@ function StaffItemCreatePageContent() {
                             {entry.s3Key}
                           </div>
                           <div className="item-browse-images-usage">
-                            Used by {entry.usageCount} item
-                            {entry.usageCount === 1 ? "" : "s"}
+                            {entry.usageCount === 0
+                              ? "Stored image, not linked to any item"
+                              : `Used by ${entry.usageCount} item${entry.usageCount === 1 ? "" : "s"}`}
                           </div>
                         </div>
                         {isSelected ? (
@@ -1902,17 +1940,32 @@ function StaffItemCreatePageContent() {
                             Remove
                           </button>
                         ) : (
-                          <button
-                            type="button"
-                            className="staff-dev-pill"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              addBrowseImageToDraft(entry);
-                            }}
-                            disabled={actionDisabled}
-                          >
-                            Use Image
-                          </button>
+                          <div className="item-browse-images-actions">
+                            <button
+                              type="button"
+                              className="staff-dev-pill"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                addBrowseImageToDraft(entry);
+                              }}
+                              disabled={actionDisabled}
+                            >
+                              Use Image
+                            </button>
+                            {entry.canDelete ? (
+                              <button
+                                type="button"
+                                className="staff-dev-pill staff-dev-pill--danger"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void deleteBrowseImageAsset(entry);
+                                }}
+                                disabled={actionDisabled}
+                              >
+                                {isDeletingThisAsset ? "Deleting..." : "Delete"}
+                              </button>
+                            ) : null}
+                          </div>
                         )}
                       </div>
                     );
@@ -1979,7 +2032,7 @@ function StaffItemCreatePageContent() {
                 {!isLoadingBrowseImageDetails &&
                 browseImageDetails.references.length === 0 ? (
                   <div className="item-browse-images-state">
-                    No linked items found for this image.
+                    This stored image is not linked to any catalog item.
                   </div>
                 ) : null}
 
@@ -2018,10 +2071,26 @@ function StaffItemCreatePageContent() {
             ) : null}
 
             <div className="item-category-form__actions category-mgmt-edit-modal__actions">
+              {browseImageDetails?.canDelete &&
+              !selectedBrowseImageKeySet.has(browseImageDetails.s3Key) ? (
+                <button
+                  type="button"
+                  className="staff-dev-pill staff-dev-pill--danger"
+                  onClick={() =>
+                    void deleteBrowseImageAsset(browseImageDetails)
+                  }
+                  disabled={isDeletingImageAssetKey !== null}
+                >
+                  {isDeletingImageAssetKey === browseImageDetails.s3Key
+                    ? "Deleting..."
+                    : "Delete Image"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="staff-dev-pill"
                 onClick={closeBrowseImageDetailsPopup}
+                disabled={isDeletingImageAssetKey !== null}
               >
                 Close
               </button>

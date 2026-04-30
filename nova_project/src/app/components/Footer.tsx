@@ -33,48 +33,26 @@ export default function Footer() {
           </p>
         </div>
 
-        {/* Right: 3 columns */}
+        {/* Right: 2 columns */}
         <nav className="footer-right" aria-label="Footer navigation">
           {/* Products (leftmost of the right area) */}
           <div className="footer-col">
             <h3 className="footer-title">Products</h3>
             <ul className="footer-list">
               <li>
-                <a className="footer-link" href="#">
-                  Shop Now
-                </a>
+                <Link className="footer-link" href="/catalog">
+                  Catalog
+                </Link>
               </li>
               <li>
-                <a className="footer-link" href="#">
-                  Catalog
-                </a>
+                <Link className="footer-link" href="/about">
+                  About
+                </Link>
               </li>
               <li>
                 <Link className="footer-link" href="/" onClick={onHomeClick}>
                   Home Page
                 </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Legal (middle) */}
-          <div className="footer-col">
-            <h3 className="footer-title">Legal</h3>
-            <ul className="footer-list">
-              <li>
-                <a className="footer-link" href="#">
-                  Terms of Use
-                </a>
-              </li>
-              <li>
-                <a className="footer-link" href="#">
-                  Privacy Policy
-                </a>
-              </li>
-              <li>
-                <a className="footer-link" href="#">
-                  Accessibility Statement
-                </a>
               </li>
             </ul>
           </div>
@@ -107,8 +85,8 @@ export default function Footer() {
       <div className="footer-bottom">
         <div className="container footer-bottom-inner">
           <small>
-            © {year} Niles Biological Inc. · <a href="#">Privacy</a> ·{" "}
-            <a href="#">Terms</a>
+            © {year} Niles Biological Inc. ·{" "}
+            <Link href="/privacy">Privacy</Link>
           </small>
         </div>
       </div>

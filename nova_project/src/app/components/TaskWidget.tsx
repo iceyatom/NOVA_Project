@@ -130,7 +130,11 @@ export default function TaskWidget({ accountId }: { accountId: number }) {
       <div className="staffCardLabel">My Task{s}</div>
       {taskList}
       {selectedTask && (
-        <PopUpContainer isOpen={isPopupOpen} onClose={closePopup}>
+        <PopUpContainer
+          isOpen={isPopupOpen}
+          onClose={closePopup}
+          containerClassName="employeeTaskViewPopup"
+        >
           <EmployeeTaskCard
             task={selectedTask}
             isSummary={false}
