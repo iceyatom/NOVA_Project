@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { deleteFileFromS3 } from "@/lib/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1829,8 +1828,18 @@ export async function DELETE(request: NextRequest) {
         ),
       );
 
+      await Promise.all(
+        uniqueImageKeys.map((s3Key) =>
+          tx.imageAssets.upsert({
+            where: { s3Key },
+            create: { s3Key },
+            update: {},
+          }),
+        ),
+      );
+
       // Explicitly remove this item's image-link rows before deleting the item.
-      // This keeps link cleanup correct even if DB-level cascade behavior changes.
+      // The underlying image assets remain in the library until deleted there.
       await tx.catalogItemImage.deleteMany({
         where: { catalogItemId },
       });
@@ -1849,32 +1858,6 @@ export async function DELETE(request: NextRequest) {
       return errorResponse("Catalog item not found.", undefined, 404);
     }
 
-    const imageCleanupErrors: string[] = [];
-
-    if (payload.deleteImagesFromStorage) {
-      for (const imageKey of deletionResult.uniqueImageKeys) {
-        const remainingReferences = await prisma.catalogItemImage.count({
-          where: { s3Key: imageKey },
-        });
-
-        if (remainingReferences > 0) {
-          continue;
-        }
-
-        try {
-          await deleteFileFromS3(imageKey);
-        } catch (error: unknown) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Unknown S3 cleanup error.";
-          imageCleanupErrors.push(
-            `Failed to delete image from storage (${imageKey}): ${message}`,
-          );
-        }
-      }
-    }
-
     return withNoCache(
       NextResponse.json(
         {
@@ -1882,7 +1865,8 @@ export async function DELETE(request: NextRequest) {
           data: {
             id: q.id,
             deletedImageCount: deletionResult.deletedImageCount,
-            storageCleanupErrors: imageCleanupErrors,
+            retainedImageKeys: deletionResult.uniqueImageKeys,
+            deleteImagesFromStorageIgnored: payload.deleteImagesFromStorage,
           },
         },
         { status: 200 },

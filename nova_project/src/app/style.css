@@ -3950,6 +3950,17 @@ body:has(.loginPage) main {
   color: #64748b;
 }
 
+.item-browse-images-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.item-browse-images-actions .staff-dev-pill {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
 .item-browse-image-details-modal {
   z-index: 1010;
 }

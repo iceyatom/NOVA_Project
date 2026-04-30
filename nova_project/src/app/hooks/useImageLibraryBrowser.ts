@@ -3,11 +3,15 @@
 import { useCallback, useState, type FormEvent } from "react";
 
 export type BrowseImageLibraryEntry = {
+  assetId: number | null;
   s3Key: string;
   url: string;
   usageCount: number;
   lastLinkedAt: string | null;
   linkedToCatalogItem: boolean;
+  canDelete: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
 };
 
 export type BrowseImageReference = {
@@ -21,8 +25,13 @@ export type BrowseImageReference = {
 };
 
 export type BrowseImageReferencesPayload = {
+  assetId: number | null;
   s3Key: string;
   url: string;
+  usageCount: number;
+  canDelete: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
   references: BrowseImageReference[];
 };
 
@@ -90,12 +99,16 @@ function parseBrowseImageLibrary(data: unknown): BrowseImageLibraryEntry[] {
       const usageCount = getNullableNumber(record.usageCount);
 
       return {
+        assetId: getNullableNumber(record.assetId),
         s3Key,
         url,
         usageCount:
           usageCount == null ? 0 : Math.max(0, Math.trunc(usageCount)),
         lastLinkedAt: getNullableString(record.lastLinkedAt),
         linkedToCatalogItem: record.linkedToCatalogItem === true,
+        canDelete: record.canDelete === true,
+        createdAt: getNullableString(record.createdAt),
+        updatedAt: getNullableString(record.updatedAt),
       };
     })
     .filter((entry): entry is BrowseImageLibraryEntry => entry !== null);
@@ -112,6 +125,7 @@ function parseBrowseImageReferencesPayload(
   const s3Key = getNullableString(record.s3Key)?.trim() ?? "";
   const url = getNullableString(record.url)?.trim() ?? "";
   const referencesValue = record.references;
+  const usageCount = getNullableNumber(record.usageCount);
 
   if (!s3Key || !url || !Array.isArray(referencesValue)) {
     return null;
@@ -144,8 +158,16 @@ function parseBrowseImageReferencesPayload(
     .filter((entry): entry is BrowseImageReference => entry !== null);
 
   return {
+    assetId: getNullableNumber(record.assetId),
     s3Key,
     url,
+    usageCount:
+      usageCount == null
+        ? references.length
+        : Math.max(0, Math.trunc(usageCount)),
+    canDelete: record.canDelete === true,
+    createdAt: getNullableString(record.createdAt),
+    updatedAt: getNullableString(record.updatedAt),
     references,
   };
 }
@@ -177,6 +199,9 @@ export default function useImageLibraryBrowser({
   const [isLoadingBrowseImageDetails, setIsLoadingBrowseImageDetails] =
     useState<boolean>(false);
   const [browseImageDetailsError, setBrowseImageDetailsError] = useState<
+    string | null
+  >(null);
+  const [isDeletingImageAssetKey, setIsDeletingImageAssetKey] = useState<
     string | null
   >(null);
 
@@ -246,7 +271,7 @@ export default function useImageLibraryBrowser({
   }, [isBrowseOpenBlocked, loadBrowseImages]);
 
   const closeBrowseImagesPopup = useCallback(() => {
-    if (isBrowseCloseBlocked) {
+    if (isBrowseCloseBlocked || isDeletingImageAssetKey !== null) {
       return;
     }
 
@@ -255,7 +280,7 @@ export default function useImageLibraryBrowser({
     setBrowseImageDetails(null);
     setBrowseImageDetailsError(null);
     setIsLoadingBrowseImageDetails(false);
-  }, [isBrowseCloseBlocked]);
+  }, [isBrowseCloseBlocked, isDeletingImageAssetKey]);
 
   const openBrowseImageDetails = useCallback(
     async (entry: BrowseImageLibraryEntry) => {
@@ -268,8 +293,13 @@ export default function useImageLibraryBrowser({
       setBrowseImageDetailsError(null);
       setIsLoadingBrowseImageDetails(true);
       setBrowseImageDetails({
+        assetId: entry.assetId,
         s3Key: key,
         url: entry.url,
+        usageCount: entry.usageCount,
+        canDelete: entry.canDelete,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
         references: [],
       });
 
@@ -320,13 +350,13 @@ export default function useImageLibraryBrowser({
   );
 
   const closeBrowseImageDetailsPopup = useCallback(() => {
-    if (isDetailsCloseBlocked) {
+    if (isDetailsCloseBlocked || isDeletingImageAssetKey !== null) {
       return;
     }
 
     setIsBrowseImageDetailsOpen(false);
     setBrowseImageDetailsError(null);
-  }, [isDetailsCloseBlocked]);
+  }, [isDetailsCloseBlocked, isDeletingImageAssetKey]);
 
   const handleBrowseItemSearchSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -344,6 +374,97 @@ export default function useImageLibraryBrowser({
     void loadBrowseImages("");
   }, [loadBrowseImages]);
 
+  const createImageAsset = useCallback(async (fileKey: string) => {
+    const normalizedKey = fileKey.trim();
+    if (!normalizedKey) {
+      throw new Error("Image key is required.");
+    }
+
+    const response = await fetch("/api/catalog/staff/images", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileKey: normalizedKey,
+      }),
+    });
+
+    const result = (await response.json()) as BrowseImageLibraryApiResponse;
+
+    if (!response.ok || result?.success === false) {
+      const message =
+        typeof result?.error === "string"
+          ? result.error
+          : `Failed to register image asset (HTTP ${response.status}).`;
+      const details =
+        typeof result?.details === "string" ? ` ${result.details}` : "";
+      throw new Error(`${message}${details}`.trim());
+    }
+
+    const [entry] = parseBrowseImageLibrary([result.data]);
+    if (!entry) {
+      throw new Error("Image asset response was missing required data.");
+    }
+
+    setBrowseImages((prev) => {
+      const withoutExisting = prev.filter(
+        (image) => image.s3Key !== entry.s3Key,
+      );
+      return [entry, ...withoutExisting];
+    });
+
+    return entry;
+  }, []);
+
+  const deleteImageAsset = useCallback(
+    async (entryOrKey: BrowseImageLibraryEntry | string) => {
+      const key =
+        typeof entryOrKey === "string"
+          ? entryOrKey.trim()
+          : entryOrKey.s3Key.trim();
+      if (!key) {
+        throw new Error("Image key is required.");
+      }
+
+      setIsDeletingImageAssetKey(key);
+
+      try {
+        const response = await fetch("/api/catalog/staff/images", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            s3Key: key,
+            deleteAsset: true,
+          }),
+        });
+
+        const result = (await response.json()) as BrowseImageLibraryApiResponse;
+
+        if (!response.ok || result?.success === false) {
+          const message =
+            typeof result?.error === "string"
+              ? result.error
+              : `Failed to delete image asset (HTTP ${response.status}).`;
+          const details =
+            typeof result?.details === "string" ? ` ${result.details}` : "";
+          throw new Error(`${message}${details}`.trim());
+        }
+
+        setBrowseImages((prev) => prev.filter((image) => image.s3Key !== key));
+        setBrowseImageDetails((prev) => (prev?.s3Key === key ? null : prev));
+        setIsBrowseImageDetailsOpen((prev) =>
+          browseImageDetails?.s3Key === key ? false : prev,
+        );
+      } finally {
+        setIsDeletingImageAssetKey(null);
+      }
+    },
+    [browseImageDetails?.s3Key],
+  );
+
   return {
     isBrowseImagesPopupOpen,
     browseImages,
@@ -360,6 +481,7 @@ export default function useImageLibraryBrowser({
     isLoadingBrowseImageDetails,
     browseImageDetailsError,
     setBrowseImageDetailsError,
+    isDeletingImageAssetKey,
     openBrowseImagesPopup,
     closeBrowseImagesPopup,
     loadBrowseImages,
@@ -367,5 +489,7 @@ export default function useImageLibraryBrowser({
     closeBrowseImageDetailsPopup,
     handleBrowseItemSearchSubmit,
     handleClearBrowseItemSearch,
+    createImageAsset,
+    deleteImageAsset,
   };
 }
