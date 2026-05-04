@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const stages: Record<string, { ok: boolean; ms?: number; error?: string; detail?: unknown }> = {};
-  const start = Date.now();
+  const start = Date.now();;
 
   // Stage 1: env config
   const t1 = Date.now();
