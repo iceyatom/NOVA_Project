@@ -8,14 +8,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const stages: Record<string, { ok: boolean; ms?: number; error?: string; detail?: unknown }> = {};
+  const stages: Record<
+    string,
+    { ok: boolean; ms?: number; error?: string; detail?: unknown }
+  > = {};
   const start = Date.now();
 
   // Stage 1: env config
   const t1 = Date.now();
-  const envOk = process.env.NODE_ENV === "production"
-    ? hasProdConfig()
-    : Boolean(process.env.DATABASE_URL);
+  const envOk =
+    process.env.NODE_ENV === "production"
+      ? hasProdConfig()
+      : Boolean(process.env.DATABASE_URL);
   stages.env = {
     ok: envOk,
     ms: Date.now() - t1,
@@ -42,7 +46,11 @@ export async function GET() {
   try {
     const prisma = await getPrisma();
     const result = await prisma.$queryRaw<{ now: Date }[]>`SELECT NOW() as now`;
-    stages.query = { ok: true, ms: Date.now() - t2, detail: { now: result?.[0]?.now } };
+    stages.query = {
+      ok: true,
+      ms: Date.now() - t2,
+      detail: { now: result?.[0]?.now },
+    };
   } catch (err) {
     stages.query = {
       ok: false,

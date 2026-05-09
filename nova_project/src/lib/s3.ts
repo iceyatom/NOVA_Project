@@ -71,7 +71,11 @@ export async function generatePresignedUrl(
     throw new Error("S3_BUCKET_NAME environment variable is not set.");
   }
 
-  if (!ALLOWED_IMAGE_TYPES.includes(fileType as (typeof ALLOWED_IMAGE_TYPES)[number])) {
+  if (
+    !ALLOWED_IMAGE_TYPES.includes(
+      fileType as (typeof ALLOWED_IMAGE_TYPES)[number],
+    )
+  ) {
     throw new Error(
       `Invalid file type: ${fileType}. Allowed: ${ALLOWED_IMAGE_TYPES.join(", ")}`,
     );
@@ -89,9 +93,13 @@ export async function generatePresignedUrl(
     },
   };
 
-  const presignedUrl = await getSignedUrl(s3Client, new PutObjectCommand(params), {
-    expiresIn: PRESIGNED_URL_EXPIRATION,
-  });
+  const presignedUrl = await getSignedUrl(
+    s3Client,
+    new PutObjectCommand(params),
+    {
+      expiresIn: PRESIGNED_URL_EXPIRATION,
+    },
+  );
 
   const region = process.env.AWS_REGION ?? "us-east-2";
   const fileUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${region}.amazonaws.com/${fileKey}`;

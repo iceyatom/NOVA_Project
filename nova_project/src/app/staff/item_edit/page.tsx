@@ -2926,7 +2926,7 @@ function StaffItemEditPageContent() {
           onClick={browseImagesBackdropHandlers.onClick}
         >
           <div
-            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal item-browse-images-modal__content"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="item-category-modal__title">Browse Images</div>
@@ -3229,7 +3229,7 @@ function StaffItemEditPageContent() {
           onClick={browseImageDetailsBackdropHandlers.onClick}
         >
           <div
-            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal"
+            className="item-category-modal__content category-mgmt-edit-modal__content staffTaskCreateModal item-browse-image-details-modal__content"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="item-category-modal__title">Image References</div>

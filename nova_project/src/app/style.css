@@ -3856,6 +3856,13 @@ body:has(.loginPage) main {
   gap: 0.8rem;
 }
 
+.item-browse-images-modal__content,
+.item-browse-image-details-modal__content {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .item-browse-images-toolbar {
   display: flex;
   align-items: center;
@@ -3963,6 +3970,10 @@ body:has(.loginPage) main {
 
 .item-browse-image-details-modal {
   z-index: 1010;
+}
+
+.item-browse-image-details-modal__content .item-category-form__actions {
+  margin-top: 0.8rem;
 }
 
 .item-browse-image-details-layout {
@@ -4087,6 +4098,43 @@ body:has(.loginPage) main {
 @media (min-width: 721px) and (max-width: 1024px) {
   .item-browse-images-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  .item-browse-images-modal__content,
+  .item-browse-image-details-modal__content {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+  }
+
+  .item-browse-images-modal__content .item-category-modal__title,
+  .item-browse-image-details-modal__content .item-category-modal__title {
+    font-size: 1.1rem;
+  }
+
+  .item-browse-images-modal__content .item-category-form,
+  .item-browse-image-details-layout {
+    gap: 0.65rem;
+    margin-top: 0.65rem;
+  }
+
+  .item-browse-images-modal__content .item-search-page__search-input {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.92rem;
+  }
+
+  .item-browse-image-details-preview {
+    aspect-ratio: 16 / 9;
+  }
+
+  .item-browse-image-ref-list {
+    max-height: 30dvh;
+  }
+
+  .item-browse-images-modal__content .item-category-form__actions,
+  .item-browse-image-details-modal__content .item-category-form__actions {
+    margin-top: 0;
   }
 }
 
