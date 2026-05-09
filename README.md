@@ -1,385 +1,386 @@
-# Niles Biological Website Application 
-<img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/56bf6453-be0e-48f1-bb8e-13d662d16ae6" />
+# Niles Biological Website Application
 
-## Project Synopsis
-The Niles Biological Website Application is a full-scale modernization project developed by Team NOVA to replace Niles Biological’s outdated 2006-era website.
+<!--
+README banner image:
+1. Add a new image to this repo, preferably at nova_project/public/readme-logo.png.
+2. Replace the src below with that relative path:
+   <img src="nova_project/public/readme-logo.png" alt="Niles Biological website preview" width="900">
+3. Commit the image and README together so the image renders on GitHub.
 
-The goal of this project is to:
+Alternative GitHub upload method:
+Open any GitHub issue or pull request comment, drag the image into the comment box,
+wait for GitHub to create a user-attachments URL, copy that URL, and use it as src.
+You do not need to submit the issue/comment.
+-->
 
-1. Overhaul the public-facing product catalog with a clean, maintainable, and scalable web application.
-2. Introduce a digitized record-keeping system to streamline internal operations and improve long-term data integrity.
+<img src="nova_project/public/readme-logo.png" alt="Niles Biological website preview" width="900">
 
-Built with Next.js, the application delivers a dynamic catalog interface backed by a MySQL database hosted on AWS RDS for high availability and production reliability. Prisma ORM handles schema management, migrations, and database interaction across all environments.
+## Overview
 
-To ensure consistency across contributors and environments, the project includes:
+The Niles Biological Website Application is Team NOVA's completed modernization of the Niles Biological web presence and internal catalog operations. The application replaces the older static site with a Next.js application backed by MySQL, Prisma, AWS-hosted services, and staff-facing inventory tools.
 
-- End-to-end health checks,
-- Lighthouse performance reporting,
-- Fully documented workflows for seeding, database migrations, and environment setup,
-- Repeatable development spin-up instructions for seamless onboarding.
+The application gives Niles Biological a modern public website where customers can browse educational biology supply content, search the product catalog, learn about the company, and contact the business. It also gives staff members internal tools for managing catalog items, categories, inventory tickets, tasks, accounts, and informational articles.
 
-This application represents the foundation of Niles Bio’s transition toward modern web infrastructure and digital operations.
+This project was created for the CSC senior project sequence to replace Niles Biological's outdated 2006-era website and to support the company's transition toward a maintainable, database-backed web platform. The finished application focuses on improving public catalog access while reducing manual internal record-keeping.
 
-## CSC 190 Milestone Timeline
-This section outlines our milestones of development for CSC 190.
+The finished project supports:
 
-| Sprint | Dates | Milestone / Feature | JIRA |
-| --- | --- | --- | --- |
-| 2 | 10/6/25 - 10/20/25 | Landing Page & Deployment Setup | SCRUM-51 |
-| 3 | 10/11/25 - 11/3/25 | AWS RDS Integration Setup | SCRUM-66 |
-| 3 | 10/20/25 - 11/3/25 | Catalog Page Development | SCRUM-75 |
-| 4 | 11/3/25 - 11/17/25 | Search Bar, Filter Checklist, and Dynamic Catalog Grid - Catalog Page | SCRUM-81 |
-| 4 | 11/3/25 - 11/17/25 | Landing, Contact, and About Page Content Population | SCRUM-87 |
-| 4 | 11/3/25 - 11/17/25 | API Integration and AWS Database Connection Test | SCRUM-91 |
+- Public home, about, contact, privacy, catalog, and informational article pages.
+- Searchable, paginated catalog browsing with product detail pages.
+- Hierarchical catalog categories and item classifications.
+- Account registration, login, email verification, session handling, and role-aware staff access.
+- Staff dashboard workflows for catalog item creation, item editing, category management, account management, ticket creation, ticket review, article management, and task tracking.
+- Image upload support through presigned AWS S3 uploads.
+- Health check endpoints for application, database, and infrastructure verification.
+- Local development, seeding, linting, formatting, production build, Vitest, and Lighthouse scripts.
 
-## CSC 191 Timeline Goals
-This section outlines our planned milestones and development goals for CSC 191.
+## Product Screenshots
 
-| Sprint | Dates | Milestone / Feature |
-| --- | --- | --- |
-| 5 | 1/26/26 - 2/8/26 | Develop Account Logins/2FA by Email |
-| 6 | 2/9/26 - 2/22/26 | Create Database Management Tools |
-| 7 | 2/23/26 - 3/8/26 | Implement Staff Dashboard Summary Statistics |
-| 8 | 3/9/26 - 3/22/26 | Create Audit Logging & Activity Tracking |
-| 9 | 3/23/26 - 4/5/26 | Performance Testing |
+Screenshots below were captured from the live deployment at `https://nilesbio.store`.
 
-## Deployment Instructions
-- Ensure Vercel published main branch successfully builds and is reachable
-- Verify Vercel deployment can reach the database.
-- Confirm that AWS RDS instance is correctly seeded and online with dynamic scaling turned off. 
+### Home Page
 
-## Testing Instructions
+The home page presents Niles Biological branding, featured educational content, and a direct entry point into the catalog.
 
-0) Prerequisites
+<img src="nova_project/public/screenshot-home.png" alt="Niles Biological home page screenshot" width="900">
 
-   - Docker Desktop running.
-   - Local MySQL container started (first time):
-      - docker run -d --name nilesbio --env-file .env.development -p 3307:3306 mysql:8.0
+### Catalog Page
 
-      Subsequent runs:
-      - docker start nilesbio
+The catalog page lets customers search and filter biological supplies, then browse product cards backed by the deployed catalog database.
 
-      Ensure local env files exist with DB URLs:
-      - DATABASE_URL="mysql://app:app@localhost:3307/nilesbio"
-      - SHADOW_DATABASE_URL="mysql://app:app@localhost:3307/nilesbio_shadow"
+<img src="nova_project/public/screenshot-catalog.png" alt="Niles Biological catalog page screenshot" width="900">
 
-      Generate Prisma Client (after fresh clone, dependency changes, or schema changes):
-      - npx prisma generate
+### About Page
 
-1) Smoke test (app boots)
-   - npm run dev
-      - Open http://localhost:3000 and http://localhost:3000/catalog
+The about page summarizes company background, mission content, and supporting business details for public visitors.
 
-2) Catalog Search (placeholder)
+<img src="nova_project/public/screenshot-about.png" alt="Niles Biological about page screenshot" width="900">
 
-   - Type → Enter / Search → “Last search” updates.
-   - Button disabled when empty; no items/network change.
-  
-3) Routing
+### Contact Page
 
-   - Use header links (Catalog/About/Login). Client-side nav only (no new “document” requests). Active link has aria-   current="page".
+The contact page gives customers business contact information and a focused way to reach Niles Biological.
 
-4) Grid responsiveness
+<img src="nova_project/public/screenshot-contact.png" alt="Niles Biological contact page screenshot" width="900">
 
-   - Resize: 4 → 3 → 2 → 1 columns; no clipping/overflow.
+### Staff Login
 
-5) Health
+The staff login screen protects the internal dashboard tools for catalog, account, ticket, article, and task management.
 
-   - Visit /api/health or:
-   - npm run health
+<img src="nova_project/public/screenshot-staff.png" alt="Niles Biological staff login screenshot" width="900">
 
+## Tech Stack
 
-6) DB connectivity
+| Area | Technology |
+| --- | --- |
+| Framework | Next.js 15 App Router |
+| Language | TypeScript, React 19 |
+| Styling | CSS modules/global CSS, Tailwind/PostCSS tooling |
+| Database | MySQL |
+| ORM | Prisma |
+| Auth | Custom account/session flow with bcrypt password hashing |
+| Email | Resend in production, console verification codes in development |
+| Image storage | AWS S3 presigned uploads |
+| Hosting target | Vercel |
+| Testing | Vitest, Testing Library, jsdom |
+| Quality | ESLint, Prettier, Lighthouse |
 
-   - On /catalog, “Database Status” shows Connected.
-   - If not: confirm container is running, then:
-      - npx prisma migrate dev -n "sync"
-      - npx prisma generate
+## Project Structure
 
-## Developer Instructions
+```text
+NOVA_Project/
+  README.md
+  infra/
+  nova_project/
+    package.json
+    prisma/
+      schema.prisma
+      seed.ts
+    public/
+    src/
+      app/
+        api/
+        catalog/
+        staff/
+      content/
+      lib/
+```
 
-### Steps to Run the Next.js Project Locally
-
-1. Install Node.js
-   - Download and install the latest LTS version of Node.js from https://nodejs.org
-
-2. Configure PowerShell Permissions (One-Time Setup)
-
-- Open Windows PowerShell as Administrator.
-- Run the following command to allow local scripts:
-  - In Powershell:
-    - Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-    - Type y and press Enter when prompted.
-- Close PowerShell after completing this step.
+The application source lives in `nova_project/`. Run npm, Prisma, and Next.js commands from that directory unless a command says otherwise.
 
-3. Open the Project in Visual Studio Code (VSC)
-   - Launch VS Code and open the project folder.
+## Main Features
 
-4. Install Dependencies
-   - In the VS Code powershell terminal, navigate to the project directory:
-     - cd path\to\project-folder
+### Public Site
 
-5. Install the required packages
-   - In Powershell (Will automatically install all dependecines from package.json):
-     - npm install
-   - Run the development server:
-     - npm run dev
-   - Once it starts, open http://localhost:3000 in your web browser.
+- Home page with Niles Biological marketing content and featured catalog entry points.
+- Catalog page with search, filters, pagination, item cards, and product detail routing.
+- About, contact, privacy, and informational article pages.
+- API-backed catalog data with fallback/source selection support through environment variables.
 
-6. Stop the Server
-   - To stop the local server, press Ctrl + C in the terminal.
+### Staff Tools
 
-### Contribution Styles
+- Staff shell and dashboard navigation.
+- Catalog item search, creation, editing, image association, and inventory fields.
+- Category management for three-level product taxonomy.
+- Ticket creation and dashboard review for inventory changes.
+- Account management for staff/admin users.
+- Task assignment and completion tracking.
+- Article management for informational content.
 
-1) Branching & commits
-   
-   - Branch name: SCRUM-###-concise-feature-name
-      - Example: SCRUM-81-Search-Hero-and-Grid
-   - Commit messages: SCRUM-81: short action summary
-      - Example: SCRUM-81: Add hero search placeholder with aria-live
+### Backend and Data
 
-2) PR checklist
+- Prisma schema for catalog items, images, category hierarchy, accounts, sessions, alerts, tickets, tasks, and articles.
+- MySQL database support for local Docker development and deployed environments.
+- Seed script for development catalog data, staff/test records, category hierarchy, and article content.
+- Health endpoints at `/api/health` and `/api/health/db`.
 
-   - Builds cleanly (npm run build)
-   - Lint/format pass (npm run lint, npm run format)
-   - Local tests pass (see Testing Instructions)
-   - No console errors in runtime
-   - Accessibility: form labels, focus, aria-live working
-   - Screenshots for visual changes
-   - If schema changed: migration included + notes
+## Prerequisites
 
-3) Code style
-   - TypeScript strict where feasible.
-   - Prettier formatting; ESLint for quality.
-   - Accessible components: label inputs, manage focus, avoid color-only cues
+- Node.js LTS.
+- npm.
+- Docker Desktop if running MySQL locally.
+- MySQL database credentials for local or deployed database access.
+- Optional AWS credentials for local S3 upload testing.
+- Optional Resend API key for production email delivery.
 
-4) Database workflow (local)
-   - '#' after reboot (cheat sheet)
-     docker start nilesbio
-     npm install
-     npx prisma generate
-     npm run dev
-     
-   - Schema changed?
-        npx prisma migrate dev -n "change"
+## Download and Local Setup
 
-   - Seeding (local only):
-        npx prisma db seed
+Clone the repository:
 
-   - Env files (local)
-     Create both .env and .env.local in nova_project/:
-        DATABASE_URL="mysql://app:app@localhost:3307/nilesbio"
-        SHADOW_DATABASE_URL="mysql://app:app@localhost:3307/nilesbio_shadow"
-        APP_VERSION=dev
+```powershell
+git clone https://github.com/iceyatom/NOVA_Project.git
+cd NOVA_Project
+```
 
-5) Project Scripts
-   | Script                                   | What it does                                                                      |
-   | ---------------------------------------- | --------------------------------------------------------------------------------- |
-   | **npm run dev**                          | Dev server (Turbopack)                                                            |
-   | **npm run build**                        | Production build                                                                  |
-   | **npm run start**                        | Run production build                                                              |
-   | **npm run lint**                         | ESLint check                                                                      |
-   | **npm run check**                        | Prettier check (no write)                                                         |
-   | **npm run format**                       | Prettier write                                                                    |
-   | **npm run lh:local**                     | Runs Lighthouse Report for local build                                            |
-   | **npm run lh:preview**                   | Runs Lighthouse Report for deployed build                                         |
+From the repository root:
 
+```powershell
+cd nova_project
+npm install
+```
 
-### Scripts
+Create `nova_project/.env` and `nova_project/.env.local` as needed. A basic local database setup looks like:
 
-1. ESLint
+```env
+DATABASE_URL="mysql://app:app@localhost:3307/nilesbio"
+SHADOW_DATABASE_URL="mysql://app:app@localhost:3307/nilesbio_shadow"
+APP_VERSION="dev"
+```
 
-- npm run lint: runs ESLint to error check the project
+Optional service variables:
 
-2. Prettier
+```env
+AWS_REGION="us-east-2"
+S3_BUCKET_NAME="your-s3-bucket-name"
+MAX_UPLOAD_SIZE="10485760"
+RESEND_API_KEY="your-resend-key"
+RESEND_FROM="verified-sender@example.com"
+CATALOG_DATA_SOURCE="auto"
+```
 
-- npm run check: checks only formatting to show where changes are needed
-- npm run format: writes formatting changes to make all styling consistent
+Production database deployments may use separate database parts instead of `DATABASE_URL`:
 
-3. NPM Development, Build, Start
+```env
+DB_HOST="your-rds-host"
+DB_PORT="3306"
+DB_USER="your-user"
+DB_PASSWORD="your-password"
+DB_NAME="your-database"
+```
 
-- npm run dev: runs the project in development mode using Turbopack for fast responsiveness when files are saved
-- npm run build: builds the project with compiling and compression; must be done before npm run start
-- npm run start: runs the production build optimized for efficiency
+## Local Database
 
-4. Health Check
+Start a local MySQL container:
 
-- npm run health: verifies that the local server is running by pinging /api/health
+```powershell
+docker run -d --name nilesbio -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=nilesbio -e MYSQL_USER=app -e MYSQL_PASSWORD=app -p 3307:3306 mysql:8.0
+```
 
-5. Lighthouse Audits
+For later sessions:
 
-- npm run lh:local: generates a Lighthouse performance and accessibility report for the local server and saves it to docs/lighthouse/local-desktop.html
-- npm run lh:preview: runs a Lighthouse audit on the deployed Vercel preview site and saves the report to docs/lighthouse/preview-desktop.html
+```powershell
+docker start nilesbio
+```
 
-6. Prisma and Database Management (not implemented yet)
+Create the shadow database and grant Prisma migration privileges:
 
-- npm run prisma:generate: generates the Prisma client based on the schema
-- npm run prisma:migrate: applies local development migrations
-- npm run prisma:deploy: deploys schema migrations to the production database
-- npm run db:seed: seeds the database with initial data from prisma/seed.ts
+```powershell
+docker exec -it nilesbio mysql -u root -p
+```
 
-### Docker
+Then run in the MySQL prompt:
 
-For the app development phase, please use Docker to develop the app.
+```sql
+CREATE DATABASE IF NOT EXISTS nilesbio_shadow;
+GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON nilesbio.* TO 'app'@'%';
+GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON nilesbio_shadow.* TO 'app'@'%';
+FLUSH PRIVILEGES;
+```
 
-Installation instructions
+Apply the Prisma schema and seed local data:
 
-1. Install Docker Desktop:
+```powershell
+npx prisma generate
+npx prisma migrate dev -n init
+npx prisma db seed
+```
 
-- https://www.docker.com/products/docker-desktop/
+Use `npx prisma studio` to inspect local records.
 
-2. Get the Docker extension by Microsoft in Visual Studio Code.
+## Running the App
 
-#### Usage
+```powershell
+npm run dev
+```
 
-1. Open the Docker Desktop app and complete the initial setup.
+Open:
 
-2. Enter the following command into the terminal to instantiate a Docker container for nilesbio:
+- `http://localhost:3000`
+- `http://localhost:3000/catalog`
+- `http://localhost:3000/staff`
+- `http://localhost:3000/api/health`
 
-- docker run -d --name nilesbio --env-file .env.development -p 3307:3306 mysql:8.0
+Stop the dev server with `Ctrl+C`.
 
-3. Enter the following command into the terminal to access the MySQL terminal:
+## Scripts
 
-- docker exec -it nilesbio mysql -u <username> -p
-- Username and password can be found in internal documentation.
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js development server with Turbopack. |
+| `npm run build` | Build the production application. |
+| `npm run start` | Run the production build locally. |
+| `npm run lint` | Run ESLint checks. |
+| `npm run format` | Format the project with Prettier. |
+| `npm run check` | Check formatting without writing changes. |
+| `npm run test` | Run Vitest once. |
+| `npm run test:watch` | Run Vitest in watch mode. |
+| `npm run test:ui` | Run the Vitest UI. |
+| `npm run health` | Request the local `/api/health` endpoint. |
+| `npm run lh:local` | Generate a local Lighthouse report. |
+| `npm run lh:preview` | Generate a Lighthouse report for the configured preview URL. |
 
-4. Special privileges must be granted to the nilesbio database user so that Prisma can perform operations properly. Enter this series of commands into the MySQL terminal to grant these privileges:
+## Testing
 
-- CREATE DATABASE nilesbio_shadow;
-- GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON `nilesbio`.\* TO 'app'@'%';
-- GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON `nilesbio_shadow`.\* TO 'app'@'%';
+Automated tests and quality checks are run from `nova_project/`:
 
-5. To remove, stop, or make other changes to the Docker container, click on the Container icon in the left pane of Visual Studio Code.
+```powershell
+npm run lint
+npm run check
+npm run test
+npm run build
+```
 
-### Seeding the Database
+### Vitest
 
-The Prisma seed file (prisma/seed.ts) populates the nilesbio database with test catalog data for development and UI testing. This includes 600+ sample entries containing the fields itemName, category, description, and price.
+The project uses Vitest with Testing Library and jsdom for component and behavior tests. The configured test scripts are:
 
-<img src="https://github.com/iceyatom/NOVA_Project/blob/Readme-Update/nova_project/public/ERD.webp" alt="Database ERD" style="width:50%; height:auto;">
+| Command | Purpose |
+| --- | --- |
+| `npm run test` | Runs the full Vitest suite once. |
+| `npm run test:watch` | Runs Vitest in watch mode while developing. |
+| `npm run test:ui` | Opens the Vitest browser UI for inspecting test results. |
 
-Here is the Entity Relationship Diagram for the database. 
+For more detailed terminal output, run Vitest with the verbose reporter:
 
-Ensure your Prisma Client is up to date:
+```powershell
+npm run test -- --reporter=verbose
+```
 
-- npx prisma generate
-- Run the seed script to populate the database:
-- npx prisma db seed
+To run one test file with verbose output:
 
-This command executes the prisma/seed.ts file and inserts the test catalog items into the database.
+```powershell
+npx vitest run path/to/test-file.test.tsx --reporter=verbose
+```
 
-#### Reset and Reseed
-To completely reset the database and reapply all migrations (including reseeding):
+Health checks:
 
-- npx prisma migrate reset
+- `npm run health` verifies the local `/api/health` endpoint while the dev server is running.
+- Open `http://localhost:3000/api/health/db` to verify database connectivity.
 
-This will drop, recreate, and reseed the database with the latest schema and test data.
+Manual test paths:
 
-#### Important Notes
-- Running npx prisma db seed multiple times without resetting will create duplicate entries in the database.
+- `http://localhost:3000` for the public home page.
+- `http://localhost:3000/catalog` for catalog search, filtering, pagination, and detail navigation.
+- `http://localhost:3000/login` for account login.
+- `http://localhost:3000/create_account` for account creation and email verification.
+- `http://localhost:3000/staff` for staff dashboard access after login.
+- Staff catalog create/edit, category management, ticket creation, ticket dashboard, article management, account management, and task views should be checked with a seeded local database.
 
-- Use migrate reset if you need a clean database state before reseeding.
+## Verification Checklist
 
-- The seed data is designed for local development only, do not run it in production environments.
+Before submitting changes:
 
-You can view and verify the seeded records using:
-- npx prisma studio
+```powershell
+npm run lint
+npm run check
+npm run test
+npm run build
+```
 
-#### Prisma
+For database-bound changes:
 
-This project uses Prisma for database management. Prisma must be properly installed and configured on your machine to contribute database-bound tasks.
+```powershell
+npx prisma generate
+npx prisma migrate dev -n descriptive_change_name
+npx prisma db seed
+```
 
-1. Install dependencies in console:
+Manual checks:
 
-- npm install
-- npm install prisma
-- npm install @prisma/client
+- Public pages load without console errors.
+- Catalog search, filters, pagination, and detail pages work.
+- Staff-only pages redirect or block unauthenticated users.
+- Account registration and verification flow works.
+- Staff catalog item create/edit flows persist database changes.
+- Image upload flows work when S3 variables and credentials are configured.
+- `/api/health` and `/api/health/db` report expected status.
 
-2. Move seed.ts out of existing primsa folder and then delete that folder
+## Deployment Notes
 
-3. Run 'npm prisma init' on console then move the seed.ts file back into the newly created prisma folder
+The intended deployment target is Vercel with AWS-backed services.
 
-4. Make the following changes to the schema.primsa file
+Production environment variables should include:
 
-- datasource db provider= "postgresql" --> "mysql"
-- generator client provider=prisma-client-js instead of prisma-client
-- generator client output="../node_modules/.prisma/client" instead of “..src/generated/prisma”
+- Database connection values, either `DATABASE_URL` or `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME`.
+- `AWS_REGION`.
+- `S3_BUCKET_NAME` for catalog image uploads.
+- `AWS_ROLE_ARN` when using Vercel OIDC for AWS credentials.
+- `RESEND_API_KEY` and `RESEND_FROM` for real email verification delivery.
+- `APP_VERSION` for health response metadata.
 
-5. Create a .env and a .env.development file under the nova_project directory and delete any content inside them
+After deployment:
 
-#### Usage
+- Confirm Vercel build completes successfully.
+- Confirm deployed app can reach the database.
+- Confirm `/api/health` and `/api/health/db` return healthy responses.
+- Confirm S3 upload paths work from staff item creation/editing pages.
+- Confirm production email verification sends through Resend.
 
-Before using Prisma, please set up Docker and the nilesbio database properly or some functionalities of Prisma will not work properly.
+## Team Members and Contact
 
-1. Whenever schema.prisma file is modified, if the client was never generated, if development shifts to prod, or if dependencies are installed (such as npm install), enter the following command into the terminal to generate or update the Prisma client:
+Project contributors identified from repository history:
 
-- npx prisma generate
+| Name | Contact |
+| --- | --- |
+| Jonathan | GitHub: `@iceyatom` |
+| Adam Fedorowicz | GitHub: `@TheMightyOctopus` |
+| Alan Kushnir | GitHub: `@aa-alan` |
+| Brandon Casey | GitHub: `@Zon-Vorelle` |
+| Mohamed Ismail | GitHub: `@Mismail-max` |
+| Mustafa El Attar | GitHub: `@mustafa2155` |
+| Ronit Narayan | GitHub: `@ronitnarayan` |
+| Thomas Nguyen | GitHub: `@sam0htngy` |
 
-2. During the development phase, when changing the schema.prisma file, you must track the schema changes by running the following command into the terminal:
+## Team Workflow
 
-- npx prisma migrate dev
-  or
-- npx prisma migrate dev -n <schema change purpose>
+- Use feature branches named like `SCRUM-123-short-feature-name`.
+- Use commit messages like `SCRUM-123: Add staff ticket dashboard filter`.
+- Include migrations when changing `prisma/schema.prisma`.
+- Do not commit `.env`, `.env.local`, credentials, database dumps, or generated Lighthouse reports unless intentionally requested.
+- Include screenshots for visual changes.
+- Keep README screenshots and diagrams in `nova_project/public/` or `docs/images/` when they are part of the project documentation.
 
-### Local Database Setup & Verification
+## Entity Relationship Diagram
 
-The project uses a Prisma-based connection layer to communicate with a local MySQL database running in Docker Desktop. This ensures a consistent and reproducible development environment across all team members.
+The current ERD image is stored in the application public assets:
 
-Using database connection method:
-Example – lib/db.ts defines a shared Prisma client (singleton) that reads configuration from .env.development. All database operations import this client, maintaining consistent connection handling across the app.
-
-Developer notes:
-
-- Docker Desktop and the local MySQL container must be running.
-- .env.development should contain a valid DATABASE_URL.
-- Run Prisma commands (generate, migrate, seed) before launching the app.
-- Use the Catalog page to visually verify a successful connection.
-
-### Configure Security & Networking (Docker Local + AWS RDS)
-
-### Docker Local
-
-- AWS RDS MySQL instance created and running.
-- Docker Desktop + Docker Compose installed locally.
-- Your public IP allowlisted in the RDS Security Group (TCP 3306).
-- `.env` and `.env.development` files in the project root with correct credentials.
-
-### AWS RDS
-
-### AWS IAM Accounts for RDS Access
-
-This setup ensures every developer connects to the AWS RDS database using **their own IAM account**, not shared admin or root credentials.  
-This provides:
-
-- **Traceability** — Each connection is tied to an individual user.
-- **Security** — Access follows the **principle of least privilege**.
-- **Compliance** — Prevents accidental exposure of shared keys or over-permissive roles.
-
-#### Key Concepts
-
-| Term                                     | Description                                                                       |
-| ---------------------------------------- | --------------------------------------------------------------------------------- |
-| **IAM (Identity and Access Management)** | AWS service for managing users, roles, and permissions.                           |
-| **IAM Policy**                           | JSON document that defines what actions a user can perform.                       |
-| **Access Key ID / Secret Access Key**    | Credentials used for programmatic or CLI access to AWS.                           |
-| **RDS Access Policy**                    | A restrictive policy allowing connection and basic management of an RDS instance. |
-| **Least Privilege Principle**            | Users receive only the minimal permissions needed to do their job.                |
-
-#### Add IP address to the Inbound Rules in the VPC security group
-1. Go to the AWS Management Console → RDS → Databases → select your database.
-2. Scroll to the Connectivity & security tab.
-3. Under VPC security groups, click the linked security group ID (e.g., sg-Babc123def456).
-
-- This opens the EC2 > Security Groups page.
-
-4. Select the group, then click the Inbound rules tab.
-5. Click Edit inbound rules
-
-- Add rule.
-
-6. Fill it out like this:
-
-- Type: MySQL/Aurora (or the DB engine's port)
-- Protocol: TCP
-- Port Range: 3306
-- Source: My IP
-  AWS automatically fills your current public IP with /32 (e.g. 123.45.67.89/32 ).
+<img src="nova_project/public/erd.png" alt="Database ERD" width="700">

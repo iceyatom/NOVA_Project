@@ -430,8 +430,8 @@ export default function StaffDashboardHome() {
     <div>
       <div className="staffTitle">Welcome, {account || "Employee"}</div>
       <div className="staffSubtitle">
-        This is the staff dashboard foundation. Panels below are placeholders
-        for inventory summaries and future widgets.
+        Review current staff notifications, share announcements, and keep track
+        of work that needs attention across the team.
       </div>
 
       <div className="staffGrid">
